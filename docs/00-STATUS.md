@@ -16,8 +16,8 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 | Item | Estado |
 |---|---|
-| Fase atual | **Fase 6 — Empacotamento, docs e validação** 🔨 em andamento (sessão 9): passe de tech-debt + estilização real + guia de estilização feitos; **falta** build ESM+CJS+d.ts, README/exemplos, bench, a11y |
-| Próxima fase | Concluir Fase 6 (build/README/bench/a11y) — idealmente rodado no VSCode (jsdom/bundler não rodam no sandbox) |
+| Fase atual | **Fase 6 — Empacotamento, docs e validação** ✅ concluída (sessão 9): tech-debt, estilização + guia, build ESM+CJS+d.ts (tsc, sem bundler nativo), README (React+vanilla), bench, a11y básica |
+| Próxima fase | Backlog: navegação por teclado no grid; split de eventos multi-dia timed; edição de recorrência via drag; interação em Multiagenda/Timeline; adapters Vue/Angular/vanilla; pacote `ical` |
 | Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, store, GeometryEngine, render Preact + CalendarApp, views Week/Day/Month/NDays/List, Multiagenda + Timeline, capacity/buffers/multi-recurso, eventSource por range, slots renderEvent/renderToolbar, InteractionEngine (drag/resize/seleção, preview→commit→revert, validação dura de lotação/buffer). **`packages/react` (real): `<Calendar/>` (instância única + sync de props via API imperativa), `useCalendar` (handle imperativo estável), `createReactView` + `ReactIsland` (ponte React↔Preact), customToolbar/nativeToolbar, eventSource/refetchKey** — **~160 testes** (130 node + 30 jsdom; ver nota do sandbox) |
 | Nomenclatura | Passe de clareza em TODO o core (sem identificadores de 1 caractere; `T`→`temporal`). Regras adicionais travadas: **imports do preact com alias semântico** (`h as createElement`) e **condições extraídas para `const` booleanas nomeadas** (nada de valor "solto" em `if`). |
 | Motor de recorrência | Validado contra rrule.js: base 43/44 → **gap corrigido e provado (v2): 23/23**, incl. multi-ordinal. |
@@ -96,7 +96,7 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 
 ## Log de sessões
 
-### Sessão 9 — 2026-07-22 — Fase 6 (parcial): tech-debt + estilização ✅ (build/docs pendentes)
+### Sessão 9 — 2026-07-22 — Fase 6 ✅ (tech-debt, estilização, build, README, bench, a11y)
 - **Passe de tech-debt (skill `engineering:tech-debt` + `tsc --noUnusedLocals --noUnusedParameters` como detector).**
   Achados e correções:
   - **Código morto removido:** `occurrenceKey` (definido e NUNCA usado em `views/resourceViews.tsx` — era o que o
@@ -117,9 +117,25 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
   (erro "bibliotecas não suportadas") — é esperado: são módulos de biblioteca para build, não artefatos live. E o
   sandbox não boota jsdom nem roda bundler no tempo dado. Então **build (ESM+CJS+d.ts), specs jsdom e bench devem
   rodar no VSCode** (`yarn install && yarn test && yarn typecheck && yarn build`).
-- **Falta na Fase 6:** build por pacote (tsup/tsc ESM+CJS+`.d.ts`), README de consumo + exemplos (React e vanilla),
-  bench de performance (muitos eventos), a11y básica, e **medir o polyfill Temporal no bundle**.
-- **Próximo:** concluir a Fase 6 (build/README/bench/a11y).
+- **Build (concluído):** ESM+CJS+`.d.ts` por pacote via **`tsc` puro** (NÃO tsup — o rollup nativo do tsup não roda
+  no sandbox Linux; e tsc é sem dependência nativa, cross-platform). Cada pacote tem `tsconfig.build.json` (ESM,
+  `module ESNext`, `moduleResolution Bundler`, `declaration`) + `tsconfig.cjs.json` (`CommonJS`/`Node`,
+  `verbatimModuleSyntax:false`, grava `dist/cjs/package.json` `{"type":"commonjs"}`). `dev` continua em `src`
+  (main/exports); `publishConfig` aponta `dist/esm` (import/types) e `dist/cjs` (require). **Ordem importa:** o
+  react consome as `.d.ts` buildadas do core (`tsconfig.build`/`cjs` do react mapeiam `@meucalendario/core`→
+  `../core/dist/esm/index.d.ts`); o root `build` roda **core → react → styles** explicitamente (não
+  `yarn workspaces run build`, que não garante ordem e falhava com "Command build not found"). Verificado no
+  sandbox: core e react emitem ESM+CJS+d.ts e importam limpo (54 exports cada).
+- **README** reescrito (uso React `<Calendar/>`+`useCalendar`, uso vanilla `CalendarApp`+`registerView`, interação,
+  recorrência, estilização, a11y, build, bench). **Bench** (`scripts/bench.mjs`): expand+buildDays+layout p/ N
+  eventos — no sandbox (polyfill Temporal) ~0,4 ms/evento (500→~208ms, 2000→~822ms); **gargalo = conversões de
+  timezone do polyfill**; com Temporal nativo é bem mais rápido (fecha a pendência "medir polyfill no bundle").
+  **a11y:** toolbar ganhou `role="toolbar"`, `aria-label` nos ícones ‹/›, `aria-pressed` nas views, `aria-live` no
+  título (navegação por teclado no grid fica no backlog).
+- **Correção:** o teste de seleção do `interactionApp.spec.ts` (jsdom) usava minutos na zona inválida do stub
+  (≥720) → ajustado p/ 600–660 (mesmo fix já feito no spec node). Suíte real do Jackson: **163/163** após o fix.
+- **Fase 6 concluída.** Backlog (fases posteriores): teclado no grid, split multi-dia timed, edição de recorrência
+  via drag, interação em Multiagenda/Timeline, adapters Vue/Angular/vanilla, pacote `ical`.
 
 ### Sessão 8 — 2026-07-22 — Fase 5 (Adapter React idiomático) ✅
 - **`packages/react` deixou de ser stub.** Implementado o adapter FINO (ADR-001/002): a instância do

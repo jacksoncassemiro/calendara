@@ -70,10 +70,14 @@ Requisito de 1ª classe — ver `reference/agenda-desvinculada.md`.
   specs jsdom (CI). Peer deps `react`/`react-dom` (>=18). **Nota:** views vanilla já funcionam via `registerView`;
   `createReactView` é a conveniência para corpo em React (ilha react-dom). Verificação jsdom não roda no sandbox. ✅
 
-## Fase 6 — Empacotamento, docs e validação
-1. Build ESM+CJS+`.d.ts` (por pacote); CSS compilado isolado.
-2. README de consumo + exemplos (React e vanilla) + storybook/playground.
-3. Bench de performance (muitos eventos) e a11y básica.
+## Fase 6 — Empacotamento, docs e validação ✅ (concluída na sessão 9)
+1. [x] Build ESM+CJS+`.d.ts` (por pacote) via **`tsc` puro** (sem bundler nativo); CSS isolado (tema real +
+   `docs/04-ESTILIZACAO.md`). Root `build` = core → react → styles (ordem explícita).
+2. [x] README de consumo + exemplos (React e vanilla). (storybook/playground: backlog.)
+3. [x] Bench de performance (`scripts/bench.mjs`, muitos eventos) e a11y básica (roles/aria na toolbar).
+- **Passe extra:** tech-debt (código morto removido, helpers deduplicados em `date/time.ts` e `views/utils.ts`).
+- **DoD:** `yarn build` gera dist por pacote; testes 163/163; exemplos no README. Storybook, teclado no grid e
+  bench com Temporal nativo ficam no backlog.
 - **DoD:** pacotes instaláveis; exemplos rodando; testes verdes; `00-STATUS.md` atualizado.
 
 ## Fases posteriores (backlog)

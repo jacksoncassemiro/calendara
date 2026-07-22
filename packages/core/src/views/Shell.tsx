@@ -31,35 +31,51 @@ export function CalendarShell(props: ShellProps): JSX.Element {
 function DefaultToolbar(props: { toolbar: ToolbarContext }): JSX.Element {
   const { toolbar } = props;
   return (
-    <div class="mc-toolbar" data-mc-toolbar>
+    <div class="mc-toolbar" data-mc-toolbar role="toolbar" aria-label="Navegação do calendário">
       <div class="mc-toolbar-nav">
-        <button type="button" class="mc-nav-prev" data-mc-nav-prev onClick={() => toolbar.goPrev()}>
+        <button
+          type="button"
+          class="mc-nav-prev"
+          data-mc-nav-prev
+          aria-label="Período anterior"
+          onClick={() => toolbar.goPrev()}
+        >
           ‹
         </button>
         <button type="button" class="mc-nav-today" data-mc-nav-today onClick={() => toolbar.goToday()}>
           Hoje
         </button>
-        <button type="button" class="mc-nav-next" data-mc-nav-next onClick={() => toolbar.goNext()}>
+        <button
+          type="button"
+          class="mc-nav-next"
+          data-mc-nav-next
+          aria-label="Próximo período"
+          onClick={() => toolbar.goNext()}
+        >
           ›
         </button>
       </div>
 
-      <span class="mc-title" data-mc-title>
+      <span class="mc-title" data-mc-title aria-live="polite">
         {toolbar.title}
       </span>
 
-      <div class="mc-toolbar-views">
-        {toolbar.views.map((view) => (
-          <button
-            key={view.name}
-            type="button"
-            class={`mc-view-btn${view.name === toolbar.viewName ? ' mc-active' : ''}`}
-            data-mc-view-btn={view.name}
-            onClick={() => toolbar.changeView(view.name)}
-          >
-            {view.label}
-          </button>
-        ))}
+      <div class="mc-toolbar-views" role="group" aria-label="Trocar visualização">
+        {toolbar.views.map((view) => {
+          const isActive = view.name === toolbar.viewName;
+          return (
+            <button
+              key={view.name}
+              type="button"
+              class={`mc-view-btn${isActive ? ' mc-active' : ''}`}
+              data-mc-view-btn={view.name}
+              aria-pressed={isActive}
+              onClick={() => toolbar.changeView(view.name)}
+            >
+              {view.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
