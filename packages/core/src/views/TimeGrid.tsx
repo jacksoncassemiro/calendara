@@ -6,7 +6,7 @@
  * (posições absolutas/alturas), que precisa existir no DOM independente de CSS carregado.
  */
 import type { JSX } from 'preact';
-import type { GridVM, DayColumnVM } from './viewModel.js';
+import type { GridVM, DayColumnVM, DraftVM } from './viewModel.js';
 import type { Segment } from '../render/derive.js';
 
 const GUTTER_PX = 56;
@@ -93,16 +93,21 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
         </div>
 
         {/* Colunas de dia */}
-        {vm.columns.map((column) => (
-          <DayColumn
-            key={column.dateISO}
-            column={column}
-            bodyHeight={bodyHeight}
-            hourMinutes={vm.hourLabels.map((hourLabel) => hourLabel.min)}
-            minuteToY={minuteToY}
-            pxPerMinute={vm.pxPerMinute}
-          />
-        ))}
+        {vm.columns.map((column) => {
+          const columnDraft =
+            vm.draft && vm.draft.dateISO === column.dateISO ? vm.draft : undefined;
+          return (
+            <DayColumn
+              key={column.dateISO}
+              column={column}
+              bodyHeight={bodyHeight}
+              hourMinutes={vm.hourLabels.map((hourLabel) => hourLabel.min)}
+              minuteToY={minuteToY}
+              pxPerMinute={vm.pxPerMinute}
+              draft={columnDraft}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -128,8 +133,9 @@ function DayColumn(props: {
   hourMinutes: number[];
   minuteToY: (minuteOfDay: number) => number;
   pxPerMinute: number;
+  draft?: DraftVM;
 }): JSX.Element {
-  const { column, bodyHeight, hourMinutes, minuteToY, pxPerMinute } = props;
+  const { column, bodyHeight, hourMinutes, minuteToY, pxPerMinute, draft } = props;
   return (
     <div
       class={`mc-day-col${column.isToday ? ' mc-today' : ''}`}
@@ -169,8 +175,11 @@ function DayColumn(props: {
       {column.events.map((eventItem) => (
         <div
           key={eventItem.id}
-          class="mc-event"
+          class={`mc-event${eventItem.editable ? ' mc-editable' : ''}`}
           data-mc-event={eventItem.id}
+          data-mc-start-min={eventItem.startMin}
+          data-mc-end-min={eventItem.endMin}
+          data-mc-editable={eventItem.editable ? 'true' : 'false'}
           title={eventItem.title}
           style={{
             position: 'absolute',
@@ -178,6 +187,7 @@ function DayColumn(props: {
             height: toPx(eventItem.block.height),
             left: `${eventItem.block.left * 100}%`,
             width: `${eventItem.block.width * 100}%`,
+            ...(eventItem.editable ? { touchAction: 'none' } : {}),
             ...(eventItem.color ? { backgroundColor: eventItem.color } : {}),
           }}
         >
@@ -187,8 +197,33 @@ function DayColumn(props: {
               <span class="mc-event-title">{eventItem.title}</span>
             </>
           )}
+          {/* Alça de redimensionamento (borda inferior) — só em eventos editáveis. */}
+          {eventItem.editable && (
+            <div
+              class="mc-resize-handle"
+              data-mc-resize
+              style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '6px', cursor: 'ns-resize' }}
+            />
+          )}
         </div>
       ))}
+
+      {/* Fantasma do gesto (preview de drag/resize/select) */}
+      {draft && (
+        <div
+          class={`mc-draft mc-draft-${draft.kind}${draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`}
+          data-mc-draft={draft.kind}
+          data-mc-draft-valid={draft.valid ? 'true' : 'false'}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: toPx(minuteToY(draft.startMin)),
+            height: toPx((draft.endMin - draft.startMin) * pxPerMinute),
+            pointerEvents: 'none',
+          }}
+        />
+      )}
 
       {/* Linha "agora" */}
       {column.nowMinutes !== null && (

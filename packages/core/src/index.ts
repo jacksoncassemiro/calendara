@@ -85,7 +85,40 @@ export {
 	type EventVM,
 	type AllDayVM,
 	type HourLabelVM,
+	type DraftVM,
 } from "./views/index.js";
+
+// Interação (Fase 4): drag & drop + resize + seleção
+export {
+	InteractionEngine,
+	snapMinute,
+	clampSpanToGrid,
+	computeMoveDraft,
+	computeResizeDraft,
+	computeSelectDraft,
+	validateOccupancy,
+	applyEventTimeChange,
+	minutesToDateTime,
+	type InteractionKind,
+	type DraftReason,
+	type PointerSlot,
+	type GridBounds,
+	type PlacementInfo,
+	type DraftGeometry,
+	type InteractionDraft,
+	type EventChange,
+	type SelectionChange,
+	type BlockedInfo,
+	type CommitResult,
+	type SnapRounding,
+	type BusyInterval,
+	type ResourceOccupancy,
+	type OccupancyResult,
+	type EvaluationInput,
+	type DraftEvaluation,
+	type InteractionCallbacks,
+	type InteractionDeps,
+} from "./interaction/index.js";
 
 // Render headless (Preact isolado) + CalendarApp
 export {

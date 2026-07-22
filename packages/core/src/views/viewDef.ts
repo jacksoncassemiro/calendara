@@ -9,6 +9,7 @@ import type { DateUtils } from '../date/dateUtils.js';
 import type { CalendarOptions } from '../render/state.js';
 import type { CalendarEvent, EventOccurrence } from '../types/event.js';
 import type { ConstraintSet } from '../types/constraint.js';
+import type { InteractionDraft } from '../interaction/model.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
@@ -51,6 +52,8 @@ export interface ViewRenderContext {
   constraints: ConstraintSet;
   /** Epoch ms de "agora" (injetável). */
   nowMs: number;
+  /** Rascunho vivo do gesto (drag/resize/select) para desenhar o fantasma. */
+  draft?: InteractionDraft;
   /** Slot custom para o conteúdo de evento (opcional). */
   renderEvent?: EventRenderSlot;
   /** Callback de clique em evento (opcional; interação plena na Fase 4). */

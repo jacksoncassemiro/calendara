@@ -7,7 +7,7 @@ import { buildDays } from '../render/derive.js';
 import { layoutDay, type GeoGrid } from '../geometry/geometry.js';
 import { formatDate, formatHourLabel } from './format.js';
 import type { ViewRenderContext } from './viewDef.js';
-import type { GridVM, DayColumnVM, EventVM, AllDayVM } from './viewModel.js';
+import type { GridVM, DayColumnVM, EventVM, AllDayVM, DraftVM } from './viewModel.js';
 import type { EventOccurrence } from '../types/event.js';
 
 function occurrenceKey(occurrence: EventOccurrence): string {
@@ -38,7 +38,7 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
     startHour: options.startHour,
     endHour: options.endHour,
     pxPerMinute: options.pxPerMinute,
-    minEventMinutes: 15,
+    minEventMinutes: options.minEventMinutes,
     gutter: 0,
   };
 
@@ -50,7 +50,16 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
       const placement = placementById.get(block.id)!;
       const event = placement.occurrence.event;
       const timeLabel = formatHourLabel(placement.startMin, options.locale);
-      const eventVM: EventVM = { id: block.id, block, title: event.title, timeLabel };
+      const isEditable = event.editable !== false;
+      const eventVM: EventVM = {
+        id: block.id,
+        block,
+        title: event.title,
+        timeLabel,
+        startMin: placement.startMin,
+        endMin: placement.endMin,
+        editable: isEditable,
+      };
       if (event.color !== undefined) eventVM.color = event.color;
       if (renderEvent) {
         eventVM.content = renderEvent({
@@ -94,7 +103,7 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
     hourLabels.push({ min: minute, label: formatHourLabel(minute, options.locale) });
   }
 
-  return {
+  const gridVM: GridVM = {
     viewName,
     startHour: options.startHour,
     endHour: options.endHour,
@@ -103,4 +112,21 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
     hourLabels,
     columns,
   };
+
+  const draft = context.draft;
+  if (draft) {
+    const draftDayVisible = columns.some((column) => column.dateISO === draft.dateISO);
+    if (draftDayVisible) {
+      const draftVM: DraftVM = {
+        dateISO: draft.dateISO,
+        startMin: draft.startMin,
+        endMin: draft.endMin,
+        kind: draft.kind,
+        valid: draft.valid,
+      };
+      gridVM.draft = draftVM;
+    }
+  }
+
+  return gridVM;
 }

@@ -27,6 +27,7 @@ export type {
   EventVM,
   AllDayVM,
   HourLabelVM,
+  DraftVM,
 } from './viewModel.js';
 
 import { weekView, dayView } from './timeGridViews.js';

@@ -16,9 +16,9 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 | Item | Estado |
 |---|---|
-| Fase atual | **Fase 3B — Recursos (Agenda Desvinculada) + Timeline/Multiagenda** ✅ concluída (sessão 6) |
-| Próxima fase | **Fase 4 — Interação: drag & drop + resize + seleção** ⏳ não iniciada |
-| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, store, GeometryEngine, render Preact + CalendarApp, views Week/Day/Month/NDays/List, **Multiagenda (colunas por recurso) + Timeline, capacity/buffers/multi-recurso, toggle de visibilidade**, eventSource por range, slots renderEvent/renderToolbar — **122/122 testes verdes** |
+| Fase atual | **Fase 4 — Interação: drag & drop + resize + seleção** ✅ concluída (sessão 7) |
+| Próxima fase | **Fase 5 — Adapter React idiomático** ⏳ não iniciada |
+| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, store, GeometryEngine, render Preact + CalendarApp, views Week/Day/Month/NDays/List, Multiagenda + Timeline, capacity/buffers/multi-recurso, toggle de visibilidade, eventSource por range, slots renderEvent/renderToolbar, **InteractionEngine (Pointer Events): mover/redimensionar/selecionar com preview→commit→revert, validação DURA de lotação/buffer no drop** — **~155 testes** (127 node + 28 jsdom; ver nota do sandbox no log da sessão 7) |
 | Nomenclatura | Passe de clareza em TODO o core (sem identificadores de 1 caractere; `T`→`temporal`). Regras adicionais travadas: **imports do preact com alias semântico** (`h as createElement`) e **condições extraídas para `const` booleanas nomeadas** (nada de valor "solto" em `if`). |
 | Motor de recorrência | Validado contra rrule.js: base 43/44 → **gap corrigido e provado (v2): 23/23**, incl. multi-ordinal. |
 | Gerenciador de pacotes | **yarn (workspaces)** — decidido na sessão 2 |
@@ -28,23 +28,29 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 ## Próximo passo concreto (para o próximo chat)
 
-Iniciar a **Fase 4** conforme `02-PLANO.md` (Interação: drag & drop + resize + seleção):
-1. **InteractionEngine** com Pointer Events: mover entre dias/horas, resize de borda.
-2. **preview → commit → revert**; seleção de intervalo (`onDateSelect`).
-3. Bloqueio de drop/click inválido com `onDropBlocked`/`onClickBlocked` (consultando o `ConstraintEngine`,
-   já exposto via `CalendarApp.evaluateSlot`).
-- Base pronta da Fase 3B: derivações resource-aware (`resourceDerive.ts`: `buildResourceColumns`,
-  `occurrencesForResource`, `resourceConstraintSet`, `maxConcurrency`), views `resources` (Multiagenda) e
-  `timeline` (via `createResourceDayView`/`createTimelineView`), `options.visibleResourceIds` +
-  `CalendarApp.setVisibleResources()`. Geometria/constraints já consomem capacity/buffers.
+Iniciar a **Fase 5** conforme `02-PLANO.md` (Adapter React idiomático):
+1. `<Calendar/>` fino em `packages/react` (cria o core 1x; entrega dados; callbacks estáveis) — hoje é stub.
+2. `eventSource.fetch({start,end})` + `refetchKey`; `customToolbar`/`nativeToolbar`; `createReactView`.
+3. Hook `useCalendar` para a API imperativa (prev/next/changeView) quando necessário.
+4. Ligar os callbacks de interação da Fase 4 (`onEventDrop`/`onEventResize`/`onDateSelect`/`onDropBlocked`/
+   `onClickBlocked`) na superfície React — **sem** `setTimeout`+diff manual do wsaude.
+- Base pronta da Fase 4 (core): `interaction/` = `gestureGeometry.ts` (snap/move/resize/select puros),
+  `occupancy.ts` (lotação/buffer), `model.ts` (`applyEventTimeChange`, `minutesToDateTime`), `interactionEngine.ts`
+  (Pointer Events, delegação, preview→commit→revert). `CalendarApp` liga tudo: draft no `ViewRenderContext`/`GridVM`,
+  fantasma + alça de resize no `TimeGrid` (`data-mc-draft`/`data-mc-resize`/`data-mc-start-min`), update otimista com
+  revert se o callback retornar `false`/rejeitar. `config.resources` habilita a validação de ocupação.
 - **Pendências abertas:** medir custo do polyfill Temporal no bundle; **split de eventos multi-dia timed**
-  (hoje ancorados no dia de início e recortados); buffers/capacity ainda são visuais/informativos — a
-  validação dura por buffer/lotação entra junto da interação (Fase 4) ou numa extensão do ConstraintEngine.
+  (hoje ancorados no dia de início e recortados); **edição de ocorrência recorrente via drag** (hoje o commit
+  otimista só muta eventos NÃO recorrentes — recorrentes disparam o callback para o app criar override);
+  interação hoje é das views de time-grid (Week/Day/NDays) — estender a Multiagenda/Timeline (mover entre recursos).
+- **Resolvido nesta fase:** buffers/capacity deixaram de ser só visuais — o drop/resize agora é BARRADO por
+  lotação (`over-capacity`) e por buffer (`buffer-conflict`) via `interaction/occupancy.ts` (varredura de
+  concorrência com intervalos estendidos pelo buffer; genérico, sem regra de negócio — ADR-006).
 
 ### Como rodar o que já existe
 ```bash
 # na raiz (yarn é o gerenciador oficial; no sandbox de verificação usamos npm pois yarn não instala lá)
-yarn install && yarn test      # vitest: 87/87
+yarn install && yarn test      # vitest: ~155 (127 node + 28 jsdom)
 # core/src/index.ts exporta: ensureTemporal, createDateUtils, expandEvent, expandRule,
 # parseRRule/serializeRRule, ConstraintEngine e todos os tipos canônicos.
 ```
@@ -87,6 +93,38 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 ---
 
 ## Log de sessões
+
+### Sessão 7 — 2026-07-22 — Fase 4 (Interação: drag & drop + resize + seleção) ✅
+- **Novo módulo `packages/core/src/interaction/`** (puro + DOM-thin, seguindo a filosofia do projeto):
+  - `gestureGeometry.ts` — geometria de GESTO pura (minutos-do-dia): `snapMinute`, `clampSpanToGrid`,
+    `computeMoveDraft` (preserva duração + ponto de agarre), `computeResizeDraft` (mantém início, duração
+    mínima), `computeSelectDraft` (ordena/snap para fora). **Não confundir** com `geometry/geometry.ts`
+    (GeometryEngine de RENDER, que empacota eventos existentes) — renomeei de `geometry.ts` p/ evitar dois
+    arquivos homônimos (pedido do Jackson).
+  - `occupancy.ts` — **validação DURA de lotação/buffer** (`validateOccupancy`): buffer ESTENDE o intervalo
+    ocupado, então uma varredura de concorrência pega lotação (`over-capacity`) e buffer (`buffer-conflict`)
+    de uma vez. Genérico, zero regra de negócio (ADR-006). Resolve a pendência da Fase 3B.
+  - `model.ts` — tipos + `minutesToDateTime` + `applyEventTimeChange` (muta só evento NÃO recorrente; preserva
+    tz/allDay). `DraftReason` = superconjunto de `SlotEvaluation.reason` + `over-capacity`/`buffer-conflict`.
+  - `interactionEngine.ts` — **InteractionEngine**: delegação de Pointer Events no container, hit-test
+    evento/alça(`data-mc-resize`)/coluna vazia, gesto move/resize/select, threshold clique×arrasto,
+    `preview→commit→revert`, `setPointerCapture` guardado, localizador por retângulos das colunas (injetável).
+- **Integração no CalendarApp:** novos callbacks (`onEventDrop`/`onEventResize`/`onDateSelect`/`onDropBlocked`/
+  `onClickBlocked`) + `config.resources` (habilita ocupação). `evaluate` combina ConstraintEngine + ocupação por
+  recurso (via `buildDays` full-day pra não recortar). Commit **otimista** com **revert** se o callback retornar
+  `false`/rejeitar. `draft` no `ViewRenderContext`→`GridVM`; `TimeGrid` desenha o fantasma (`data-mc-draft`
+  valid/invalid) e a alça de resize; `EventVM` agora carrega `startMin/endMin/editable` (emitidos como
+  `data-mc-*`). Nova opção `minEventMinutes` (default 15) unifica altura mínima + duração mínima de resize.
+- **Testes (novos):** `interaction.spec.ts` (16, node) geometria+ocupação+model; `interactionEngine.spec.ts`
+  (8, node, **DOM falso mínimo** — o motor toca poucas APIs de DOM) máquina de gesto completa incl. localizador
+  por rects; `interactionApp.spec.ts` (9, jsdom) integração ponta-a-ponta (drag persiste no store + `onEventDrop`,
+  drop bloqueado→`onDropBlocked`+revert, seleção→`onDateSelect`, lotação `capacity 1`→`over-capacity`+revert).
+  **24 testes node verdes** aqui; `tsc` estrito **limpo** (src e tests). **Sem demo** (mantido).
+- **NOTA do sandbox:** o ambiente de verificação **não consegue bootar o jsdom dentro do limite de 45s** (o
+  pré-existente `render.spec.ts` também estoura) — por isso os specs jsdom (render/views3/resources/interactionApp)
+  não foram executados aqui; rodar `yarn test` num ambiente normal. Por isso o motor foi coberto TAMBÉM em node
+  (DOM falso), garantindo verificação real da lógica de gesto sem depender do jsdom.
+- **Próximo:** Fase 5 (Adapter React) — ver "Próximo passo concreto".
 
 ### Sessão 6 — 2026-07-22 — Passe de qualidade + Fase 3B (Recursos) ✅
 - **Passe de qualidade (regras do Jackson):** (a) imports do preact com **alias semântico** — `h as createElement`

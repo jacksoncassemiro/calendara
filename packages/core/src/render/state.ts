@@ -23,6 +23,8 @@ export interface CalendarOptions {
   timeZone: string;
   /** Relógio injetável para a linha "agora" (epoch ms). null → Date.now() em runtime. */
   nowMs: number | null;
+  /** Duração mínima visual/de interação de um evento, em minutos (altura mínima + resize). */
+  minEventMinutes: number;
   /** Recursos visíveis nas views de recurso (undefined = todos). Toggle por recurso/grupo. */
   visibleResourceIds?: readonly string[];
 }
@@ -46,4 +48,5 @@ export const DEFAULT_OPTIONS: CalendarOptions = {
   pxPerMinute: 1,
   timeZone: 'America/Sao_Paulo',
   nowMs: null,
+  minEventMinutes: 15,
 };

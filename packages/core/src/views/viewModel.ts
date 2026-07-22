@@ -13,6 +13,12 @@ export interface EventVM {
   title: string;
   timeLabel: string;
   color?: string;
+  /** Minuto-do-dia do início (fonte da interação de mover/redimensionar). */
+  startMin: number;
+  /** Minuto-do-dia do fim. */
+  endMin: number;
+  /** `event.editable !== false` — habilita arrasto/redimensionamento e a alça. */
+  editable: boolean;
   /** Conteúdo customizado (slot renderEvent); ausente = layout padrão. */
   content?: ComponentChildren;
 }
@@ -43,6 +49,16 @@ export interface HourLabelVM {
   label: string;
 }
 
+/** Fantasma do gesto em andamento (drag/resize/select) — desenhado na coluna correspondente. */
+export interface DraftVM {
+  dateISO: string;
+  startMin: number;
+  endMin: number;
+  kind: 'move' | 'resize' | 'select';
+  /** Slot válido (drop permitido) → estilo distinto de inválido. */
+  valid: boolean;
+}
+
 export interface GridVM {
   viewName: string;
   startHour: number;
@@ -51,4 +67,6 @@ export interface GridVM {
   slotMinutes: number;
   hourLabels: HourLabelVM[];
   columns: DayColumnVM[];
+  /** Fantasma do gesto atual (se houver e cair num dia visível). */
+  draft?: DraftVM;
 }
