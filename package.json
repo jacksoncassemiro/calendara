@@ -1,0 +1,21 @@
+{
+  "name": "meucalendario-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "yarn workspaces run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "yarn workspaces run typecheck"
+  },
+  "devDependencies": {
+    "@js-temporal/polyfill": "0.4.4",
+    "rrule": "2.8.1",
+    "typescript": "5.5.4",
+    "vitest": "2.0.5"
+  }
+}

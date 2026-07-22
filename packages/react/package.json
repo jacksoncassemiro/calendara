@@ -1,0 +1,14 @@
+{
+  "name": "@meucalendario/react",
+  "version": "0.0.0",
+  "description": "Adapter React fino (<Calendar/> + hooks). Implementação real na Fase 5 — stub por ora.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@meucalendario/core": "0.0.0"
+  }
+}

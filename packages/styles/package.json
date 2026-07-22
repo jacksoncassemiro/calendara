@@ -1,0 +1,10 @@
+{
+  "name": "@meucalendario/styles",
+  "version": "0.0.0",
+  "description": "CSS com tokens (custom properties --mc-*), escopo por [data-mc-root]. Implementação na Fase 2 — stub por ora.",
+  "type": "module",
+  "files": ["index.css"],
+  "exports": {
+    "./index.css": "./index.css"
+  }
+}

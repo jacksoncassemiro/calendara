@@ -1,0 +1,18 @@
+/* @meucalendario/styles — tokens de tema.
+   Escopo por atributo raiz para não colidir com o Tailwind do app (ver docs/03-ARQUITETURA.md).
+   Camadas visuais (grid, business hours, bloqueios) chegam na Fase 2. Stub por ora. */
+[data-mc-root] {
+  --mc-color-bg: #ffffff;
+  --mc-color-fg: #1a1a1a;
+  --mc-color-border: #e2e2e2;
+  --mc-color-now: #ea4335;
+  --mc-color-business: #ffffff;
+  --mc-color-nonbusiness: #f6f6f6;
+  --mc-color-blocked: repeating-linear-gradient(45deg, #f0f0f0, #f0f0f0 6px, #e6e6e6 6px, #e6e6e6 12px);
+  box-sizing: border-box;
+}
+[data-mc-root] *,
+[data-mc-root] *::before,
+[data-mc-root] *::after {
+  box-sizing: border-box;
+}
