@@ -80,9 +80,8 @@ export class ConstraintEngine {
       const blocksWholeDay = blocking.scope === 'day';
       if (blocksWholeDay) return true;
       // scope 'time'
-      const blockStart = blocking.start ? hhmmToMinutes(blocking.start) : DAY_START_MIN;
-      const rawBlockEnd = blocking.end ?? blocking.endTime;
-      const blockEnd = rawBlockEnd ? hhmmToMinutes(rawBlockEnd) : DAY_END_MIN;
+      const blockStart = blocking.startTime ? hhmmToMinutes(blocking.startTime) : DAY_START_MIN;
+      const blockEnd = blocking.endTime ? hhmmToMinutes(blocking.endTime) : DAY_END_MIN;
       const overlapsBlock = overlaps(start, end, blockStart, blockEnd);
       if (overlapsBlock) return true;
     }

@@ -227,7 +227,7 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     document.body.appendChild(container);
     const blocked: BlockedInfo[] = [];
     const constraints: ConstraintSet = {
-      blocked: [{ scope: 'time', date: REF, start: '12:00', endTime: '13:00' }],
+      blocked: [{ scope: 'time', date: REF, startTime: '12:00', endTime: '13:00' }],
     };
     const app = new CalendarApp({
       date: REF,

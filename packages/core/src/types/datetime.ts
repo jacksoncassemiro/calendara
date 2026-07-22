@@ -10,7 +10,7 @@ export type WeekdayCode = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 export interface EventDateTime {
   /** 'YYYY-MM-DD' — presente quando all-day. */
   date?: string;
-  /** ISO 8601 com offset — presente quando timed. */
+  /** Wall-clock ISO 'YYYY-MM-DDTHH:mm:ss' (SEM offset) — presente quando timed; a tz vem de `timeZone`. */
   dateTime?: string;
   /** Timezone IANA, ex.: 'America/Sao_Paulo'. */
   timeZone?: string;

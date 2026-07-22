@@ -11,16 +11,11 @@ export { isCancelledOverride } from './recurrence.js';
 export type { CalendarEvent, EventOccurrence } from './event.js';
 export type { CalendarResource } from './resource.js';
 export type {
+  DateRangeBounds,
+  TimeOfDayRange,
   BusinessHours,
   DateRange,
   Blocking,
   ConstraintSet,
   SlotEvaluation,
 } from './constraint.js';
-export type {
-  ViewState,
-  VisibleRange,
-  CalendarViewAPI,
-  ICalendarView,
-  ViewFactory,
-} from './view.js';

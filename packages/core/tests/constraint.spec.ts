@@ -41,7 +41,7 @@ describe('blocked (precedência)', () => {
   it('bloqueio de horário invalida só o slot sobreposto', () => {
     const eng = new ConstraintEngine({
       businessHours: bh,
-      blocked: [{ scope: 'time', date: '2024-01-02', start: '12:00', end: '13:00' }],
+      blocked: [{ scope: 'time', date: '2024-01-02', startTime: '12:00', endTime: '13:00' }],
     });
     expect(eng.isValid({ date: '2024-01-02', startMin: 12 * 60 + 30, endMin: 12 * 60 + 45 })).toBe(false);
     expect(eng.isValid({ date: '2024-01-02', startMin: 14 * 60, endMin: 15 * 60 })).toBe(true);

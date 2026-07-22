@@ -198,9 +198,8 @@ function deriveBlocked(
     if (!appliesToThisDay) continue;
     const blocksWholeDay = blocking.scope === 'day';
     if (blocksWholeDay) return [{ startMin: gridStartMin, endMin: gridEndMin }];
-    const start = Math.max(blocking.start ? hhmmToMinutes(blocking.start) : gridStartMin, gridStartMin);
-    const rawEnd = blocking.end ?? blocking.endTime;
-    const end = Math.min(rawEnd ? hhmmToMinutes(rawEnd) : gridEndMin, gridEndMin);
+    const start = Math.max(blocking.startTime ? hhmmToMinutes(blocking.startTime) : gridStartMin, gridStartMin);
+    const end = Math.min(blocking.endTime ? hhmmToMinutes(blocking.endTime) : gridEndMin, gridEndMin);
     const hasSpan = end > start;
     if (hasSpan) segments.push({ startMin: start, endMin: end });
   }

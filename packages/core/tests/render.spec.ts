@@ -41,7 +41,7 @@ const events: CalendarEvent[] = [
 
 const constraints: ConstraintSet = {
   businessHours: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '08:00', endTime: '18:00' }],
-  blocked: [{ scope: 'time', date: '2026-07-22', start: '12:00', endTime: '13:00' }],
+  blocked: [{ scope: 'time', date: '2026-07-22', startTime: '12:00', endTime: '13:00' }],
 };
 
 function makeApp(view = 'week') {
