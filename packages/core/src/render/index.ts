@@ -19,3 +19,10 @@ export {
   type TimedPlacement,
   type OccurrenceStart,
 } from './derive.js';
+export {
+  buildResourceColumns,
+  occurrencesForResource,
+  resourceConstraintSet,
+  maxConcurrency,
+  type ResourceColumnData,
+} from './resourceDerive.js';

@@ -16,6 +16,7 @@ export {
 } from './timeGridViews.js';
 export { monthView } from './MonthView.js';
 export { listView, createListView } from './ListView.js';
+export { createResourceDayView, createTimelineView } from './resourceViews.js';
 export { TimeGrid } from './TimeGrid.js';
 export { buildTimeGridVM } from './timeGridModel.js';
 export { CalendarShell, type ShellProps } from './Shell.js';

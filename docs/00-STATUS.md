@@ -16,10 +16,10 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 | Item | Estado |
 |---|---|
-| Fase atual | **Fase 3 — Views Mês, N-Dias, Lista/Agenda + recorrência na tela** ✅ concluída (sessão 5) |
-| Próxima fase | **Fase 3B — Recursos (Agenda Desvinculada) + Timeline/Multiagenda** ⏳ não iniciada |
-| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, store observável, GeometryEngine, render Preact + CalendarApp, **views Week/Day/Month/NDays/List, CalendarShell (toolbar), eventSource por range, slots renderEvent/renderToolbar** — **112/112 testes verdes** |
-| Nomenclatura | Passe de clareza aplicado a TODO o core (sem identificadores de 1 caractere; `T`→`temporal`, inclusive `DateUtils.temporal`). Decisão travada com o Jackson. |
+| Fase atual | **Fase 3B — Recursos (Agenda Desvinculada) + Timeline/Multiagenda** ✅ concluída (sessão 6) |
+| Próxima fase | **Fase 4 — Interação: drag & drop + resize + seleção** ⏳ não iniciada |
+| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, store, GeometryEngine, render Preact + CalendarApp, views Week/Day/Month/NDays/List, **Multiagenda (colunas por recurso) + Timeline, capacity/buffers/multi-recurso, toggle de visibilidade**, eventSource por range, slots renderEvent/renderToolbar — **122/122 testes verdes** |
+| Nomenclatura | Passe de clareza em TODO o core (sem identificadores de 1 caractere; `T`→`temporal`). Regras adicionais travadas: **imports do preact com alias semântico** (`h as createElement`) e **condições extraídas para `const` booleanas nomeadas** (nada de valor "solto" em `if`). |
 | Motor de recorrência | Validado contra rrule.js: base 43/44 → **gap corrigido e provado (v2): 23/23**, incl. multi-ordinal. |
 | Gerenciador de pacotes | **yarn (workspaces)** — decidido na sessão 2 |
 | Recursos (`Resource` genérico) | **Requisito de 1ª classe** (Fase 3B); núcleo resource-aware. Conceito GENÉRICO, sem regra de negócio: `type` é string opaca do app, não há campo "profissional" (ADR-006). Cobre "Agenda Desvinculada". |
@@ -28,18 +28,18 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 ## Próximo passo concreto (para o próximo chat)
 
-Iniciar a **Fase 3B** conforme `02-PLANO.md` (Recursos / Agenda Desvinculada):
-1. Comportamento de **`CalendarResource`** (type, unit, capacity, buffers, businessHours próprios, agrupamento)
-   — os tipos já nascem resource-aware desde a Fase 1.
-2. **Multiagenda (colunas por recurso)**: variação do time grid com N colunas por recurso.
-3. **Timeline/Resource view**: recursos em linhas, tempo no eixo X (novo `CalendarView`).
-4. **Capacidade/lotação** e **buffers** na geometria + ConstraintEngine; evento com múltiplos `resourceIds`.
-- Base pronta da Fase 3: contrato `CalendarView` generalizado (getRange/navigate/getTitle/**render**),
-  `CalendarShell` (dono do `data-mc-root`, toolbar padrão/custom), views `week`/`day`/`month`/`ndays`/`list`,
-  `eventSource.fetch({start,end})` por range (lazy) e slots `renderEvent`/`renderToolbar`. `occurrenceStart()`
-  (derive) agrupa/ordena ocorrências (usado por Month/List).
+Iniciar a **Fase 4** conforme `02-PLANO.md` (Interação: drag & drop + resize + seleção):
+1. **InteractionEngine** com Pointer Events: mover entre dias/horas, resize de borda.
+2. **preview → commit → revert**; seleção de intervalo (`onDateSelect`).
+3. Bloqueio de drop/click inválido com `onDropBlocked`/`onClickBlocked` (consultando o `ConstraintEngine`,
+   já exposto via `CalendarApp.evaluateSlot`).
+- Base pronta da Fase 3B: derivações resource-aware (`resourceDerive.ts`: `buildResourceColumns`,
+  `occurrencesForResource`, `resourceConstraintSet`, `maxConcurrency`), views `resources` (Multiagenda) e
+  `timeline` (via `createResourceDayView`/`createTimelineView`), `options.visibleResourceIds` +
+  `CalendarApp.setVisibleResources()`. Geometria/constraints já consomem capacity/buffers.
 - **Pendências abertas:** medir custo do polyfill Temporal no bundle; **split de eventos multi-dia timed**
-  (hoje ancorados no dia de início e recortados).
+  (hoje ancorados no dia de início e recortados); buffers/capacity ainda são visuais/informativos — a
+  validação dura por buffer/lotação entra junto da interação (Fase 4) ou numa extensão do ConstraintEngine.
 
 ### Como rodar o que já existe
 ```bash
@@ -87,6 +87,30 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 ---
 
 ## Log de sessões
+
+### Sessão 6 — 2026-07-22 — Passe de qualidade + Fase 3B (Recursos) ✅
+- **Passe de qualidade (regras do Jackson):** (a) imports do preact com **alias semântico** — `h as createElement`
+  em todos os arquivos (views + Shell + calendarApp + testes); (b) **condições extraídas para `const` booleanas
+  nomeadas** que indicam a intenção (ex.: `withinBusinessWindow`, `outsideGrid`, `startsNewCluster`,
+  `usesOrdinalWeekdays`, `pastUntil`, `isLatestFetch`), e **magic numbers** viraram consts nomeadas
+  (`DAY_START_MIN`/`DAY_END_MIN`, `MINUTES_PER_DAY`, `DEFAULT_MIN_EVENT_MINUTES`, `MIN_WIDTH_FRACTION_OF_COLUMN`,
+  `DEFAULT_INTERVAL`/`DEFAULT_WEEK_START`). Cobriu constraintEngine, geometry, engine, parser, recurrenceSet,
+  derive, timeGridModel, calendarApp. 112/112 seguiram verdes; `tsc` estrito limpo.
+- **Fase 3B — derivações resource-aware** (`render/resourceDerive.ts`): `occurrencesForResource` (filtra por
+  `event.resourceIds`, cobre multi-recurso), `resourceConstraintSet` (usa businessHours PRÓPRIO do recurso ou
+  cai no global; preserva blocked/allowed globais), `maxConcurrency` (varredura de concorrência) e
+  `buildResourceColumns` (uma coluna por recurso p/ 1 dia, com fundo próprio, bandas de **buffer** e flag de
+  **lotação estourada** = concorrência > `capacity`). Genérico/sem regra de negócio (ADR-006).
+- **Fase 3B — views** (`views/resourceViews.tsx`): **Multiagenda** (`createResourceDayView`) = N colunas por
+  recurso num dia (fundo/expediente/bloqueio/buffer por recurso, badge de lotação, linha "agora", evento
+  multi-recurso nas 2 colunas); **Timeline** (`createTimelineView`) = recursos em linhas, tempo no eixo X,
+  eventos empacotados em lanes. `options.visibleResourceIds` + `CalendarApp.setVisibleResources()` fazem o
+  **toggle de visibilidade** por recurso.
+- **Testes: 122/122** (103 node + 6 render + 7 Fase 3 + 6 Fase 3B jsdom). Novos: helpers puros
+  (occurrencesForResource, resourceConstraintSet) e views de recurso (2 colunas, lotação estourada 2/1,
+  evento multi-recurso nas 2 colunas/linhas, 2 bandas de buffer, toggle de visibilidade, timeline 2 linhas).
+  `tsc` estrito limpo. **Sem demo** (mantido).
+- **Próximo:** Fase 4 (drag & drop + resize + seleção) — ver "Próximo passo concreto".
 
 ### Sessão 5 — 2026-07-22 — Passe de nomenclatura + Fase 3 (Month/NDays/List) ✅
 - **Nomenclatura (pedido do Jackson):** passe de clareza em TODO o `packages/core` — eliminados identificadores

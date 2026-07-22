@@ -207,6 +207,11 @@ export class CalendarApp {
     this.store.setState({ options: { ...this.store.getState().options, ...patch } });
   }
 
+  /** Toggle de visibilidade de recursos nas views de recurso (undefined = todos). */
+  setVisibleResources(resourceIds: readonly string[] | undefined): void {
+    this.setOptions({ visibleResourceIds: resourceIds });
+  }
+
   /** Registra/subscreve view nova (1ª classe). */
   registerView(view: CalendarView): void {
     this.views.set(view.name, view);

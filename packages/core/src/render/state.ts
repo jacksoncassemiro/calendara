@@ -23,6 +23,8 @@ export interface CalendarOptions {
   timeZone: string;
   /** Relógio injetável para a linha "agora" (epoch ms). null → Date.now() em runtime. */
   nowMs: number | null;
+  /** Recursos visíveis nas views de recurso (undefined = todos). Toggle por recurso/grupo. */
+  visibleResourceIds?: readonly string[];
 }
 
 export interface CalendarState {
