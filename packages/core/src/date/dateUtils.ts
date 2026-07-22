@@ -1,7 +1,7 @@
 /**
  * DateUtils — utilitários puros sobre Temporal.
  *
- * Design: FÁBRICA que recebe o namespace Temporal por injeção (`createDateUtils(Temporal)`),
+ * Design: FÁBRICA que recebe o namespace Temporal por injeção (`createDateUtils(temporal)`),
  * o que mantém tudo puro/testável e evita estado global. O core injeta o Temporal já resolvido
  * (nativo ou polyfill) após `ensureTemporal()`.
  */
@@ -11,7 +11,7 @@ import type { WeekdayCode } from '../types/datetime.js';
 /** Ordem RFC 5545: MO..SU == Temporal dayOfWeek 1..7. */
 export const WEEKDAY_CODES: readonly WeekdayCode[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 
-const CODE_TO_DOW: Record<WeekdayCode, number> = {
+const CODE_TO_DAY_OF_WEEK: Record<WeekdayCode, number> = {
   MO: 1,
   TU: 2,
   WE: 3,
@@ -23,37 +23,37 @@ const CODE_TO_DOW: Record<WeekdayCode, number> = {
 
 /** Converte código de weekday (MO..SU) em dayOfWeek Temporal (1..7). */
 export function weekdayCodeToDayOfWeek(code: WeekdayCode): number {
-  return CODE_TO_DOW[code];
+  return CODE_TO_DAY_OF_WEEK[code];
 }
 
 /** Converte dayOfWeek Temporal (1..7) em código (MO..SU). */
-export function dayOfWeekToCode(dow: number): WeekdayCode {
-  const code = WEEKDAY_CODES[dow - 1];
-  if (!code) throw new RangeError(`dayOfWeek inválido: ${dow}`);
+export function dayOfWeekToCode(dayOfWeek: number): WeekdayCode {
+  const code = WEEKDAY_CODES[dayOfWeek - 1];
+  if (!code) throw new RangeError(`dayOfWeek inválido: ${dayOfWeek}`);
   return code;
 }
 
 /** Converte 0=domingo..6=sábado (convenção JS/BusinessHours) em dayOfWeek Temporal (1..7). */
-export function jsWeekdayToDayOfWeek(js: number): number {
-  return js === 0 ? 7 : js;
+export function jsWeekdayToDayOfWeek(jsWeekday: number): number {
+  return jsWeekday === 0 ? 7 : jsWeekday;
 }
 
 /** Converte dayOfWeek Temporal (1..7) em 0=domingo..6=sábado (convenção JS). */
-export function dayOfWeekToJs(dow: number): number {
-  return dow === 7 ? 0 : dow;
+export function dayOfWeekToJs(dayOfWeek: number): number {
+  return dayOfWeek === 7 ? 0 : dayOfWeek;
 }
 
 export interface DateUtils {
-  readonly T: TemporalLike;
+  readonly temporal: TemporalLike;
   toPlainDate(iso: string): InstanceType<TemporalLike['PlainDate']>;
   toPlainDateTime(iso: string): InstanceType<TemporalLike['PlainDateTime']>;
   compareDate(
-    a: InstanceType<TemporalLike['PlainDate']>,
-    b: InstanceType<TemporalLike['PlainDate']>,
+    first: InstanceType<TemporalLike['PlainDate']>,
+    second: InstanceType<TemporalLike['PlainDate']>,
   ): number;
   isSameDay(
-    a: InstanceType<TemporalLike['PlainDate']>,
-    b: InstanceType<TemporalLike['PlainDate']>,
+    first: InstanceType<TemporalLike['PlainDate']>,
+    second: InstanceType<TemporalLike['PlainDate']>,
   ): boolean;
   /** Início da semana contendo `date`, respeitando `weekStart` (default MO). */
   startOfWeek(
@@ -74,46 +74,46 @@ export interface DateUtils {
   ): InstanceType<TemporalLike['PlainDate']> | null;
   /** Instante UTC (epoch ms) de um PlainDateTime numa timezone — para comparar em DST. */
   epochMsInZone(
-    dt: InstanceType<TemporalLike['PlainDateTime']>,
+    dateTime: InstanceType<TemporalLike['PlainDateTime']>,
     timeZone: string,
   ): number;
 }
 
-export function createDateUtils(T: TemporalLike): DateUtils {
-  const toPlainDate = (iso: string) => T.PlainDate.from(iso.slice(0, 10));
+export function createDateUtils(temporal: TemporalLike): DateUtils {
+  const toPlainDate = (iso: string) => temporal.PlainDate.from(iso.slice(0, 10));
 
-  const toPlainDateTime = (iso: string) => T.PlainDateTime.from(iso);
+  const toPlainDateTime = (iso: string) => temporal.PlainDateTime.from(iso);
 
   const compareDate = (
-    a: InstanceType<TemporalLike['PlainDate']>,
-    b: InstanceType<TemporalLike['PlainDate']>,
-  ) => T.PlainDate.compare(a, b);
+    first: InstanceType<TemporalLike['PlainDate']>,
+    second: InstanceType<TemporalLike['PlainDate']>,
+  ) => temporal.PlainDate.compare(first, second);
 
   const isSameDay = (
-    a: InstanceType<TemporalLike['PlainDate']>,
-    b: InstanceType<TemporalLike['PlainDate']>,
-  ) => T.PlainDate.compare(a, b) === 0;
+    first: InstanceType<TemporalLike['PlainDate']>,
+    second: InstanceType<TemporalLike['PlainDate']>,
+  ) => temporal.PlainDate.compare(first, second) === 0;
 
   const startOfWeek = (
     date: InstanceType<TemporalLike['PlainDate']>,
     weekStart: WeekdayCode = 'MO',
   ) => {
-    const startDow = weekdayCodeToDayOfWeek(weekStart);
-    const diff = (date.dayOfWeek - startDow + 7) % 7;
-    return date.subtract({ days: diff });
+    const startDayOfWeek = weekdayCodeToDayOfWeek(weekStart);
+    const daysToSubtract = (date.dayOfWeek - startDayOfWeek + 7) % 7;
+    return date.subtract({ days: daysToSubtract });
   };
 
   const eachDayOfRange = (
     start: InstanceType<TemporalLike['PlainDate']>,
     end: InstanceType<TemporalLike['PlainDate']>,
   ) => {
-    const out: InstanceType<TemporalLike['PlainDate']>[] = [];
-    let it = start;
-    while (T.PlainDate.compare(it, end) < 0) {
-      out.push(it);
-      it = it.add({ days: 1 });
+    const days: InstanceType<TemporalLike['PlainDate']>[] = [];
+    let cursor = start;
+    while (temporal.PlainDate.compare(cursor, end) < 0) {
+      days.push(cursor);
+      cursor = cursor.add({ days: 1 });
     }
-    return out;
+    return days;
   };
 
   const nthWeekdayInMonth = (
@@ -122,12 +122,12 @@ export function createDateUtils(T: TemporalLike): DateUtils {
     dayOfWeek: number,
     ordinal: number,
   ) => {
-    const first = T.PlainDate.from({ year, month, day: 1 });
-    const dim = first.daysInMonth;
+    const firstOfMonth = temporal.PlainDate.from({ year, month, day: 1 });
+    const daysInMonth = firstOfMonth.daysInMonth;
     const matches: InstanceType<TemporalLike['PlainDate']>[] = [];
-    for (let d = 1; d <= dim; d++) {
-      const pd = first.with({ day: d });
-      if (pd.dayOfWeek === dayOfWeek) matches.push(pd);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const candidate = firstOfMonth.with({ day });
+      if (candidate.dayOfWeek === dayOfWeek) matches.push(candidate);
     }
     if (ordinal > 0) return matches[ordinal - 1] ?? null;
     if (ordinal < 0) return matches[matches.length + ordinal] ?? null;
@@ -135,15 +135,15 @@ export function createDateUtils(T: TemporalLike): DateUtils {
   };
 
   const epochMsInZone = (
-    dt: InstanceType<TemporalLike['PlainDateTime']>,
+    dateTime: InstanceType<TemporalLike['PlainDateTime']>,
     timeZone: string,
   ) => {
-    const zdt = dt.toZonedDateTime(timeZone);
-    return Number(zdt.epochMilliseconds);
+    const zonedDateTime = dateTime.toZonedDateTime(timeZone);
+    return Number(zonedDateTime.epochMilliseconds);
   };
 
   return {
-    T,
+    temporal,
     toPlainDate,
     toPlainDateTime,
     compareDate,

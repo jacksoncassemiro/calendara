@@ -27,110 +27,116 @@ export interface ExpandWindow {
   end?: string;
 }
 
-function ruleModel(rec: Recurrence): RRuleModel | null {
-  if (!rec.rule) return null;
-  return typeof rec.rule === 'string' ? parseRRule(rec.rule) : rec.rule;
+function ruleModel(recurrence: Recurrence): RRuleModel | null {
+  if (!recurrence.rule) return null;
+  return typeof recurrence.rule === 'string' ? parseRRule(recurrence.rule) : recurrence.rule;
 }
 
 /** Extrai a data-base (PlainDate) do início do evento. */
-function startPlainDate(T: TemporalLike, ev: CalendarEvent): PlainDate {
-  const s = ev.time.start;
-  const iso = ev.time.allDay ? s.date : s.dateTime;
-  if (!iso) throw new Error(`[meucalendario] evento ${ev.id} sem start válido`);
-  return T.PlainDate.from(iso.slice(0, 10));
+function startPlainDate(temporal: TemporalLike, event: CalendarEvent): PlainDate {
+  const start = event.time.start;
+  const isoString = event.time.allDay ? start.date : start.dateTime;
+  if (!isoString) throw new Error(`[meucalendario] evento ${event.id} sem start válido`);
+  return temporal.PlainDate.from(isoString.slice(0, 10));
 }
 
 interface TimeShape {
   allDay: boolean;
   /** 'HH:mm:ss' para timed. */
   startTime: string | null;
-  /** duração em nanos (timed) ou dias (all-day). */
+  /** duração em dias (all-day). */
   durationDaysAllDay: number;
+  /** duração (timed) como Duration do Temporal. */
   durationForTimed: ReturnType<InstanceType<TemporalLike['PlainDateTime']>['since']> | null;
   timeZone: string | undefined;
 }
 
-function timeShape(T: TemporalLike, ev: CalendarEvent): TimeShape {
-  if (ev.time.allDay) {
-    const startD = T.PlainDate.from(ev.time.start.date!.slice(0, 10));
-    const endD = ev.time.end.date
-      ? T.PlainDate.from(ev.time.end.date.slice(0, 10))
-      : startD.add({ days: 1 });
-    const span = endD.since(startD).days || 1;
+function timeShape(temporal: TemporalLike, event: CalendarEvent): TimeShape {
+  if (event.time.allDay) {
+    const startDate = temporal.PlainDate.from(event.time.start.date!.slice(0, 10));
+    const endDate = event.time.end.date
+      ? temporal.PlainDate.from(event.time.end.date.slice(0, 10))
+      : startDate.add({ days: 1 });
+    const spanDays = endDate.since(startDate).days || 1;
     return {
       allDay: true,
       startTime: null,
-      durationDaysAllDay: Math.max(1, span),
+      durationDaysAllDay: Math.max(1, spanDays),
       durationForTimed: null,
-      timeZone: ev.time.start.timeZone,
+      timeZone: event.time.start.timeZone,
     };
   }
-  const sdt = T.PlainDateTime.from(ev.time.start.dateTime!);
-  const edt = T.PlainDateTime.from(ev.time.end.dateTime!);
+  const startDateTime = temporal.PlainDateTime.from(event.time.start.dateTime!);
+  const endDateTime = temporal.PlainDateTime.from(event.time.end.dateTime!);
   return {
     allDay: false,
-    startTime: sdt.toPlainTime().toString(),
+    startTime: startDateTime.toPlainTime().toString(),
     durationDaysAllDay: 0,
-    durationForTimed: edt.since(sdt),
-    timeZone: ev.time.start.timeZone,
+    durationForTimed: endDateTime.since(startDateTime),
+    timeZone: event.time.start.timeZone,
   };
 }
 
 /** Constrói o start/end de uma ocorrência numa data. Retorna também a chave originalStart. */
 function occurrenceTimes(
-  T: TemporalLike,
+  temporal: TemporalLike,
   shape: TimeShape,
   date: PlainDate,
-): { start: CalendarEvent['time']['start']; end: CalendarEvent['time']['end']; originalStart: string } {
+): {
+  start: CalendarEvent['time']['start'];
+  end: CalendarEvent['time']['end'];
+  originalStart: string;
+} {
   if (shape.allDay) {
     const endDate = date.add({ days: shape.durationDaysAllDay });
-    const startISO = date.toString();
+    const startIso = date.toString();
     return {
-      start: { date: startISO, ...(shape.timeZone ? { timeZone: shape.timeZone } : {}) },
+      start: { date: startIso, ...(shape.timeZone ? { timeZone: shape.timeZone } : {}) },
       end: { date: endDate.toString(), ...(shape.timeZone ? { timeZone: shape.timeZone } : {}) },
-      originalStart: startISO,
+      originalStart: startIso,
     };
   }
-  const startDT = date.toPlainDateTime(T.PlainTime.from(shape.startTime!));
-  const endDT = startDT.add(shape.durationForTimed!);
-  const startISO = startDT.toString();
+  const startDateTime = date.toPlainDateTime(temporal.PlainTime.from(shape.startTime!));
+  const endDateTime = startDateTime.add(shape.durationForTimed!);
+  const startIso = startDateTime.toString();
   return {
-    start: { dateTime: startISO, ...(shape.timeZone ? { timeZone: shape.timeZone } : {}) },
-    end: { dateTime: endDT.toString(), ...(shape.timeZone ? { timeZone: shape.timeZone } : {}) },
-    originalStart: startISO,
+    start: { dateTime: startIso, ...(shape.timeZone ? { timeZone: shape.timeZone } : {}) },
+    end: { dateTime: endDateTime.toString(), ...(shape.timeZone ? { timeZone: shape.timeZone } : {}) },
+    originalStart: startIso,
   };
 }
 
 /** Aplica um override (parcial ou cancelamento) ao evento-base para uma ocorrência. */
 function applyOverride(
-  base: CalendarEvent,
-  rec: Recurrence,
+  baseEvent: CalendarEvent,
+  recurrence: Recurrence,
   originalStart: string,
 ): CalendarEvent | null {
-  const ov = rec.overrides?.[originalStart] ?? rec.overrides?.[originalStart.slice(0, 10)];
-  if (!ov) return base;
-  if (isCancelledOverride(ov)) return null;
-  return { ...base, ...ov, time: ov.time ?? base.time };
+  const override =
+    recurrence.overrides?.[originalStart] ?? recurrence.overrides?.[originalStart.slice(0, 10)];
+  if (!override) return baseEvent;
+  if (isCancelledOverride(override)) return null;
+  return { ...baseEvent, ...override, time: override.time ?? baseEvent.time };
 }
 
 /**
  * Expande um evento (recorrente ou não) em ocorrências virtuais dentro de `window`.
  */
 export function expandEvent(
-  T: TemporalLike,
+  temporal: TemporalLike,
   event: CalendarEvent,
   window: ExpandWindow = {},
 ): EventOccurrence[] {
-  const shape = timeShape(T, event);
-  const winStart = window.start ? T.PlainDate.from(window.start) : undefined;
-  const winEnd = window.end ? T.PlainDate.from(window.end) : undefined;
+  const shape = timeShape(temporal, event);
+  const windowStart = window.start ? temporal.PlainDate.from(window.start) : undefined;
+  const windowEnd = window.end ? temporal.PlainDate.from(window.end) : undefined;
 
   // Sem recorrência: uma única ocorrência (o próprio mestre).
   if (!event.recurrence || (!event.recurrence.rule && !event.recurrence.rDates?.length)) {
-    const base = startPlainDate(T, event);
-    if (winStart && T.PlainDate.compare(base, winStart) < 0) return [];
-    if (winEnd && T.PlainDate.compare(base, winEnd) > 0) return [];
-    const times = occurrenceTimes(T, shape, base);
+    const baseDate = startPlainDate(temporal, event);
+    if (windowStart && temporal.PlainDate.compare(baseDate, windowStart) < 0) return [];
+    if (windowEnd && temporal.PlainDate.compare(baseDate, windowEnd) > 0) return [];
+    const times = occurrenceTimes(temporal, shape, baseDate);
     return [
       {
         event: { ...event, time: { allDay: shape.allDay, start: times.start, end: times.end } },
@@ -141,55 +147,58 @@ export function expandEvent(
     ];
   }
 
-  const rec = event.recurrence;
-  const model = ruleModel(rec);
-  const dtstart = startPlainDate(T, event);
+  const recurrence = event.recurrence;
+  const model = ruleModel(recurrence);
+  const dtStart = startPlainDate(temporal, event);
 
-  const exDateSet = new Set<string>((rec.exDates ?? []).map((d) => d.slice(0, 10)));
+  const excludedDates = new Set<string>((recurrence.exDates ?? []).map((iso) => iso.slice(0, 10)));
 
   const dates: PlainDate[] = [];
   if (model) {
-    const opts: ExpandOptions = {};
-    if (winStart) opts.windowStart = winStart;
-    if (winEnd) opts.windowEnd = winEnd;
-    for (const d of expandRule(T, model, dtstart, exDateSet, opts)) {
-      dates.push(d);
+    const expandOptions: ExpandOptions = {};
+    if (windowStart) expandOptions.windowStart = windowStart;
+    if (windowEnd) expandOptions.windowEnd = windowEnd;
+    for (const date of expandRule(temporal, model, dtStart, excludedDates, expandOptions)) {
+      dates.push(date);
     }
   }
 
   // RDATE: datas extras (não contam para COUNT). Respeita janela e EXDATE.
-  for (const rd of rec.rDates ?? []) {
-    const pd = T.PlainDate.from(rd.slice(0, 10));
-    if (exDateSet.has(pd.toString())) continue;
-    if (winStart && T.PlainDate.compare(pd, winStart) < 0) continue;
-    if (winEnd && T.PlainDate.compare(pd, winEnd) > 0) continue;
-    dates.push(pd);
+  for (const rDate of recurrence.rDates ?? []) {
+    const plainDate = temporal.PlainDate.from(rDate.slice(0, 10));
+    if (excludedDates.has(plainDate.toString())) continue;
+    if (windowStart && temporal.PlainDate.compare(plainDate, windowStart) < 0) continue;
+    if (windowEnd && temporal.PlainDate.compare(plainDate, windowEnd) > 0) continue;
+    dates.push(plainDate);
   }
 
   // dedup + sort
-  const seen = new Set<string>();
+  const seenKeys = new Set<string>();
   const uniqueDates = dates
-    .filter((d) => {
-      const k = d.toString();
-      if (seen.has(k)) return false;
-      seen.add(k);
+    .filter((date) => {
+      const key = date.toString();
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
       return true;
     })
-    .sort((a, b) => T.PlainDate.compare(a, b));
+    .sort((left, right) => temporal.PlainDate.compare(left, right));
 
-  const out: EventOccurrence[] = [];
-  for (const d of uniqueDates) {
-    const times = occurrenceTimes(T, shape, d);
-    const effective = applyOverride(event, rec, times.originalStart);
-    if (effective === null) continue; // cancelada
-    const isMaster = d.toString() === dtstart.toString();
-    const evtTime = effective.time && effective !== event ? effective.time : { allDay: shape.allDay, start: times.start, end: times.end };
-    out.push({
-      event: { ...effective, time: evtTime },
+  const results: EventOccurrence[] = [];
+  for (const date of uniqueDates) {
+    const times = occurrenceTimes(temporal, shape, date);
+    const effectiveEvent = applyOverride(event, recurrence, times.originalStart);
+    if (effectiveEvent === null) continue; // cancelada
+    const isMaster = date.toString() === dtStart.toString();
+    const occurrenceTime =
+      effectiveEvent.time && effectiveEvent !== event
+        ? effectiveEvent.time
+        : { allDay: shape.allDay, start: times.start, end: times.end };
+    results.push({
+      event: { ...effectiveEvent, time: occurrenceTime },
       masterId: event.id,
       originalStart: times.originalStart,
       isMaster,
     });
   }
-  return out;
+  return results;
 }

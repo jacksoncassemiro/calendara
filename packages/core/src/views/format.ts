@@ -6,27 +6,27 @@ import type { TemporalLike } from '../date/temporal.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
-function utcDate(d: PlainDate): Date {
-  return new Date(Date.UTC(d.year, d.month - 1, d.day));
+function toUtcDate(date: PlainDate): Date {
+  return new Date(Date.UTC(date.year, date.month - 1, date.day));
 }
 
 export function formatDate(
-  d: PlainDate,
+  date: PlainDate,
   locale: string,
-  opts: Intl.DateTimeFormatOptions,
+  options: Intl.DateTimeFormatOptions,
 ): string {
-  return new Intl.DateTimeFormat(locale, { ...opts, timeZone: 'UTC' }).format(utcDate(d));
+  return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(toUtcDate(date));
 }
 
 /** Rótulo de hora 'HH:mm' a partir de minutos-do-dia. */
-export function formatHourLabel(min: number, locale: string): string {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  const base = new Date(Date.UTC(2000, 0, 1, h, m));
+export function formatHourLabel(minuteOfDay: number, locale: string): string {
+  const hours = Math.floor(minuteOfDay / 60);
+  const minutes = minuteOfDay % 60;
+  const baseDate = new Date(Date.UTC(2000, 0, 1, hours, minutes));
   return new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
     timeZone: 'UTC',
-  }).format(base);
+  }).format(baseDate);
 }

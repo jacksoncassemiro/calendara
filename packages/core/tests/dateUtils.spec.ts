@@ -7,7 +7,7 @@ import {
   jsWeekdayToDayOfWeek,
   dayOfWeekToJs,
   type DateUtils,
-} from '../src/date/DateUtils.js';
+} from '../src/date/dateUtils.js';
 
 let T: TemporalLike;
 let du: DateUtils;

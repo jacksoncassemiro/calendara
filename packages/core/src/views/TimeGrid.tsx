@@ -11,15 +11,15 @@ import type { Segment } from '../render/derive.js';
 
 const GUTTER_PX = 56;
 
-function px(n: number): string {
-  return `${n}px`;
+function toPx(value: number): string {
+  return `${value}px`;
 }
 
 export function TimeGrid(props: { vm: GridVM }): JSX.Element {
   const vm = props.vm;
   const gridTopMin = vm.startHour * 60;
   const bodyHeight = (vm.endHour - vm.startHour) * 60 * vm.pxPerMinute;
-  const yOf = (min: number): number => (min - gridTopMin) * vm.pxPerMinute;
+  const minuteToY = (minuteOfDay: number): number => (minuteOfDay - gridTopMin) * vm.pxPerMinute;
 
   return (
     <div class="mc-timegrid" data-mc-root data-mc-view={vm.viewName}>
@@ -31,16 +31,16 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
 
       {/* Cabeçalho dos dias */}
       <div class="mc-header-row" style={{ display: 'flex' }}>
-        <div class="mc-gutter-corner" style={{ width: px(GUTTER_PX), flex: '0 0 auto' }} />
-        {vm.columns.map((col) => (
+        <div class="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
+        {vm.columns.map((column) => (
           <div
-            key={col.dateISO}
-            class={`mc-day-header${col.isToday ? ' mc-today' : ''}`}
-            data-mc-day-header={col.dateISO}
+            key={column.dateISO}
+            class={`mc-day-header${column.isToday ? ' mc-today' : ''}`}
+            data-mc-day-header={column.dateISO}
             style={{ flex: '1 1 0', textAlign: 'center' }}
           >
-            <div class="mc-weekday">{col.weekdayLabel}</div>
-            <div class="mc-daynum">{col.dayLabel}</div>
+            <div class="mc-weekday">{column.weekdayLabel}</div>
+            <div class="mc-daynum">{column.dayLabel}</div>
           </div>
         ))}
       </div>
@@ -49,26 +49,26 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
       <div class="mc-allday-row" data-mc-allday style={{ display: 'flex' }}>
         <div
           class="mc-gutter-label mc-allday-label"
-          style={{ width: px(GUTTER_PX), flex: '0 0 auto' }}
+          style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}
         >
           dia inteiro
         </div>
-        {vm.columns.map((col) => (
+        {vm.columns.map((column) => (
           <div
-            key={col.dateISO}
+            key={column.dateISO}
             class="mc-allday-cell"
-            data-mc-allday-cell={col.dateISO}
+            data-mc-allday-cell={column.dateISO}
             style={{ flex: '1 1 0' }}
           >
-            {col.allDay.map((a) => (
+            {column.allDay.map((allDayEvent) => (
               <div
-                key={a.id}
+                key={allDayEvent.id}
                 class="mc-allday-event"
-                data-mc-allday-event={a.id}
-                style={a.color ? { borderLeft: `3px solid ${a.color}` } : undefined}
-                title={a.title}
+                data-mc-allday-event={allDayEvent.id}
+                style={allDayEvent.color ? { borderLeft: `3px solid ${allDayEvent.color}` } : undefined}
+                title={allDayEvent.title}
               >
-                {a.title}
+                {allDayEvent.title}
               </div>
             ))}
           </div>
@@ -80,27 +80,32 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
         {/* Eixo de horas */}
         <div
           class="mc-time-axis"
-          style={{ width: px(GUTTER_PX), flex: '0 0 auto', position: 'relative', height: px(bodyHeight) }}
+          style={{
+            width: toPx(GUTTER_PX),
+            flex: '0 0 auto',
+            position: 'relative',
+            height: toPx(bodyHeight),
+          }}
         >
-          {vm.hourLabels.map((hl) => (
+          {vm.hourLabels.map((hourLabel) => (
             <div
-              key={hl.min}
+              key={hourLabel.min}
               class="mc-hour-label"
-              style={{ position: 'absolute', top: px(yOf(hl.min)), right: '4px' }}
+              style={{ position: 'absolute', top: toPx(minuteToY(hourLabel.min)), right: '4px' }}
             >
-              {hl.label}
+              {hourLabel.label}
             </div>
           ))}
         </div>
 
         {/* Colunas de dia */}
-        {vm.columns.map((col) => (
+        {vm.columns.map((column) => (
           <DayColumn
-            key={col.dateISO}
-            col={col}
+            key={column.dateISO}
+            column={column}
             bodyHeight={bodyHeight}
-            hourMins={vm.hourLabels.map((h) => h.min)}
-            yOf={yOf}
+            hourMinutes={vm.hourLabels.map((hourLabel) => hourLabel.min)}
+            minuteToY={minuteToY}
             pxPerMinute={vm.pxPerMinute}
           />
         ))}
@@ -109,86 +114,90 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
   );
 }
 
-function segStyle(seg: Segment, yOf: (m: number) => number, pxPerMinute: number): JSX.CSSProperties {
+function segmentStyle(
+  segment: Segment,
+  minuteToY: (minuteOfDay: number) => number,
+  pxPerMinute: number,
+): JSX.CSSProperties {
   return {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: px(yOf(seg.startMin)),
-    height: px((seg.endMin - seg.startMin) * pxPerMinute),
+    top: `${minuteToY(segment.startMin)}px`,
+    height: `${(segment.endMin - segment.startMin) * pxPerMinute}px`,
   };
 }
 
 function DayColumn(props: {
-  col: DayColumnVM;
+  column: DayColumnVM;
   bodyHeight: number;
-  hourMins: number[];
-  yOf: (m: number) => number;
+  hourMinutes: number[];
+  minuteToY: (minuteOfDay: number) => number;
   pxPerMinute: number;
 }): JSX.Element {
-  const { col, bodyHeight, hourMins, yOf, pxPerMinute } = props;
+  const { column, bodyHeight, hourMinutes, minuteToY, pxPerMinute } = props;
   return (
     <div
-      class={`mc-day-col${col.isToday ? ' mc-today' : ''}`}
-      data-mc-day={col.dateISO}
-      style={{ flex: '1 1 0', position: 'relative', height: px(bodyHeight) }}
+      class={`mc-day-col${column.isToday ? ' mc-today' : ''}`}
+      data-mc-day={column.dateISO}
+      style={{ flex: '1 1 0', position: 'relative', height: toPx(bodyHeight) }}
     >
       {/* Fundo: fora do expediente */}
-      {col.nonBusiness.map((seg, i) => (
+      {column.nonBusiness.map((segment, index) => (
         <div
-          key={`nb-${i}`}
+          key={`nonbusiness-${index}`}
           class="mc-nonbusiness"
           data-mc-nonbusiness
-          style={segStyle(seg, yOf, pxPerMinute)}
+          style={segmentStyle(segment, minuteToY, pxPerMinute)}
         />
       ))}
 
       {/* Fundo: bloqueios (precedência visual) */}
-      {col.blocked.map((seg, i) => (
+      {column.blocked.map((segment, index) => (
         <div
-          key={`bl-${i}`}
+          key={`blocked-${index}`}
           class="mc-blocked"
           data-mc-blocked
-          style={segStyle(seg, yOf, pxPerMinute)}
+          style={segmentStyle(segment, minuteToY, pxPerMinute)}
         />
       ))}
 
       {/* Linhas de hora */}
-      {hourMins.map((m) => (
+      {hourMinutes.map((minute) => (
         <div
-          key={`ln-${m}`}
+          key={`hourline-${minute}`}
           class="mc-hour-line"
-          style={{ position: 'absolute', left: 0, right: 0, top: px(yOf(m)) }}
+          style={{ position: 'absolute', left: 0, right: 0, top: toPx(minuteToY(minute)) }}
         />
       ))}
 
       {/* Eventos posicionados */}
-      {col.events.map((ev) => (
+      {column.events.map((eventItem) => (
         <div
-          key={ev.id}
+          key={eventItem.id}
           class="mc-event"
-          data-mc-event={ev.id}
-          title={ev.title}
+          data-mc-event={eventItem.id}
+          title={eventItem.title}
           style={{
             position: 'absolute',
-            top: px(ev.block.top),
-            height: px(ev.block.height),
-            left: `${ev.block.left * 100}%`,
-            width: `${ev.block.width * 100}%`,
-            ...(ev.color ? { backgroundColor: ev.color } : {}),
+            top: toPx(eventItem.block.top),
+            height: toPx(eventItem.block.height),
+            left: `${eventItem.block.left * 100}%`,
+            width: `${eventItem.block.width * 100}%`,
+            ...(eventItem.color ? { backgroundColor: eventItem.color } : {}),
           }}
         >
-          <span class="mc-event-time">{ev.timeLabel}</span>
-          <span class="mc-event-title">{ev.title}</span>
+          <span class="mc-event-time">{eventItem.timeLabel}</span>
+          <span class="mc-event-title">{eventItem.title}</span>
         </div>
       ))}
 
       {/* Linha "agora" */}
-      {col.nowMinutes !== null && (
+      {column.nowMinutes !== null && (
         <div
           class="mc-now-line"
           data-mc-now
-          style={{ position: 'absolute', left: 0, right: 0, top: px(yOf(col.nowMinutes)) }}
+          style={{ position: 'absolute', left: 0, right: 0, top: toPx(minuteToY(column.nowMinutes)) }}
         />
       )}
     </div>

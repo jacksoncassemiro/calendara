@@ -5,19 +5,19 @@
  * argumentos forem os MESMOS por referência, devolve o resultado em cache. É o que torna o
  * "diff granular" barato — trocar constraints não recomputa ocorrências, e vice-versa.
  */
-export function memoize<Args extends readonly unknown[], R>(
-  compute: (...args: Args) => R,
-): (...args: Args) => R {
+export function memoize<Args extends readonly unknown[], Result>(
+  compute: (...args: Args) => Result,
+): (...args: Args) => Result {
   let lastArgs: Args | null = null;
-  let lastResult: R;
+  let lastResult: Result;
   let hasResult = false;
 
-  return (...args: Args): R => {
+  return (...args: Args): Result => {
     if (
       hasResult &&
       lastArgs !== null &&
       lastArgs.length === args.length &&
-      lastArgs.every((a, i) => Object.is(a, args[i]))
+      lastArgs.every((previousArg, index) => Object.is(previousArg, args[index]))
     ) {
       return lastResult;
     }

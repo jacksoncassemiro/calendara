@@ -10,7 +10,7 @@ import type { CalendarOptions } from '../render/state.js';
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
 export interface ViewContext {
-  T: TemporalLike;
+  temporal: TemporalLike;
   dateUtils: DateUtils;
   options: CalendarOptions;
 }

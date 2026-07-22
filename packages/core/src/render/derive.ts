@@ -36,40 +36,40 @@ export interface DayData {
   blocked: Segment[];
 }
 
-function occKey(occ: EventOccurrence): string {
-  return `${occ.masterId}@${occ.originalStart}`;
+function occurrenceKey(occurrence: EventOccurrence): string {
+  return `${occurrence.masterId}@${occurrence.originalStart}`;
 }
 
 function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':');
-  return parseInt(h ?? '0', 10) * 60 + parseInt(m ?? '0', 10);
+  const [hours, minutes] = hhmm.split(':');
+  return parseInt(hours ?? '0', 10) * 60 + parseInt(minutes ?? '0', 10);
 }
 
 /** Expande todos os eventos no range [startISO, endISO] (datas inclusivas). Memoizável por chamador. */
 export function expandRange(
-  T: TemporalLike,
+  temporal: TemporalLike,
   events: readonly CalendarEvent[],
   startISO: string,
   endISO: string,
 ): EventOccurrence[] {
-  const out: EventOccurrence[] = [];
-  for (const ev of events) {
-    for (const occ of expandEvent(T, ev, { start: startISO, end: endISO })) {
-      out.push(occ);
+  const results: EventOccurrence[] = [];
+  for (const event of events) {
+    for (const occurrence of expandEvent(temporal, event, { start: startISO, end: endISO })) {
+      results.push(occurrence);
     }
   }
-  return out;
+  return results;
 }
 
 /** Converte um extremo timed para ZonedDateTime na timezone de exibição. */
-function toDisplayZdt(
-  T: TemporalLike,
-  edt: EventDateTime,
-  displayTz: string,
+function toDisplayZoned(
+  temporal: TemporalLike,
+  eventDateTime: EventDateTime,
+  displayTimeZone: string,
 ): InstanceType<TemporalLike['ZonedDateTime']> {
-  const tz = edt.timeZone ?? displayTz;
-  const pdt = T.PlainDateTime.from(edt.dateTime!);
-  return pdt.toZonedDateTime(tz).withTimeZone(displayTz);
+  const sourceTimeZone = eventDateTime.timeZone ?? displayTimeZone;
+  const plainDateTime = temporal.PlainDateTime.from(eventDateTime.dateTime!);
+  return plainDateTime.toZonedDateTime(sourceTimeZone).withTimeZone(displayTimeZone);
 }
 
 /**
@@ -77,120 +77,120 @@ function toDisplayZdt(
  * Eventos que cruzam a meia-noite são ancorados no dia de início e recortados (Fase 2).
  */
 export function buildDays(
-  T: TemporalLike,
+  temporal: TemporalLike,
   days: readonly PlainDate[],
   occurrences: readonly EventOccurrence[],
   constraints: ConstraintSet,
   grid: { startHour: number; endHour: number },
-  displayTz: string,
+  displayTimeZone: string,
 ): DayData[] {
-  const gridStart = grid.startHour * 60;
-  const gridEnd = grid.endHour * 60;
+  const gridStartMin = grid.startHour * 60;
+  const gridEndMin = grid.endHour * 60;
 
-  const byDay = new Map<string, DayData>();
-  for (const d of days) {
-    const iso = d.toString();
-    byDay.set(iso, {
-      date: d,
-      dateISO: iso,
+  const dataByDay = new Map<string, DayData>();
+  for (const day of days) {
+    const dayIso = day.toString();
+    dataByDay.set(dayIso, {
+      date: day,
+      dateISO: dayIso,
       timed: [],
       allDay: [],
-      nonBusiness: deriveNonBusiness(constraints, iso, gridStart, gridEnd),
-      blocked: deriveBlocked(constraints, iso, gridStart, gridEnd),
+      nonBusiness: deriveNonBusiness(constraints, dayIso, gridStartMin, gridEndMin),
+      blocked: deriveBlocked(constraints, dayIso, gridStartMin, gridEndMin),
     });
   }
 
-  for (const occ of occurrences) {
-    const t = occ.event.time;
-    if (t.allDay) {
-      const iso = (t.start.date ?? '').slice(0, 10);
-      byDay.get(iso)?.allDay.push(occ);
+  for (const occurrence of occurrences) {
+    const time = occurrence.event.time;
+    if (time.allDay) {
+      const dayIso = (time.start.date ?? '').slice(0, 10);
+      dataByDay.get(dayIso)?.allDay.push(occurrence);
       continue;
     }
-    const startZdt = toDisplayZdt(T, t.start, displayTz);
-    const endZdt = toDisplayZdt(T, t.end, displayTz);
-    const dayISO = startZdt.toPlainDate().toString();
-    const col = byDay.get(dayISO);
-    if (!col) continue; // fora dos dias visíveis
-    const startMin = startZdt.hour * 60 + startZdt.minute;
-    const sameDay = endZdt.toPlainDate().toString() === dayISO;
-    const endMin = sameDay ? endZdt.hour * 60 + endZdt.minute : 1440;
-    col.timed.push({
-      id: occKey(occ),
+    const startZoned = toDisplayZoned(temporal, time.start, displayTimeZone);
+    const endZoned = toDisplayZoned(temporal, time.end, displayTimeZone);
+    const dayIso = startZoned.toPlainDate().toString();
+    const column = dataByDay.get(dayIso);
+    if (!column) continue; // fora dos dias visíveis
+    const startMin = startZoned.hour * 60 + startZoned.minute;
+    const endsSameDay = endZoned.toPlainDate().toString() === dayIso;
+    const endMin = endsSameDay ? endZoned.hour * 60 + endZoned.minute : 1440;
+    column.timed.push({
+      id: occurrenceKey(occurrence),
       startMin,
       endMin: Math.max(endMin, startMin),
-      occurrence: occ,
+      occurrence,
     });
   }
 
-  return days.map((d) => byDay.get(d.toString())!);
+  return days.map((day) => dataByDay.get(day.toString())!);
 }
 
 /** Sombreado "fora do expediente" = grid − janelas de horário comercial do dia. */
 function deriveNonBusiness(
   constraints: ConstraintSet,
   dateISO: string,
-  gridStart: number,
-  gridEnd: number,
+  gridStartMin: number,
+  gridEndMin: number,
 ): Segment[] {
-  const bh = constraints.businessHours ?? [];
-  if (bh.length === 0) return []; // sem regra = sempre aberto (nada sombreado)
-  const dow = jsDayOfWeek(dateISO);
-  const open: Segment[] = [];
-  for (const rule of bh) {
-    if (!rule.daysOfWeek.includes(dow)) continue;
+  const businessHours = constraints.businessHours ?? [];
+  if (businessHours.length === 0) return []; // sem regra = sempre aberto (nada sombreado)
+  const dayOfWeek = jsDayOfWeek(dateISO);
+  const openSegments: Segment[] = [];
+  for (const rule of businessHours) {
+    if (!rule.daysOfWeek.includes(dayOfWeek)) continue;
     if (rule.start && dateISO < rule.start) continue;
     if (rule.end && dateISO > rule.end) continue;
-    const s = Math.max(toMinutes(rule.startTime), gridStart);
-    const e = Math.min(toMinutes(rule.endTime), gridEnd);
-    if (e > s) open.push({ startMin: s, endMin: e });
+    const start = Math.max(toMinutes(rule.startTime), gridStartMin);
+    const end = Math.min(toMinutes(rule.endTime), gridEndMin);
+    if (end > start) openSegments.push({ startMin: start, endMin: end });
   }
-  return complement(mergeSegments(open), gridStart, gridEnd);
+  return complement(mergeSegments(openSegments), gridStartMin, gridEndMin);
 }
 
 /** Bloqueios do dia (precedência total): dia inteiro → grid; faixa → intervalo recortado. */
 function deriveBlocked(
   constraints: ConstraintSet,
   dateISO: string,
-  gridStart: number,
-  gridEnd: number,
+  gridStartMin: number,
+  gridEndMin: number,
 ): Segment[] {
-  const out: Segment[] = [];
-  for (const b of constraints.blocked ?? []) {
-    if (b.date !== dateISO) continue;
-    if (b.scope === 'day') return [{ startMin: gridStart, endMin: gridEnd }];
-    const s = Math.max(b.start ? toMinutes(b.start) : gridStart, gridStart);
-    const raw = b.end ?? b.endTime;
-    const e = Math.min(raw ? toMinutes(raw) : gridEnd, gridEnd);
-    if (e > s) out.push({ startMin: s, endMin: e });
+  const segments: Segment[] = [];
+  for (const blocking of constraints.blocked ?? []) {
+    if (blocking.date !== dateISO) continue;
+    if (blocking.scope === 'day') return [{ startMin: gridStartMin, endMin: gridEndMin }];
+    const start = Math.max(blocking.start ? toMinutes(blocking.start) : gridStartMin, gridStartMin);
+    const rawEnd = blocking.end ?? blocking.endTime;
+    const end = Math.min(rawEnd ? toMinutes(rawEnd) : gridEndMin, gridEndMin);
+    if (end > start) segments.push({ startMin: start, endMin: end });
   }
-  return mergeSegments(out);
+  return mergeSegments(segments);
 }
 
 /** Une segmentos sobrepostos/adjacentes. */
-function mergeSegments(segs: Segment[]): Segment[] {
-  if (segs.length <= 1) return segs.slice();
-  const sorted = [...segs].sort((a, b) => a.startMin - b.startMin);
+function mergeSegments(segments: Segment[]): Segment[] {
+  if (segments.length <= 1) return segments.slice();
+  const sorted = [...segments].sort((first, second) => first.startMin - second.startMin);
   const merged: Segment[] = [];
-  for (const s of sorted) {
+  for (const segment of sorted) {
     const last = merged[merged.length - 1];
-    if (last && s.startMin <= last.endMin) {
-      last.endMin = Math.max(last.endMin, s.endMin);
+    if (last && segment.startMin <= last.endMin) {
+      last.endMin = Math.max(last.endMin, segment.endMin);
     } else {
-      merged.push({ ...s });
+      merged.push({ ...segment });
     }
   }
   return merged;
 }
 
-/** Complemento de `segs` (já mesclados) dentro de [lo,hi). */
-function complement(segs: Segment[], lo: number, hi: number): Segment[] {
-  const out: Segment[] = [];
-  let cursor = lo;
-  for (const s of segs) {
-    if (s.startMin > cursor) out.push({ startMin: cursor, endMin: s.startMin });
-    cursor = Math.max(cursor, s.endMin);
+/** Complemento de `segments` (já mesclados) dentro de [lowerBound, upperBound). */
+function complement(segments: Segment[], lowerBound: number, upperBound: number): Segment[] {
+  const gaps: Segment[] = [];
+  let cursor = lowerBound;
+  for (const segment of segments) {
+    if (segment.startMin > cursor) gaps.push({ startMin: cursor, endMin: segment.startMin });
+    cursor = Math.max(cursor, segment.endMin);
   }
-  if (cursor < hi) out.push({ startMin: cursor, endMin: hi });
-  return out;
+  if (cursor < upperBound) gaps.push({ startMin: cursor, endMin: upperBound });
+  return gaps;
 }

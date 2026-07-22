@@ -47,7 +47,7 @@ export interface GeoBlock {
   columns: number;
 }
 
-interface Work extends GeoInput {
+interface WorkItem extends GeoInput {
   /** Início/fim recortados ao grid (para px). */
   renderStart: number;
   renderEnd: number;
@@ -56,8 +56,8 @@ interface Work extends GeoInput {
   column: number;
 }
 
-function overlaps(a: Work, b: Work): boolean {
-  return a.startMin < b.collisionEnd && b.startMin < a.collisionEnd;
+function overlaps(first: WorkItem, second: WorkItem): boolean {
+  return first.startMin < second.collisionEnd && second.startMin < first.collisionEnd;
 }
 
 /**
@@ -65,24 +65,24 @@ function overlaps(a: Work, b: Work): boolean {
  * são descartados; parcialmente fora são recortados.
  */
 export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[] {
-  const gridStart = grid.startHour * 60;
-  const gridEnd = grid.endHour * 60;
-  const minMin = grid.minEventMinutes ?? 15;
+  const gridStartMin = grid.startHour * 60;
+  const gridEndMin = grid.endHour * 60;
+  const minimumMinutes = grid.minEventMinutes ?? 15;
   const gutter = grid.gutter ?? 0;
 
   // 1) Recorte ao grid + normalização.
-  const work: Work[] = [];
-  for (const it of items) {
-    const s = Math.max(it.startMin, gridStart);
-    const e = Math.min(it.endMin, gridEnd);
-    if (e <= gridStart || s >= gridEnd) continue; // fora da janela
-    const renderStart = s;
-    const renderEnd = Math.max(e, s); // nunca negativo
-    const collisionEnd = Math.max(renderEnd, renderStart + minMin);
-    work.push({
-      id: it.id,
+  const workItems: WorkItem[] = [];
+  for (const item of items) {
+    const clippedStart = Math.max(item.startMin, gridStartMin);
+    const clippedEnd = Math.min(item.endMin, gridEndMin);
+    if (clippedEnd <= gridStartMin || clippedStart >= gridEndMin) continue; // fora da janela
+    const renderStart = clippedStart;
+    const renderEnd = Math.max(clippedEnd, clippedStart); // nunca negativo
+    const collisionEnd = Math.max(renderEnd, renderStart + minimumMinutes);
+    workItems.push({
+      id: item.id,
       startMin: renderStart,
-      endMin: it.endMin,
+      endMin: item.endMin,
       renderStart,
       renderEnd,
       collisionEnd,
@@ -91,83 +91,86 @@ export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[]
   }
 
   // 2) Ordena por início asc, depois por duração desc (mais longos primeiro), depois id.
-  work.sort(
-    (a, b) =>
-      a.startMin - b.startMin ||
-      b.collisionEnd - a.collisionEnd ||
-      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  workItems.sort(
+    (first, second) =>
+      first.startMin - second.startMin ||
+      second.collisionEnd - first.collisionEnd ||
+      (first.id < second.id ? -1 : first.id > second.id ? 1 : 0),
   );
 
-  const out: GeoBlock[] = [];
+  const blocks: GeoBlock[] = [];
 
   // 3) Agrupa em clusters (conjuntos conectados por sobreposição) e resolve cada um.
-  let group: Work[] = [];
-  let groupEnd = -Infinity;
+  let cluster: WorkItem[] = [];
+  let clusterEnd = -Infinity;
 
-  const flush = (): void => {
-    if (group.length === 0) return;
-    resolveCluster(group, grid, gridStart, gutter, out);
-    group = [];
-    groupEnd = -Infinity;
+  const flushCluster = (): void => {
+    if (cluster.length === 0) return;
+    resolveCluster(cluster, grid, gridStartMin, gutter, blocks);
+    cluster = [];
+    clusterEnd = -Infinity;
   };
 
-  for (const ev of work) {
-    if (group.length > 0 && ev.startMin >= groupEnd) flush();
-    group.push(ev);
-    groupEnd = Math.max(groupEnd, ev.collisionEnd);
+  for (const workItem of workItems) {
+    if (cluster.length > 0 && workItem.startMin >= clusterEnd) flushCluster();
+    cluster.push(workItem);
+    clusterEnd = Math.max(clusterEnd, workItem.collisionEnd);
   }
-  flush();
+  flushCluster();
 
-  return out;
+  return blocks;
 }
 
 function resolveCluster(
-  group: Work[],
+  cluster: WorkItem[],
   grid: GeoGrid,
-  gridStart: number,
+  gridStartMin: number,
   gutter: number,
-  out: GeoBlock[],
+  blocks: GeoBlock[],
 ): void {
   // Atribuição gulosa de colunas: reusa a primeira coluna livre.
-  const colEnds: number[] = [];
-  for (const ev of group) {
-    let placed = -1;
-    for (let c = 0; c < colEnds.length; c++) {
-      if ((colEnds[c] ?? -Infinity) <= ev.startMin) {
-        placed = c;
+  const columnEnds: number[] = [];
+  for (const workItem of cluster) {
+    let placedColumn = -1;
+    for (let columnIndex = 0; columnIndex < columnEnds.length; columnIndex++) {
+      if ((columnEnds[columnIndex] ?? -Infinity) <= workItem.startMin) {
+        placedColumn = columnIndex;
         break;
       }
     }
-    if (placed === -1) {
-      placed = colEnds.length;
-      colEnds.push(ev.collisionEnd);
+    if (placedColumn === -1) {
+      placedColumn = columnEnds.length;
+      columnEnds.push(workItem.collisionEnd);
     } else {
-      colEnds[placed] = ev.collisionEnd;
+      columnEnds[placedColumn] = workItem.collisionEnd;
     }
-    ev.column = placed;
+    workItem.column = placedColumn;
   }
-  const columns = colEnds.length;
+  const columnCount = columnEnds.length;
+  const minimumMinutes = grid.minEventMinutes ?? 15;
 
   // Expansão waterfall: cada evento cresce à direita enquanto as colunas seguintes
   // não tiverem nenhum evento que o sobreponha no tempo.
-  for (const ev of group) {
-    let span = 1;
-    for (let c = ev.column + 1; c < columns; c++) {
-      const conflict = group.some((o) => o.column === c && overlaps(o, ev));
-      if (conflict) break;
-      span++;
+  for (const workItem of cluster) {
+    let columnSpan = 1;
+    for (let columnIndex = workItem.column + 1; columnIndex < columnCount; columnIndex++) {
+      const hasConflict = cluster.some(
+        (other) => other.column === columnIndex && overlaps(other, workItem),
+      );
+      if (hasConflict) break;
+      columnSpan++;
     }
-    const colWidth = 1 / columns;
-    const left = ev.column * colWidth;
-    const width = span * colWidth - gutter;
-    out.push({
-      id: ev.id,
-      top: (ev.renderStart - gridStart) * grid.pxPerMinute,
-      height: Math.max(ev.renderEnd - ev.renderStart, grid.minEventMinutes ?? 15) * grid.pxPerMinute,
+    const columnWidth = 1 / columnCount;
+    const left = workItem.column * columnWidth;
+    const width = columnSpan * columnWidth - gutter;
+    blocks.push({
+      id: workItem.id,
+      top: (workItem.renderStart - gridStartMin) * grid.pxPerMinute,
+      height: Math.max(workItem.renderEnd - workItem.renderStart, minimumMinutes) * grid.pxPerMinute,
       left,
-      width: Math.max(width, colWidth * 0.5),
-      column: ev.column,
-      columns,
+      width: Math.max(width, columnWidth * 0.5),
+      column: workItem.column,
+      columns: columnCount,
     });
   }
 }

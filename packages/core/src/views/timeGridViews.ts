@@ -22,15 +22,15 @@ export const weekView: TimeGridViewDef = {
   },
   getTitle(range, ctx): string {
     const { locale } = ctx.options;
-    const s = range.startDate;
-    const e = range.endDate;
-    const sameMonth = s.year === e.year && s.month === e.month;
+    const start = range.startDate;
+    const end = range.endDate;
+    const sameMonth = start.year === end.year && start.month === end.month;
     if (sameMonth) {
-      return `${s.day} – ${formatDate(e, locale, { day: 'numeric', month: 'long', year: 'numeric' })}`;
+      return `${start.day} – ${formatDate(end, locale, { day: 'numeric', month: 'long', year: 'numeric' })}`;
     }
-    const sTxt = formatDate(s, locale, { day: 'numeric', month: 'short' });
-    const eTxt = formatDate(e, locale, { day: 'numeric', month: 'short', year: 'numeric' });
-    return `${sTxt} – ${eTxt}`;
+    const startText = formatDate(start, locale, { day: 'numeric', month: 'short' });
+    const endText = formatDate(end, locale, { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${startText} – ${endText}`;
   },
 };
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { ensureTemporal, type TemporalLike } from '../src/date/temporal.js';
-import { createDateUtils } from '../src/date/DateUtils.js';
+import { createDateUtils } from '../src/date/dateUtils.js';
 import { expandEvent } from '../src/recurrence/recurrenceSet.js';
 import type { CalendarEvent } from '../src/types/index.js';
 

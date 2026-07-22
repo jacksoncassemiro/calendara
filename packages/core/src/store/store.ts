@@ -7,37 +7,40 @@
  * Não há dependência de Preact/React aqui: o render se conecta via `subscribe`.
  */
 
-export type Listener<S> = (changed: ReadonlySet<keyof S>, state: Readonly<S>) => void;
+export type Listener<State> = (
+  changedKeys: ReadonlySet<keyof State>,
+  state: Readonly<State>,
+) => void;
 
-export interface Store<S extends object> {
+export interface Store<State extends object> {
   /** Estado atual (imutável por convenção — troque via setState). */
-  getState(): Readonly<S>;
+  getState(): Readonly<State>;
   /** Merge raso. Só notifica se alguma chave realmente mudou de referência. */
-  setState(patch: Partial<S>): void;
+  setState(patch: Partial<State>): void;
   /** Registra assinante; retorna função de cancelamento. */
-  subscribe(listener: Listener<S>): () => void;
+  subscribe(listener: Listener<State>): () => void;
 }
 
-export function createStore<S extends object>(initial: S): Store<S> {
-  let state: S = { ...initial };
-  const listeners = new Set<Listener<S>>();
+export function createStore<State extends object>(initialState: State): Store<State> {
+  let state: State = { ...initialState };
+  const listeners = new Set<Listener<State>>();
 
   return {
     getState: () => state,
 
-    setState(patch: Partial<S>): void {
-      const changed = new Set<keyof S>();
-      for (const k in patch) {
-        const key = k as keyof S;
-        if (!Object.is(state[key], patch[key])) changed.add(key);
+    setState(patch: Partial<State>): void {
+      const changedKeys = new Set<keyof State>();
+      for (const rawKey in patch) {
+        const key = rawKey as keyof State;
+        if (!Object.is(state[key], patch[key])) changedKeys.add(key);
       }
-      if (changed.size === 0) return; // nada mudou → nenhum re-render
+      if (changedKeys.size === 0) return; // nada mudou → nenhum re-render
       state = { ...state, ...patch };
       // cópia defensiva: um listener pode se desinscrever durante a iteração
-      for (const l of [...listeners]) l(changed, state);
+      for (const listener of [...listeners]) listener(changedKeys, state);
     },
 
-    subscribe(listener: Listener<S>): () => void {
+    subscribe(listener: Listener<State>): () => void {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);

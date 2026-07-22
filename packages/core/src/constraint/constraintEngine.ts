@@ -26,18 +26,23 @@ export interface Slot {
 }
 
 function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':');
-  return parseInt(h ?? '0', 10) * 60 + parseInt(m ?? '0', 10);
+  const [hours, minutes] = hhmm.split(':');
+  return parseInt(hours ?? '0', 10) * 60 + parseInt(minutes ?? '0', 10);
 }
 
 /** dia-da-semana JS (0=dom..6=sáb) de uma data 'YYYY-MM-DD' (UTC-safe, sem tz). */
 export function jsDayOfWeek(dateISO: string): number {
-  const [y, m, d] = dateISO.split('-').map((x) => parseInt(x, 10));
-  return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)).getUTCDay();
+  const [year, month, day] = dateISO.split('-').map((token) => parseInt(token, 10));
+  return new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1)).getUTCDay();
 }
 
-function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
-  return aStart < bEnd && bStart < aEnd;
+function overlaps(
+  firstStart: number,
+  firstEnd: number,
+  secondStart: number,
+  secondEnd: number,
+): boolean {
+  return firstStart < secondEnd && secondStart < firstEnd;
 }
 
 /** Normaliza o slot para [start,end) em minutos; dia inteiro vira [0,1440). */
@@ -53,44 +58,45 @@ export class ConstraintEngine {
   private allowedRanges: DateRange[];
   private blocked: Blocking[];
 
-  constructor(set: ConstraintSet = {}) {
-    this.businessHours = set.businessHours ?? [];
-    this.allowedRanges = set.allowedRanges ?? [];
-    this.blocked = set.blocked ?? [];
+  constructor(constraintSet: ConstraintSet = {}) {
+    this.businessHours = constraintSet.businessHours ?? [];
+    this.allowedRanges = constraintSet.allowedRanges ?? [];
+    this.blocked = constraintSet.blocked ?? [];
   }
 
   /** Substitui o conjunto de constraints (imutável por chamada). */
-  update(set: ConstraintSet): void {
-    this.businessHours = set.businessHours ?? [];
-    this.allowedRanges = set.allowedRanges ?? [];
-    this.blocked = set.blocked ?? [];
+  update(constraintSet: ConstraintSet): void {
+    this.businessHours = constraintSet.businessHours ?? [];
+    this.allowedRanges = constraintSet.allowedRanges ?? [];
+    this.blocked = constraintSet.blocked ?? [];
   }
 
   private isBlocked(slot: Slot): boolean {
     const { start, end } = slotMinutes(slot);
-    for (const b of this.blocked) {
-      if (b.date !== slot.date) continue;
-      if (b.scope === 'day') return true;
+    for (const blocking of this.blocked) {
+      if (blocking.date !== slot.date) continue;
+      if (blocking.scope === 'day') return true;
       // scope 'time'
-      const bStart = b.start ? toMinutes(b.start) : 0;
-      const bEnd = b.end ?? b.endTime ? toMinutes((b.end ?? b.endTime)!) : 1440;
-      if (overlaps(start, end, bStart, bEnd)) return true;
+      const blockStart = blocking.start ? toMinutes(blocking.start) : 0;
+      const blockEnd =
+        blocking.end ?? blocking.endTime ? toMinutes((blocking.end ?? blocking.endTime)!) : 1440;
+      if (overlaps(start, end, blockStart, blockEnd)) return true;
     }
     return false;
   }
 
   private inBusinessHours(slot: Slot): boolean {
     if (!this.businessHours.length) return true; // sem regra = sempre aberto
-    const dow = jsDayOfWeek(slot.date);
+    const dayOfWeek = jsDayOfWeek(slot.date);
     const { start, end, wholeDay } = slotMinutes(slot);
-    for (const bh of this.businessHours) {
-      if (!bh.daysOfWeek.includes(dow)) continue;
-      if (bh.start && slot.date < bh.start) continue;
-      if (bh.end && slot.date > bh.end) continue;
-      const bhStart = toMinutes(bh.startTime);
-      const bhEnd = toMinutes(bh.endTime);
+    for (const businessHour of this.businessHours) {
+      if (!businessHour.daysOfWeek.includes(dayOfWeek)) continue;
+      if (businessHour.start && slot.date < businessHour.start) continue;
+      if (businessHour.end && slot.date > businessHour.end) continue;
+      const businessStart = toMinutes(businessHour.startTime);
+      const businessEnd = toMinutes(businessHour.endTime);
       if (wholeDay) return true; // há expediente nesse dia
-      if (start >= bhStart && end <= bhEnd) return true;
+      if (start >= businessStart && end <= businessEnd) return true;
     }
     return false;
   }
@@ -98,12 +104,12 @@ export class ConstraintEngine {
   private inAllowed(slot: Slot): boolean {
     if (!this.allowedRanges.length) return true; // sem restrição
     const { start, end, wholeDay } = slotMinutes(slot);
-    for (const r of this.allowedRanges) {
-      if (slot.date < r.start || slot.date > r.end) continue;
+    for (const range of this.allowedRanges) {
+      if (slot.date < range.start || slot.date > range.end) continue;
       if (wholeDay) return true;
-      const rStart = r.startTime ? toMinutes(r.startTime) : 0;
-      const rEnd = r.endTime ? toMinutes(r.endTime) : 1440;
-      if (start >= rStart && end <= rEnd) return true;
+      const rangeStart = range.startTime ? toMinutes(range.startTime) : 0;
+      const rangeEnd = range.endTime ? toMinutes(range.endTime) : 1440;
+      if (start >= rangeStart && end <= rangeEnd) return true;
     }
     return false;
   }

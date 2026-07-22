@@ -10,7 +10,7 @@
  * geometria (waterfall) → camada de fundo (horário comercial/bloqueios via ConstraintSet) →
  * GridVM → TimeGrid.
  */
-import { render as preactRender, h } from 'preact';
+import { render as preactRender, h as createElement } from 'preact';
 
 import { createStore, type Store } from '../store/store.js';
 import { memoize } from '../store/memoize.js';
@@ -55,8 +55,8 @@ export interface CalendarConfig {
   temporal?: TemporalLike;
 }
 
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : `${n}`;
+function padTwo(value: number): string {
+  return value < 10 ? `0${value}` : `${value}`;
 }
 
 export class CalendarApp {
@@ -68,32 +68,32 @@ export class CalendarApp {
   private readonly memoExpand = memoize(expandRange);
 
   private container: HTMLElement | null = null;
-  private unsub: (() => void) | null = null;
-  private T: TemporalLike | null = null;
+  private unsubscribe: (() => void) | null = null;
+  private temporal: TemporalLike | null = null;
   private dateUtils: DateUtils | null = null;
 
   constructor(config: CalendarConfig = {}) {
     const options: CalendarOptions = { ...DEFAULT_OPTIONS, ...config.options };
-    const initial: CalendarState = {
+    const initialState: CalendarState = {
       date: config.date ?? this.localTodayISO(),
       viewName: config.view ?? 'week',
       events: config.events ?? [],
       constraints: config.constraints ?? {},
       options,
     };
-    this.store = createStore(initial);
-    for (const v of BUILTIN_VIEWS) this.views.set(v.name, v);
-    for (const v of config.views ?? []) this.views.set(v.name, v);
-    this.engine = new ConstraintEngine(initial.constraints);
+    this.store = createStore(initialState);
+    for (const view of BUILTIN_VIEWS) this.views.set(view.name, view);
+    for (const view of config.views ?? []) this.views.set(view.name, view);
+    this.engine = new ConstraintEngine(initialState.constraints);
 
     if (config.temporal) {
-      this.T = config.temporal;
+      this.temporal = config.temporal;
       this.dateUtils = createDateUtils(config.temporal);
       this.readyPromise = Promise.resolve();
     } else {
-      this.readyPromise = ensureTemporal().then((t) => {
-        this.T = t;
-        this.dateUtils = createDateUtils(t);
+      this.readyPromise = ensureTemporal().then((resolvedTemporal) => {
+        this.temporal = resolvedTemporal;
+        this.dateUtils = createDateUtils(resolvedTemporal);
       });
     }
   }
@@ -103,8 +103,8 @@ export class CalendarApp {
   /** Monta o calendário no container. Renderiza assim que o Temporal estiver pronto. */
   mount(container: HTMLElement): void {
     this.container = container;
-    if (!this.unsub) {
-      this.unsub = this.store.subscribe(() => this.renderNow());
+    if (!this.unsubscribe) {
+      this.unsubscribe = this.store.subscribe(() => this.renderNow());
     }
     void this.readyPromise.then(() => this.renderNow());
   }
@@ -117,9 +117,9 @@ export class CalendarApp {
   }
 
   destroy(): void {
-    if (this.unsub) {
-      this.unsub();
-      this.unsub = null;
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
     }
     if (this.container) {
       preactRender(null, this.container);
@@ -145,18 +145,18 @@ export class CalendarApp {
     this.setDate(this.todayISO());
   }
 
-  setDate(iso: string): void {
-    this.store.setState({ date: iso });
-    this.emit('dateChange', iso);
+  setDate(dateISO: string): void {
+    this.store.setState({ date: dateISO });
+    this.emit('dateChange', dateISO);
     this.emitRange();
   }
 
-  changeView(name: string): void {
-    if (!this.views.has(name)) {
-      throw new Error(`[meucalendario] view não registrada: ${name}`);
+  changeView(viewName: string): void {
+    if (!this.views.has(viewName)) {
+      throw new Error(`[meucalendario] view não registrada: ${viewName}`);
     }
-    this.store.setState({ viewName: name });
-    this.emit('viewChange', name);
+    this.store.setState({ viewName });
+    this.emit('viewChange', viewName);
     this.emitRange();
   }
 
@@ -174,14 +174,14 @@ export class CalendarApp {
   }
 
   /** Registra/subscreve view nova (1ª classe). */
-  registerView(def: TimeGridViewDef): void {
-    this.views.set(def.name, def);
+  registerView(definition: TimeGridViewDef): void {
+    this.views.set(definition.name, definition);
   }
 
   /** Título da view/data atuais. */
   getTitle(): string {
-    const { view, range, ctx } = this.resolveView();
-    return view.getTitle(range, ctx);
+    const { view, range, context } = this.resolveView();
+    return view.getTitle(range, context);
   }
 
   /** Range visível (datas ISO inclusivas) — dispara eventSource.fetch nas fases seguintes. */
@@ -195,14 +195,14 @@ export class CalendarApp {
     return this.engine.evaluate(slot);
   }
 
-  on(event: CalendarEventName, cb: (payload: unknown) => void): () => void {
-    let set = this.listeners.get(event);
-    if (!set) {
-      set = new Set();
-      this.listeners.set(event, set);
+  on(eventName: CalendarEventName, callback: (payload: unknown) => void): () => void {
+    let listenerSet = this.listeners.get(eventName);
+    if (!listenerSet) {
+      listenerSet = new Set();
+      this.listeners.set(eventName, listenerSet);
     }
-    set.add(cb);
-    return () => set!.delete(cb);
+    listenerSet.add(callback);
+    return () => listenerSet!.delete(callback);
   }
 
   /** Constrói o view model atual sem desenhar (útil para teste/headless puro). */
@@ -212,46 +212,55 @@ export class CalendarApp {
 
   // ---- interno ---------------------------------------------------------------
 
-  private navigate(dir: 'prev' | 'next'): void {
-    if (!this.T || !this.dateUtils) return;
-    const { view, ctx } = this.resolveView();
-    const date = this.T.PlainDate.from(this.store.getState().date);
-    const nd = view.navigate(dir, date, ctx);
-    this.setDate(nd.toString());
+  private navigate(direction: 'prev' | 'next'): void {
+    if (!this.temporal || !this.dateUtils) return;
+    const { view, context } = this.resolveView();
+    const currentDate = this.temporal.PlainDate.from(this.store.getState().date);
+    const nextDate = view.navigate(direction, currentDate, context);
+    this.setDate(nextDate.toString());
   }
 
-  private resolveView(): { view: TimeGridViewDef; range: ViewRange; ctx: ViewContext; date: PlainDate } {
-    const T = this.T!;
+  private resolveView(): {
+    view: TimeGridViewDef;
+    range: ViewRange;
+    context: ViewContext;
+    date: PlainDate;
+  } {
+    const temporal = this.temporal!;
     const state = this.store.getState();
     const view = this.views.get(state.viewName) ?? weekView;
-    const ctx: ViewContext = { T, dateUtils: this.dateUtils!, options: state.options };
-    const date = T.PlainDate.from(state.date);
-    const range = view.getRange(date, ctx);
-    return { view, range, ctx, date };
+    const context: ViewContext = {
+      temporal,
+      dateUtils: this.dateUtils!,
+      options: state.options,
+    };
+    const date = temporal.PlainDate.from(state.date);
+    const range = view.getRange(date, context);
+    return { view, range, context, date };
   }
 
   private renderNow(): void {
-    if (!this.T || !this.dateUtils || !this.container) return;
-    const vm = this.buildVM();
-    preactRender(h(TimeGrid, { vm }), this.container);
-    this.emit('render', vm);
+    if (!this.temporal || !this.dateUtils || !this.container) return;
+    const viewModel = this.buildVM();
+    preactRender(createElement(TimeGrid, { vm: viewModel }), this.container);
+    this.emit('render', viewModel);
   }
 
   private buildVM(): GridVM {
-    const T = this.T!;
+    const temporal = this.temporal!;
     const state = this.store.getState();
     const { options } = state;
-    const { view, range, ctx } = this.resolveView();
+    const { view, range, context } = this.resolveView();
 
     const startISO = range.startDate.toString();
     const endISO = range.endDate.toString();
 
-    // Expansão de recorrência memoizada por (T, events, start, end): trocar constraints
+    // Expansão de recorrência memoizada por (temporal, events, start, end): trocar constraints
     // NÃO recomputa ocorrências; navegar (range muda) recomputa só o necessário.
-    const occurrences: EventOccurrence[] = this.memoExpand(T, state.events, startISO, endISO);
+    const occurrences: EventOccurrence[] = this.memoExpand(temporal, state.events, startISO, endISO);
 
     const days = buildDays(
-      T,
+      temporal,
       range.days,
       occurrences,
       state.constraints,
@@ -260,14 +269,16 @@ export class CalendarApp {
     );
 
     // Relógio da linha "agora" (injetável para teste).
-    const nowMs = options.nowMs ?? Date.now();
-    const nowZdt = T.Instant.fromEpochMilliseconds(nowMs).toZonedDateTimeISO(options.timeZone);
-    const nowDayISO = nowZdt.toPlainDate().toString();
-    const nowMinutes = nowZdt.hour * 60 + nowZdt.minute;
-    const gridTop = options.startHour * 60;
-    const gridBot = options.endHour * 60;
+    const nowMilliseconds = options.nowMs ?? Date.now();
+    const nowZoned = temporal.Instant.fromEpochMilliseconds(nowMilliseconds).toZonedDateTimeISO(
+      options.timeZone,
+    );
+    const nowDayISO = nowZoned.toPlainDate().toString();
+    const nowMinuteOfDay = nowZoned.hour * 60 + nowZoned.minute;
+    const gridTopMin = options.startHour * 60;
+    const gridBottomMin = options.endHour * 60;
 
-    const geoGrid: GeoGrid = {
+    const geometryGrid: GeoGrid = {
       startHour: options.startHour,
       endHour: options.endHour,
       pxPerMinute: options.pxPerMinute,
@@ -276,19 +287,19 @@ export class CalendarApp {
     };
 
     const columns: DayColumnVM[] = days.map((day) => {
-      const placementById = new Map(day.timed.map((p) => [p.id, p]));
-      const blocks = layoutDay(day.timed, geoGrid);
+      const placementById = new Map(day.timed.map((placement) => [placement.id, placement]));
+      const blocks = layoutDay(day.timed, geometryGrid);
       const events: EventVM[] = blocks.map((block) => {
-        const p = placementById.get(block.id)!;
-        const ev = p.occurrence.event;
-        const evVM: EventVM = {
+        const placement = placementById.get(block.id)!;
+        const event = placement.occurrence.event;
+        const eventVM: EventVM = {
           id: block.id,
           block,
-          title: ev.title,
-          timeLabel: formatHourLabel(p.startMin, options.locale),
+          title: event.title,
+          timeLabel: formatHourLabel(placement.startMin, options.locale),
         };
-        if (ev.color !== undefined) evVM.color = ev.color;
-        return evVM;
+        if (event.color !== undefined) eventVM.color = event.color;
+        return eventVM;
       });
 
       const isToday = day.dateISO === nowDayISO;
@@ -299,24 +310,28 @@ export class CalendarApp {
         isToday,
         nonBusiness: day.nonBusiness,
         blocked: day.blocked,
-        allDay: day.allDay.map((occ) => {
-          const ev = occ.event;
-          return ev.color !== undefined
-            ? { id: `${occ.masterId}@${occ.originalStart}`, title: ev.title, color: ev.color }
-            : { id: `${occ.masterId}@${occ.originalStart}`, title: ev.title };
+        allDay: day.allDay.map((occurrence) => {
+          const event = occurrence.event;
+          const key = `${occurrence.masterId}@${occurrence.originalStart}`;
+          return event.color !== undefined
+            ? { id: key, title: event.title, color: event.color }
+            : { id: key, title: event.title };
         }),
         events,
-        nowMinutes: isToday && nowMinutes >= gridTop && nowMinutes <= gridBot ? nowMinutes : null,
+        nowMinutes:
+          isToday && nowMinuteOfDay >= gridTopMin && nowMinuteOfDay <= gridBottomMin
+            ? nowMinuteOfDay
+            : null,
       };
     });
 
     const hourLabels: GridVM['hourLabels'] = [];
-    for (let min = gridTop; min <= gridBot; min += options.slotMinutes) {
-      hourLabels.push({ min, label: formatHourLabel(min, options.locale) });
+    for (let minute = gridTopMin; minute <= gridBottomMin; minute += options.slotMinutes) {
+      hourLabels.push({ min: minute, label: formatHourLabel(minute, options.locale) });
     }
 
     return {
-      title: view.getTitle(range, ctx),
+      title: view.getTitle(range, context),
       viewName: state.viewName,
       locale: options.locale,
       startHour: options.startHour,
@@ -328,20 +343,20 @@ export class CalendarApp {
     };
   }
 
-  private emit(event: CalendarEventName, payload: unknown): void {
-    const set = this.listeners.get(event);
-    if (!set) return;
-    for (const cb of [...set]) cb(payload);
+  private emit(eventName: CalendarEventName, payload: unknown): void {
+    const listenerSet = this.listeners.get(eventName);
+    if (!listenerSet) return;
+    for (const callback of [...listenerSet]) callback(payload);
   }
 
   private emitRange(): void {
-    if (!this.T) return;
+    if (!this.temporal) return;
     this.emit('rangeChange', this.getVisibleRange());
   }
 
   private todayISO(): string {
-    if (this.T) {
-      return this.T.Now.zonedDateTimeISO(this.store.getState().options.timeZone)
+    if (this.temporal) {
+      return this.temporal.Now.zonedDateTimeISO(this.store.getState().options.timeZone)
         .toPlainDate()
         .toString();
     }
@@ -349,7 +364,7 @@ export class CalendarApp {
   }
 
   private localTodayISO(): string {
-    const d = new Date();
-    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const now = new Date();
+    return `${now.getFullYear()}-${padTwo(now.getMonth() + 1)}-${padTwo(now.getDate())}`;
   }
 }
