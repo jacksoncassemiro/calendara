@@ -5,19 +5,22 @@
  */
 import { buildDays, occurrenceKey } from '../render/derive.js';
 import { layoutDay, type GeoGrid } from '../geometry/geometry.js';
+import { resolveHour } from '../render/state.js';
 import { formatDate, formatHourLabel } from './format.js';
 import type { ViewRenderContext } from './viewDef.js';
 import type { GridVM, DayColumnVM, EventVM, AllDayVM, DraftVM } from './viewModel.js';
 
 export function buildTimeGridVM(context: ViewRenderContext, viewName: string): GridVM {
   const { temporal, options, range, occurrences, constraints, renderEvent } = context;
+  const startHour = resolveHour(options.startHour);
+  const endHour = resolveHour(options.endHour);
 
   const days = buildDays(
     temporal,
     range.days,
     occurrences,
     constraints,
-    { startHour: options.startHour, endHour: options.endHour },
+    { startHour, endHour },
     options.timeZone,
   );
 
@@ -26,12 +29,12 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
   );
   const nowDayISO = nowZoned.toPlainDate().toString();
   const nowMinuteOfDay = nowZoned.hour * 60 + nowZoned.minute;
-  const gridTopMin = options.startHour * 60;
-  const gridBottomMin = options.endHour * 60;
+  const gridTopMin = startHour * 60;
+  const gridBottomMin = endHour * 60;
 
   const geometryGrid: GeoGrid = {
-    startHour: options.startHour,
-    endHour: options.endHour,
+    startHour,
+    endHour,
     pxPerMinute: options.pxPerMinute,
     minEventMinutes: options.minEventMinutes,
     gutter: 0,
@@ -100,8 +103,8 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
 
   const gridVM: GridVM = {
     viewName,
-    startHour: options.startHour,
-    endHour: options.endHour,
+    startHour,
+    endHour,
     pxPerMinute: options.pxPerMinute,
     slotMinutes: options.slotMinutes,
     hourLabels,

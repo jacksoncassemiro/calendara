@@ -7,6 +7,8 @@ export {
 } from './calendarApp.js';
 export {
   DEFAULT_OPTIONS,
+  resolveHour,
+  type GridHour,
   type CalendarOptions,
   type CalendarState,
 } from './state.js';

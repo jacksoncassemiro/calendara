@@ -124,6 +124,7 @@ export {
 export {
 	CalendarApp,
 	DEFAULT_OPTIONS,
+	resolveHour,
 	expandRange,
 	buildDays,
 	occurrenceStart,
@@ -135,6 +136,7 @@ export {
 	type CalendarEventName,
 	type EventSource,
 	type RangeChange,
+	type GridHour,
 	type CalendarOptions,
 	type CalendarState,
 	type DayData,

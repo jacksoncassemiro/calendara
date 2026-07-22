@@ -18,6 +18,7 @@ import {
 import { layoutDay, type GeoGrid } from '../geometry/geometry.js';
 import { formatDate, formatHourLabel } from './format.js';
 import { GUTTER_PX, toPx, segmentStyle } from './utils.js';
+import { resolveHour } from '../render/state.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
@@ -26,8 +27,8 @@ const TIMELINE_ROW_PX = 44;
 
 function geometryGridOf(context: ViewRenderContext): GeoGrid {
   return {
-    startHour: context.options.startHour,
-    endHour: context.options.endHour,
+    startHour: resolveHour(context.options.startHour),
+    endHour: resolveHour(context.options.endHour),
     pxPerMinute: context.options.pxPerMinute,
     minEventMinutes: context.options.minEventMinutes,
     gutter: 0,
@@ -73,8 +74,10 @@ function ResourceGrid(props: {
   const { context, resources } = props;
   const { options, range } = context;
   const day = range.startDate;
-  const gridTopMin = options.startHour * 60;
-  const gridBottomMin = options.endHour * 60;
+  const startHour = resolveHour(options.startHour);
+  const endHour = resolveHour(options.endHour);
+  const gridTopMin = startHour * 60;
+  const gridBottomMin = endHour * 60;
   const bodyHeight = (gridBottomMin - gridTopMin) * options.pxPerMinute;
   const minuteToY = (minuteOfDay: number): number => (minuteOfDay - gridTopMin) * options.pxPerMinute;
 
@@ -84,7 +87,7 @@ function ResourceGrid(props: {
     day,
     context.occurrences,
     context.constraints,
-    { startHour: options.startHour, endHour: options.endHour },
+    { startHour, endHour },
     options.timeZone,
     options.visibleResourceIds,
   );
@@ -308,8 +311,10 @@ function Timeline(props: {
   const { context, resources } = props;
   const { options, range } = context;
   const day = range.startDate;
-  const gridStartMin = options.startHour * 60;
-  const gridEndMin = options.endHour * 60;
+  const startHour = resolveHour(options.startHour);
+  const endHour = resolveHour(options.endHour);
+  const gridStartMin = startHour * 60;
+  const gridEndMin = endHour * 60;
   const trackWidth = (gridEndMin - gridStartMin) * options.pxPerMinute;
   const minuteToX = (minuteOfDay: number): number => (minuteOfDay - gridStartMin) * options.pxPerMinute;
 
@@ -319,7 +324,7 @@ function Timeline(props: {
     day,
     context.occurrences,
     context.constraints,
-    { startHour: options.startHour, endHour: options.endHour },
+    { startHour, endHour },
     options.timeZone,
     options.visibleResourceIds,
   );

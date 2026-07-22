@@ -44,6 +44,7 @@ import {
 } from '../interaction/index.js';
 import {
   DEFAULT_OPTIONS,
+  resolveHour,
   type CalendarOptions,
   type CalendarState,
 } from './state.js';
@@ -405,7 +406,7 @@ export class CalendarApp {
     return new InteractionEngine({
       getGridBounds: () => {
         const { options } = this.store.getState();
-        return { startMin: options.startHour * 60, endMin: options.endHour * 60 };
+        return { startMin: resolveHour(options.startHour) * 60, endMin: resolveHour(options.endHour) * 60 };
       },
       getSlotMinutes: () => this.store.getState().options.slotMinutes,
       getMinDurationMin: () => this.store.getState().options.minEventMinutes,
