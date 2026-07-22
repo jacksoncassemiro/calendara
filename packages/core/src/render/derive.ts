@@ -61,6 +61,38 @@ export function expandRange(
   return results;
 }
 
+/** Início de uma ocorrência projetado na timezone de exibição (para agrupar/ordenar). */
+export interface OccurrenceStart {
+  /** Dia 'YYYY-MM-DD' de exibição em que a ocorrência começa. */
+  dayISO: string;
+  /** Instante de início (epoch ms) — chave de ordenação cronológica. */
+  epochMs: number;
+  /** Minuto-do-dia do início (0 em all-day). */
+  minuteOfDay: number;
+  isAllDay: boolean;
+}
+
+/** Projeta o início de uma ocorrência na timezone de exibição. Usado por Month/List. */
+export function occurrenceStart(
+  temporal: TemporalLike,
+  occurrence: EventOccurrence,
+  displayTimeZone: string,
+): OccurrenceStart {
+  const time = occurrence.event.time;
+  if (time.allDay) {
+    const dayISO = (time.start.date ?? '').slice(0, 10);
+    const startOfDay = temporal.PlainDate.from(dayISO).toZonedDateTime(displayTimeZone);
+    return { dayISO, epochMs: Number(startOfDay.epochMilliseconds), minuteOfDay: 0, isAllDay: true };
+  }
+  const startZoned = toDisplayZoned(temporal, time.start, displayTimeZone);
+  return {
+    dayISO: startZoned.toPlainDate().toString(),
+    epochMs: Number(startZoned.epochMilliseconds),
+    minuteOfDay: startZoned.hour * 60 + startZoned.minute,
+    isAllDay: false,
+  };
+}
+
 /** Converte um extremo timed para ZonedDateTime na timezone de exibição. */
 function toDisplayZoned(
   temporal: TemporalLike,

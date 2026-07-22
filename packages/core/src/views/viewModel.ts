@@ -3,6 +3,7 @@
  * Preact. O componente é "burro" — só desenha isto. Facilita testar (asserção sobre o VM) e
  * escrever views novas.
  */
+import type { ComponentChildren } from 'preact';
 import type { GeoBlock } from '../geometry/geometry.js';
 import type { Segment } from '../render/derive.js';
 
@@ -12,12 +13,16 @@ export interface EventVM {
   title: string;
   timeLabel: string;
   color?: string;
+  /** Conteúdo customizado (slot renderEvent); ausente = layout padrão. */
+  content?: ComponentChildren;
 }
 
 export interface AllDayVM {
   id: string;
   title: string;
   color?: string;
+  /** Conteúdo customizado (slot renderEvent); ausente = layout padrão. */
+  content?: ComponentChildren;
 }
 
 export interface DayColumnVM {
@@ -39,9 +44,7 @@ export interface HourLabelVM {
 }
 
 export interface GridVM {
-  title: string;
   viewName: string;
-  locale: string;
   startHour: number;
   endHour: number;
   pxPerMinute: number;

@@ -16,9 +16,10 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 | Item | Estado |
 |---|---|
-| Fase atual | **Fase 2 — Render headless + view Semana/Dia (time grid)** ✅ concluída (sessão 4) |
-| Próxima fase | **Fase 3 — Views Mês, N-Dias, Lista/Agenda + recorrência na tela** ⏳ não iniciada |
-| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, **store observável, GeometryEngine, render Preact + CalendarApp, views Week/Day** — **105/105 testes verdes** |
+| Fase atual | **Fase 3 — Views Mês, N-Dias, Lista/Agenda + recorrência na tela** ✅ concluída (sessão 5) |
+| Próxima fase | **Fase 3B — Recursos (Agenda Desvinculada) + Timeline/Multiagenda** ⏳ não iniciada |
+| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, store observável, GeometryEngine, render Preact + CalendarApp, **views Week/Day/Month/NDays/List, CalendarShell (toolbar), eventSource por range, slots renderEvent/renderToolbar** — **112/112 testes verdes** |
+| Nomenclatura | Passe de clareza aplicado a TODO o core (sem identificadores de 1 caractere; `T`→`temporal`, inclusive `DateUtils.temporal`). Decisão travada com o Jackson. |
 | Motor de recorrência | Validado contra rrule.js: base 43/44 → **gap corrigido e provado (v2): 23/23**, incl. multi-ordinal. |
 | Gerenciador de pacotes | **yarn (workspaces)** — decidido na sessão 2 |
 | Recursos (`Resource` genérico) | **Requisito de 1ª classe** (Fase 3B); núcleo resource-aware. Conceito GENÉRICO, sem regra de negócio: `type` é string opaca do app, não há campo "profissional" (ADR-006). Cobre "Agenda Desvinculada". |
@@ -27,16 +28,18 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 ## Próximo passo concreto (para o próximo chat)
 
-Iniciar a **Fase 3** conforme `02-PLANO.md` (Mês, N-Dias, Lista/Agenda + recorrência na tela):
-1. **MonthView** (day grid), **NDaysView**, **ListView/Agenda** — todas via o mesmo `TimeGridViewDef`/`registerView`.
-2. Integrar **expansão lazy por range visível** no store (hoje o CalendarApp já expande por range com memo;
-   falta acoplar um `eventSource.fetch({start,end})` disparado por `onRangeChange`).
-3. Render de evento customizado (slot) + toolbar customizada (render-prop).
-- Base já pronta da Fase 2: `CalendarApp` (render Preact isolado, API prev/next/today/changeView),
-  `store` (diff granular + `memoize`), `GeometryEngine` (`layoutDay`, waterfall), `derive` (buildDays/expandRange),
-  views `week`/`day`, camada de fundo (horário comercial/bloqueios) via ConstraintSet.
-- **Medir custo do polyfill Temporal no bundle** (pendência carregada desde a Fase 1, ainda aberta).
-- **Split de eventos multi-dia timed** (hoje ancorados no dia de início e recortados) — avaliar na Fase 3.
+Iniciar a **Fase 3B** conforme `02-PLANO.md` (Recursos / Agenda Desvinculada):
+1. Comportamento de **`CalendarResource`** (type, unit, capacity, buffers, businessHours próprios, agrupamento)
+   — os tipos já nascem resource-aware desde a Fase 1.
+2. **Multiagenda (colunas por recurso)**: variação do time grid com N colunas por recurso.
+3. **Timeline/Resource view**: recursos em linhas, tempo no eixo X (novo `CalendarView`).
+4. **Capacidade/lotação** e **buffers** na geometria + ConstraintEngine; evento com múltiplos `resourceIds`.
+- Base pronta da Fase 3: contrato `CalendarView` generalizado (getRange/navigate/getTitle/**render**),
+  `CalendarShell` (dono do `data-mc-root`, toolbar padrão/custom), views `week`/`day`/`month`/`ndays`/`list`,
+  `eventSource.fetch({start,end})` por range (lazy) e slots `renderEvent`/`renderToolbar`. `occurrenceStart()`
+  (derive) agrupa/ordena ocorrências (usado por Month/List).
+- **Pendências abertas:** medir custo do polyfill Temporal no bundle; **split de eventos multi-dia timed**
+  (hoje ancorados no dia de início e recortados).
 
 ### Como rodar o que já existe
 ```bash
@@ -84,6 +87,27 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 ---
 
 ## Log de sessões
+
+### Sessão 5 — 2026-07-22 — Passe de nomenclatura + Fase 3 (Month/NDays/List) ✅
+- **Nomenclatura (pedido do Jackson):** passe de clareza em TODO o `packages/core` — eliminados identificadores
+  de 1 caractere em params/locais/constants/generics. `T`→`temporal` (incl. campo público `DateUtils.temporal`
+  e `ViewContext.temporal`), `du`→`dateUtils`, `ps/pe/nps`→`periodStart/End/nextPeriodStart`, `cand`→`candidates`,
+  generics `<S>`→`<State>` / `<R>`→`<Result>`, etc. Corrigido casing de imports antigos nos testes
+  (`DateUtils.js`→`dateUtils.js`). **105/105 verdes** após o passe; `tsc` estrito limpo.
+- **Contrato de view generalizado:** de `TimeGridViewDef` para **`CalendarView`** (`getRange/navigate/getTitle/
+  **render**`). A construção do time-grid saiu do CalendarApp para `views/timeGridModel.ts` (`buildTimeGridVM`),
+  compartilhada por Week/Day/NDays. Novo **`CalendarShell`** é dono do nó raiz (`data-mc-root`) e desenha
+  a **toolbar** (padrão com prev/hoje/next + troca de view, ou custom via `renderToolbar`) + o corpo da view.
+- **Fase 3 — novas views:** `MonthView` (day grid, semanas×dias, chips por horário), `createNDaysView(n)`
+  (N dias corridos) e `ListView`/`createListView` (agenda cronológica agrupada por dia). Recorrência aparece
+  correta em todas (expandida no range). `occurrenceStart()` (derive) projeta/ordena ocorrências p/ Month/List.
+- **Fase 3 — eventSource + slots:** `eventSource.fetch({start,end})` disparado a cada mudança de range
+  (expansão lazy; `ready()` aguarda o fetch inicial; token anti-corrida). Slots `renderEvent` (conteúdo custom
+  de evento em todas as views) e `renderToolbar` (render-prop).
+- **Testes: 112/112** (99 node + 6 render + 7 Fase 3). Novos (jsdom): Month com 35 células e recorrência 5×,
+  List com itens/dia, NDays 3 colunas, eventSource inicial + refetch ao navegar, `renderEvent`/`renderToolbar`,
+  e toolbar padrão navegando por clique. `tsc` estrito limpo. **Sem demo** (mantido).
+- **Próximo:** Fase 3B (Recursos/Agenda Desvinculada) — ver "Próximo passo concreto".
 
 ### Sessão 4 — 2026-07-22 — Fase 2: render headless + views Week/Day ✅
 - **Renomeação** (a pedido do Jackson): arquivos com inicial minúscula por padrão (`DateUtils.ts`→`dateUtils.ts`,

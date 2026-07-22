@@ -6,9 +6,11 @@
  * com Preact num container isolado. Navegar/trocar view = `setState` → o Preact faz o diff no
  * MESMO container; a instância NUNCA é recriada (mata o rerender parasita do host).
  *
- * Pipeline por render: expandir recorrência (memoizada) → projetar em minutos-do-dia →
- * geometria (waterfall) → camada de fundo (horário comercial/bloqueios via ConstraintSet) →
- * GridVM → TimeGrid.
+ * Pipeline por render: expandir recorrência (memoizada) no range → montar ViewRenderContext →
+ * a view ativa desenha o corpo → o Shell envolve com a toolbar → Preact.
+ *
+ * eventSource: quando fornecido, o range visível dispara `fetch({start,end})` (expansão lazy);
+ * o resultado vira os eventos do store.
  */
 import { render as preactRender, h as createElement } from 'preact';
 
@@ -20,19 +22,25 @@ import { ConstraintEngine, type Slot } from '../constraint/constraintEngine.js';
 import type { CalendarEvent, EventOccurrence } from '../types/event.js';
 import type { ConstraintSet, SlotEvaluation } from '../types/constraint.js';
 
-import { expandRange, buildDays } from './derive.js';
+import { expandRange } from './derive.js';
 import {
   DEFAULT_OPTIONS,
   type CalendarOptions,
   type CalendarState,
 } from './state.js';
 
-import { layoutDay, type GeoGrid } from '../geometry/geometry.js';
-import { BUILTIN_VIEWS, weekView } from '../views/timeGridViews.js';
-import type { TimeGridViewDef, ViewContext, ViewRange } from '../views/viewDef.js';
-import { TimeGrid } from '../views/TimeGrid.js';
-import { formatDate, formatHourLabel } from '../views/format.js';
-import type { GridVM, DayColumnVM, EventVM } from '../views/viewModel.js';
+import { BUILTIN_VIEWS } from '../views/index.js';
+import { weekView } from '../views/timeGridViews.js';
+import { CalendarShell } from '../views/Shell.js';
+import type {
+  CalendarView,
+  ViewContext,
+  ViewRange,
+  ViewRenderContext,
+  ToolbarContext,
+  EventRenderSlot,
+  ToolbarRenderSlot,
+} from '../views/viewDef.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
@@ -43,16 +51,29 @@ export interface RangeChange {
   end: string;
 }
 
+/** Fonte de eventos por range (expansão lazy). Pode ser síncrona ou assíncrona. */
+export type EventSource = (
+  range: RangeChange,
+) => CalendarEvent[] | Promise<CalendarEvent[]>;
+
 export interface CalendarConfig {
   date?: string;
   view?: string;
   events?: CalendarEvent[];
   constraints?: ConstraintSet;
   options?: Partial<CalendarOptions>;
-  /** Views extras (além de week/day). Registrar view nova é 1ª classe. */
-  views?: TimeGridViewDef[];
+  /** Views extras (além das internas). Registrar view nova é 1ª classe. */
+  views?: CalendarView[];
   /** Injeta Temporal já resolvido (testes/SSR). Ausente → carrega via ensureTemporal(). */
   temporal?: TemporalLike;
+  /** Busca eventos por range visível (dispara em cada mudança de range). */
+  eventSource?: EventSource;
+  /** Slot para conteúdo customizado de evento. */
+  renderEvent?: EventRenderSlot;
+  /** Slot para toolbar customizada (render-prop). */
+  renderToolbar?: ToolbarRenderSlot;
+  onEventClick?: (occurrence: EventOccurrence) => void;
+  onDateClick?: (dateISO: string, minuteOfDay?: number) => void;
 }
 
 function padTwo(value: number): string {
@@ -61,16 +82,23 @@ function padTwo(value: number): string {
 
 export class CalendarApp {
   private readonly store: Store<CalendarState>;
-  private readonly views = new Map<string, TimeGridViewDef>();
+  private readonly views = new Map<string, CalendarView>();
   private readonly engine: ConstraintEngine;
   private readonly listeners = new Map<CalendarEventName, Set<(payload: unknown) => void>>();
   private readonly readyPromise: Promise<void>;
   private readonly memoExpand = memoize(expandRange);
 
+  private readonly eventSource: EventSource | undefined;
+  private readonly renderEvent: EventRenderSlot | undefined;
+  private readonly renderToolbar: ToolbarRenderSlot | undefined;
+  private readonly onEventClick: ((occurrence: EventOccurrence) => void) | undefined;
+  private readonly onDateClick: ((dateISO: string, minuteOfDay?: number) => void) | undefined;
+
   private container: HTMLElement | null = null;
   private unsubscribe: (() => void) | null = null;
   private temporal: TemporalLike | null = null;
   private dateUtils: DateUtils | null = null;
+  private fetchToken = 0;
 
   constructor(config: CalendarConfig = {}) {
     const options: CalendarOptions = { ...DEFAULT_OPTIONS, ...config.options };
@@ -86,21 +114,25 @@ export class CalendarApp {
     for (const view of config.views ?? []) this.views.set(view.name, view);
     this.engine = new ConstraintEngine(initialState.constraints);
 
-    if (config.temporal) {
-      this.temporal = config.temporal;
-      this.dateUtils = createDateUtils(config.temporal);
-      this.readyPromise = Promise.resolve();
-    } else {
-      this.readyPromise = ensureTemporal().then((resolvedTemporal) => {
-        this.temporal = resolvedTemporal;
-        this.dateUtils = createDateUtils(resolvedTemporal);
-      });
-    }
+    this.eventSource = config.eventSource;
+    this.renderEvent = config.renderEvent;
+    this.renderToolbar = config.renderToolbar;
+    this.onEventClick = config.onEventClick;
+    this.onDateClick = config.onDateClick;
+
+    const temporalPromise = config.temporal
+      ? Promise.resolve(config.temporal)
+      : ensureTemporal();
+    this.readyPromise = temporalPromise.then((resolvedTemporal) => {
+      this.temporal = resolvedTemporal;
+      this.dateUtils = createDateUtils(resolvedTemporal);
+      return this.runInitialFetch();
+    });
   }
 
   // ---- ciclo de vida ---------------------------------------------------------
 
-  /** Monta o calendário no container. Renderiza assim que o Temporal estiver pronto. */
+  /** Monta o calendário no container. Renderiza assim que Temporal + fetch inicial estiverem prontos. */
   mount(container: HTMLElement): void {
     this.container = container;
     if (!this.unsubscribe) {
@@ -109,7 +141,7 @@ export class CalendarApp {
     void this.readyPromise.then(() => this.renderNow());
   }
 
-  /** Resolve quando o Temporal está pronto e um primeiro render (se montado) ocorreu. */
+  /** Resolve quando Temporal + fetch inicial estão prontos e um primeiro render (se montado) ocorreu. */
   ready(): Promise<void> {
     return this.readyPromise.then(() => {
       if (this.container) this.renderNow();
@@ -149,6 +181,7 @@ export class CalendarApp {
     this.store.setState({ date: dateISO });
     this.emit('dateChange', dateISO);
     this.emitRange();
+    this.refetch();
   }
 
   changeView(viewName: string): void {
@@ -158,6 +191,7 @@ export class CalendarApp {
     this.store.setState({ viewName });
     this.emit('viewChange', viewName);
     this.emitRange();
+    this.refetch();
   }
 
   setEvents(events: readonly CalendarEvent[]): void {
@@ -174,8 +208,13 @@ export class CalendarApp {
   }
 
   /** Registra/subscreve view nova (1ª classe). */
-  registerView(definition: TimeGridViewDef): void {
-    this.views.set(definition.name, definition);
+  registerView(view: CalendarView): void {
+    this.views.set(view.name, view);
+  }
+
+  /** Views disponíveis (nome + rótulo). */
+  listViews(): { name: string; label: string }[] {
+    return [...this.views.values()].map((view) => ({ name: view.name, label: view.label }));
   }
 
   /** Título da view/data atuais. */
@@ -184,7 +223,7 @@ export class CalendarApp {
     return view.getTitle(range, context);
   }
 
-  /** Range visível (datas ISO inclusivas) — dispara eventSource.fetch nas fases seguintes. */
+  /** Range visível (datas ISO inclusivas) — dispara eventSource.fetch. */
   getVisibleRange(): RangeChange {
     const { range } = this.resolveView();
     return { start: range.startDate.toString(), end: range.endDate.toString() };
@@ -205,11 +244,6 @@ export class CalendarApp {
     return () => listenerSet!.delete(callback);
   }
 
-  /** Constrói o view model atual sem desenhar (útil para teste/headless puro). */
-  buildViewModel(): GridVM {
-    return this.buildVM();
-  }
-
   // ---- interno ---------------------------------------------------------------
 
   private navigate(direction: 'prev' | 'next'): void {
@@ -221,7 +255,7 @@ export class CalendarApp {
   }
 
   private resolveView(): {
-    view: TimeGridViewDef;
+    view: CalendarView;
     range: ViewRange;
     context: ViewContext;
     date: PlainDate;
@@ -239,108 +273,77 @@ export class CalendarApp {
     return { view, range, context, date };
   }
 
-  private renderNow(): void {
-    if (!this.temporal || !this.dateUtils || !this.container) return;
-    const viewModel = this.buildVM();
-    preactRender(createElement(TimeGrid, { vm: viewModel }), this.container);
-    this.emit('render', viewModel);
-  }
-
-  private buildVM(): GridVM {
+  private buildRenderContext(range: ViewRange): ViewRenderContext {
     const temporal = this.temporal!;
     const state = this.store.getState();
-    const { options } = state;
-    const { view, range, context } = this.resolveView();
-
     const startISO = range.startDate.toString();
     const endISO = range.endDate.toString();
-
-    // Expansão de recorrência memoizada por (temporal, events, start, end): trocar constraints
-    // NÃO recomputa ocorrências; navegar (range muda) recomputa só o necessário.
+    // Memoizada por (temporal, events, start, end): trocar constraints não recomputa ocorrências.
     const occurrences: EventOccurrence[] = this.memoExpand(temporal, state.events, startISO, endISO);
+    const nowMs = state.options.nowMs ?? Date.now();
 
-    const days = buildDays(
+    const context: ViewRenderContext = {
       temporal,
-      range.days,
+      dateUtils: this.dateUtils!,
+      options: state.options,
+      range,
       occurrences,
-      state.constraints,
-      { startHour: options.startHour, endHour: options.endHour },
-      options.timeZone,
-    );
-
-    // Relógio da linha "agora" (injetável para teste).
-    const nowMilliseconds = options.nowMs ?? Date.now();
-    const nowZoned = temporal.Instant.fromEpochMilliseconds(nowMilliseconds).toZonedDateTimeISO(
-      options.timeZone,
-    );
-    const nowDayISO = nowZoned.toPlainDate().toString();
-    const nowMinuteOfDay = nowZoned.hour * 60 + nowZoned.minute;
-    const gridTopMin = options.startHour * 60;
-    const gridBottomMin = options.endHour * 60;
-
-    const geometryGrid: GeoGrid = {
-      startHour: options.startHour,
-      endHour: options.endHour,
-      pxPerMinute: options.pxPerMinute,
-      minEventMinutes: 15,
-      gutter: 0,
+      constraints: state.constraints,
+      nowMs,
     };
+    if (this.renderEvent) context.renderEvent = this.renderEvent;
+    if (this.onEventClick) context.onEventClick = this.onEventClick;
+    if (this.onDateClick) context.onDateClick = this.onDateClick;
+    return context;
+  }
 
-    const columns: DayColumnVM[] = days.map((day) => {
-      const placementById = new Map(day.timed.map((placement) => [placement.id, placement]));
-      const blocks = layoutDay(day.timed, geometryGrid);
-      const events: EventVM[] = blocks.map((block) => {
-        const placement = placementById.get(block.id)!;
-        const event = placement.occurrence.event;
-        const eventVM: EventVM = {
-          id: block.id,
-          block,
-          title: event.title,
-          timeLabel: formatHourLabel(placement.startMin, options.locale),
-        };
-        if (event.color !== undefined) eventVM.color = event.color;
-        return eventVM;
-      });
-
-      const isToday = day.dateISO === nowDayISO;
-      return {
-        dateISO: day.dateISO,
-        weekdayLabel: formatDate(day.date, options.locale, { weekday: 'short' }),
-        dayLabel: formatDate(day.date, options.locale, { day: 'numeric' }),
-        isToday,
-        nonBusiness: day.nonBusiness,
-        blocked: day.blocked,
-        allDay: day.allDay.map((occurrence) => {
-          const event = occurrence.event;
-          const key = `${occurrence.masterId}@${occurrence.originalStart}`;
-          return event.color !== undefined
-            ? { id: key, title: event.title, color: event.color }
-            : { id: key, title: event.title };
-        }),
-        events,
-        nowMinutes:
-          isToday && nowMinuteOfDay >= gridTopMin && nowMinuteOfDay <= gridBottomMin
-            ? nowMinuteOfDay
-            : null,
-      };
-    });
-
-    const hourLabels: GridVM['hourLabels'] = [];
-    for (let minute = gridTopMin; minute <= gridBottomMin; minute += options.slotMinutes) {
-      hourLabels.push({ min: minute, label: formatHourLabel(minute, options.locale) });
-    }
-
+  private buildToolbarContext(view: CalendarView, range: ViewRange, context: ViewContext): ToolbarContext {
     return {
       title: view.getTitle(range, context),
-      viewName: state.viewName,
-      locale: options.locale,
-      startHour: options.startHour,
-      endHour: options.endHour,
-      pxPerMinute: options.pxPerMinute,
-      slotMinutes: options.slotMinutes,
-      hourLabels,
-      columns,
+      viewName: this.store.getState().viewName,
+      views: this.listViews(),
+      goPrev: () => this.prev(),
+      goNext: () => this.next(),
+      goToday: () => this.today(),
+      changeView: (name: string) => this.changeView(name),
     };
+  }
+
+  private renderNow(): void {
+    if (!this.temporal || !this.dateUtils || !this.container) return;
+    const { view, range, context } = this.resolveView();
+    const renderContext = this.buildRenderContext(range);
+    const body = view.render(renderContext);
+    const toolbar = this.buildToolbarContext(view, range, context);
+    preactRender(
+      createElement(CalendarShell, {
+        toolbar,
+        body,
+        ...(this.renderToolbar ? { renderToolbar: this.renderToolbar } : {}),
+      }),
+      this.container,
+    );
+    this.emit('render', renderContext);
+  }
+
+  /** Busca inicial (parte do readyPromise, para que `ready()` aguarde os eventos). */
+  private runInitialFetch(): void | Promise<void> {
+    if (!this.eventSource) return;
+    const token = ++this.fetchToken;
+    const range = this.getVisibleRange();
+    return Promise.resolve(this.eventSource(range)).then((events) => {
+      if (token === this.fetchToken) this.store.setState({ events });
+    });
+  }
+
+  /** Refetch por mudança de range (assíncrono; ignora resultados obsoletos). */
+  private refetch(): void {
+    if (!this.eventSource || !this.temporal) return;
+    const token = ++this.fetchToken;
+    const range = this.getVisibleRange();
+    void Promise.resolve(this.eventSource(range)).then((events) => {
+      if (token === this.fetchToken) this.store.setState({ events });
+    });
   }
 
   private emit(eventName: CalendarEventName, payload: unknown): void {

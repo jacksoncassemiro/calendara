@@ -4,11 +4,11 @@ Biblioteca de calendário/agenda própria — **núcleo headless em TypeScript**
 sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário comercial dinâmico** e
 **recorrência própria via Temporal API**. Projetada para depois rodar em qualquer framework.
 
-> **Status:** Fase 2 concluída — `packages/core` (headless) com tipos canônicos, DateUtils (Temporal),
-> motor de recorrência RFC 5545, ConstraintEngine **e agora** store observável (diff granular), GeometryEngine
-> (waterfall), render Preact isolado (`CalendarApp`) e views **Semana/Dia** (time grid, com horário comercial,
-> bloqueios e linha "agora"), **105/105 testes verdes** (vitest + jsdom; rrule.js como oráculo).
-> Comece por **[`docs/00-STATUS.md`](docs/00-STATUS.md)**.
+> **Status:** Fase 3 concluída — `packages/core` (headless): tipos canônicos, DateUtils (Temporal),
+> recorrência RFC 5545, ConstraintEngine, store observável (diff granular), GeometryEngine (waterfall),
+> render Preact isolado (`CalendarApp` + `CalendarShell`/toolbar) e views **Semana/Dia/Mês/N-Dias/Lista**
+> (com horário comercial, bloqueios, linha "agora", `eventSource` por range e slots `renderEvent`/`renderToolbar`),
+> **112/112 testes verdes** (vitest + jsdom; rrule.js como oráculo). Comece por **[`docs/00-STATUS.md`](docs/00-STATUS.md)**.
 
 ## Rodar
 

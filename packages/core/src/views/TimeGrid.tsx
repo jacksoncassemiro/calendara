@@ -22,13 +22,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
   const minuteToY = (minuteOfDay: number): number => (minuteOfDay - gridTopMin) * vm.pxPerMinute;
 
   return (
-    <div class="mc-timegrid" data-mc-root data-mc-view={vm.viewName}>
-      <div class="mc-toolbar" data-mc-toolbar>
-        <span class="mc-title" data-mc-title>
-          {vm.title}
-        </span>
-      </div>
-
+    <div class="mc-timegrid" data-mc-view={vm.viewName}>
       {/* Cabeçalho dos dias */}
       <div class="mc-header-row" style={{ display: 'flex' }}>
         <div class="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
@@ -68,7 +62,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
                 style={allDayEvent.color ? { borderLeft: `3px solid ${allDayEvent.color}` } : undefined}
                 title={allDayEvent.title}
               >
-                {allDayEvent.title}
+                {allDayEvent.content ?? allDayEvent.title}
               </div>
             ))}
           </div>
@@ -187,8 +181,12 @@ function DayColumn(props: {
             ...(eventItem.color ? { backgroundColor: eventItem.color } : {}),
           }}
         >
-          <span class="mc-event-time">{eventItem.timeLabel}</span>
-          <span class="mc-event-title">{eventItem.title}</span>
+          {eventItem.content ?? (
+            <>
+              <span class="mc-event-time">{eventItem.timeLabel}</span>
+              <span class="mc-event-title">{eventItem.title}</span>
+            </>
+          )}
         </div>
       ))}
 
