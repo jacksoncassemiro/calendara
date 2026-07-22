@@ -11,6 +11,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "preact": "^10.23.2"
+  },
   "peerDependencies": {
     "@js-temporal/polyfill": "^0.4.4"
   },

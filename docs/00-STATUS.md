@@ -16,9 +16,9 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 | Item | Estado |
 |---|---|
-| Fase atual | **Fase 1 — Fundação: monorepo + tipos + motores puros** ✅ concluída (sessão 3) |
-| Próxima fase | **Fase 2 — Render headless + view Semana/Dia (time grid)** ⏳ não iniciada |
-| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine — **87/87 testes verdes** |
+| Fase atual | **Fase 2 — Render headless + view Semana/Dia (time grid)** ✅ concluída (sessão 4) |
+| Próxima fase | **Fase 3 — Views Mês, N-Dias, Lista/Agenda + recorrência na tela** ⏳ não iniciada |
+| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, **store observável, GeometryEngine, render Preact + CalendarApp, views Week/Day** — **105/105 testes verdes** |
 | Motor de recorrência | Validado contra rrule.js: base 43/44 → **gap corrigido e provado (v2): 23/23**, incl. multi-ordinal. |
 | Gerenciador de pacotes | **yarn (workspaces)** — decidido na sessão 2 |
 | Recursos (`Resource` genérico) | **Requisito de 1ª classe** (Fase 3B); núcleo resource-aware. Conceito GENÉRICO, sem regra de negócio: `type` é string opaca do app, não há campo "profissional" (ADR-006). Cobre "Agenda Desvinculada". |
@@ -27,13 +27,16 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 ## Próximo passo concreto (para o próximo chat)
 
-Iniciar a **Fase 2** conforme `02-PLANO.md` (render headless + Semana/Dia):
-1. Camada **render Preact** isolada no container (`core/src/render`) + `CalendarApp` + **store com diff granular**.
-2. **GeometryEngine** (posicionamento + sobreposição waterfall).
-3. Views **Week** e **Day** (time grid) com `startHour/endHour/timeScale` dinâmicos e **linha "agora"**.
-4. Camada visual de **horário comercial** e **bloqueios** (fundo) dirigida pelo `ConstraintEngine` (já pronto).
-- Consumir o core da Fase 1: `expandEvent()` (ocorrências por janela), `ConstraintEngine.evaluate()`, `createDateUtils()`.
-- **Medir custo do polyfill Temporal no bundle** (pendência registrada da Fase 1).
+Iniciar a **Fase 3** conforme `02-PLANO.md` (Mês, N-Dias, Lista/Agenda + recorrência na tela):
+1. **MonthView** (day grid), **NDaysView**, **ListView/Agenda** — todas via o mesmo `TimeGridViewDef`/`registerView`.
+2. Integrar **expansão lazy por range visível** no store (hoje o CalendarApp já expande por range com memo;
+   falta acoplar um `eventSource.fetch({start,end})` disparado por `onRangeChange`).
+3. Render de evento customizado (slot) + toolbar customizada (render-prop).
+- Base já pronta da Fase 2: `CalendarApp` (render Preact isolado, API prev/next/today/changeView),
+  `store` (diff granular + `memoize`), `GeometryEngine` (`layoutDay`, waterfall), `derive` (buildDays/expandRange),
+  views `week`/`day`, camada de fundo (horário comercial/bloqueios) via ConstraintSet.
+- **Medir custo do polyfill Temporal no bundle** (pendência carregada desde a Fase 1, ainda aberta).
+- **Split de eventos multi-dia timed** (hoje ancorados no dia de início e recortados) — avaliar na Fase 3.
 
 ### Como rodar o que já existe
 ```bash
@@ -81,6 +84,31 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 ---
 
 ## Log de sessões
+
+### Sessão 4 — 2026-07-22 — Fase 2: render headless + views Week/Day ✅
+- **Renomeação** (a pedido do Jackson): arquivos com inicial minúscula por padrão (`DateUtils.ts`→`dateUtils.ts`,
+  `ConstraintEngine.ts`→`constraintEngine.ts`); imports já consistentes. Esclarecido o **porquê dos imports `.js`**
+  em arquivos `.ts`: o TS não reescreve especificadores; escreve-se a extensão do output (`.js`) — à prova de
+  NodeNext/ESM. Aqui `moduleResolution: Bundler` deixaria omitir, mas mantivemos `.js` por consistência/futuro.
+- **`store/`** — store observável mínimo (sem framework): `createStore` com **diff granular** (notifica só as chaves
+  que mudaram, por identidade) + `memoize` (por identidade de args) para as derivações caras.
+- **`geometry/`** — `GeometryEngine` puro (`layoutDay`): vertical (top/height por minuto, recorte ao grid, altura
+  mínima) + horizontal (empacotamento em colunas + **expansão waterfall**). Colisão trata "fim==início" como não-sobreposto.
+- **`render/`** — `derive.ts` (expandRange + buildDays: projeta ocorrências em minutos-do-dia na tz de exibição,
+  incl. conversão de timezone via ZonedDateTime; deriva fundo de horário comercial/bloqueios do `ConstraintSet`).
+  `calendarApp.ts` — **CalendarApp**: store como fonte de verdade, resolve Temporal (injetável), API imperativa
+  (`prev/next/today/changeView/setEvents/setConstraints/registerView/getTitle/getVisibleRange/evaluateSlot/on`),
+  **render Preact isolado no container** (`preact.render` no mesmo nó → diff, **sem recriar instância**).
+- **`views/`** — `TimeGridViewDef` (contrato de view = lógica pura), `weekView` (7 dias, WKST) e `dayView` (1 dia)
+  usando o **mesmo** componente Preact `TimeGrid` (cabeçalho, faixa dia-inteiro, eixo de horas, colunas com fundo
+  de expediente/bloqueio, eventos posicionados e **linha "agora"** injetável por relógio). `format.ts` (Intl/UTC determinístico).
+- **Config**: Preact adicionado a `packages/core` (dep real, ADR-002); `jsdom` (devDep raiz); tsconfig do core com
+  `jsx: react-jsx` + `jsxImportSource: preact` e `.tsx`; vitest com esbuild JSX (Preact) e specs de render em jsdom.
+- **Testes: 105/105** (99 node + 6 jsdom). Novos: geometry (7), store/memoize (5), render em jsdom (6: 7 colunas na
+  semana, eventos posicionados/sobrepostos, fundo de expediente, bloqueio, linha "agora", **navegação prev/next/today
+  e troca week↔day mantendo o mesmo nó raiz**, título/range/evaluateSlot). TS estrito compila limpo. **Sem demo**
+  (não faz parte dos itens da Fase 2 — validado por testes headless/jsdom).
+- **Próximo:** Fase 3 (Month/NDays/List + eventSource.fetch por range) — ver "Próximo passo concreto".
 
 ### Sessão 1 — 2026-07-21 — Análise e planejamento (Fase 0)
 - Analisado uso atual (wsaude-web) e as 3 tentativas anteriores; extraídos requisitos reais.
