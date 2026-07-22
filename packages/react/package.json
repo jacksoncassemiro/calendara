@@ -8,8 +8,22 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "files": ["dist"],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', '{\\\"type\\\":\\\"commonjs\\\"}')\"",
     "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "main": "./dist/cjs/index.js",
+    "module": "./dist/esm/index.js",
+    "types": "./dist/esm/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/esm/index.d.ts",
+        "import": "./dist/esm/index.js",
+        "require": "./dist/cjs/index.js"
+      }
+    }
   },
   "dependencies": {
     "@meucalendario/core": "0.0.0",
