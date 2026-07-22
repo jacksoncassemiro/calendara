@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 /**
  * MonthView — grade de mês (day grid). Semanas em linhas, dias em células; eventos aparecem como
  * "chips" ordenados por horário. Implementa o mesmo contrato `CalendarView` (registrável/custom).

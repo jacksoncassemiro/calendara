@@ -522,8 +522,8 @@ export class CalendarApp {
     });
   }
 
-  /** Refetch por mudança de range (assíncrono; ignora resultados obsoletos). */
-  private refetch(): void {
+  /** Refetch por mudança de range (assíncrono; ignora resultados obsoletos). Público p/ `refetchKey`. */
+  refetch(): void {
     if (!this.eventSource || !this.temporal) return;
     const token = ++this.fetchToken;
     const range = this.getVisibleRange();

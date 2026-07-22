@@ -55,17 +55,20 @@ Requisito de 1ª classe — ver `reference/agenda-desvinculada.md`.
 - **DoD:** demo com salas/equipamentos como agenda própria, lotação > 1, buffer visível, e um evento
   ocupando 2 recursos ao mesmo tempo; toggle de visibilidade por recurso/grupo.
 
-## Fase 4 — Interação: drag & drop + resize + seleção
-1. **InteractionEngine** com Pointer Events: mover entre dias/horas, resize de borda.
-2. **preview → commit → revert**; seleção de intervalo (`onDateSelect`).
-3. Bloqueio de drop/click inválido com `onDropBlocked`/`onClickBlocked`.
-- **DoD:** paridade com o comportamento do wsaude atual (drop persiste, revert em falha), sem o diff manual.
+## Fase 4 — Interação: drag & drop + resize + seleção ✅ (concluída na sessão 7)
+1. [x] **InteractionEngine** com Pointer Events: mover entre dias/horas, resize de borda.
+2. [x] **preview → commit → revert**; seleção de intervalo (`onDateSelect`).
+3. [x] Bloqueio de drop/click inválido com `onDropBlocked`/`onClickBlocked` (+ validação DURA de lotação/buffer).
+- **DoD:** paridade com o comportamento do wsaude atual (drop persiste, revert em falha), sem o diff manual. ✅
 
-## Fase 5 — Adapter React idiomático
-1. `<Calendar/>` fino (cria core 1x; entrega dados; callbacks estáveis).
-2. `eventSource.fetch({start,end})` + `refetchKey`; `customToolbar`/`nativeToolbar`; `createReactView`.
-3. Hook `useCalendar` para API imperativa (prev/next/changeView) quando necessário.
-- **DoD:** POC substituindo o FullCalendar numa tela isolada do padrão wsaude, **sem** `setTimeout`+diff manual.
+## Fase 5 — Adapter React idiomático ✅ (concluída na sessão 8)
+1. [x] `<Calendar/>` fino (cria core 1x; entrega dados; callbacks estáveis via ref).
+2. [x] `eventSource` + `refetchKey`; `customToolbar`/`nativeToolbar`; `createReactView` (+ `ReactIsland`).
+3. [x] Hook `useCalendar` para a API imperativa (prev/next/changeView) quando necessário.
+- **DoD:** `<Calendar/>` cria o core uma vez e sincroniza props pela API imperativa, **sem** `setTimeout`+diff
+  manual; interação da Fase 4 exposta por callbacks. `tsc` estrito limpo nos dois pacotes; testes node verdes +
+  specs jsdom (CI). Peer deps `react`/`react-dom` (>=18). **Nota:** views vanilla já funcionam via `registerView`;
+  `createReactView` é a conveniência para corpo em React (ilha react-dom). Verificação jsdom não roda no sandbox. ✅
 
 ## Fase 6 — Empacotamento, docs e validação
 1. Build ESM+CJS+`.d.ts` (por pacote); CSS compilado isolado.

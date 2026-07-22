@@ -16,9 +16,9 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 | Item | Estado |
 |---|---|
-| Fase atual | **Fase 4 — Interação: drag & drop + resize + seleção** ✅ concluída (sessão 7) |
-| Próxima fase | **Fase 5 — Adapter React idiomático** ⏳ não iniciada |
-| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, store, GeometryEngine, render Preact + CalendarApp, views Week/Day/Month/NDays/List, Multiagenda + Timeline, capacity/buffers/multi-recurso, toggle de visibilidade, eventSource por range, slots renderEvent/renderToolbar, **InteractionEngine (Pointer Events): mover/redimensionar/selecionar com preview→commit→revert, validação DURA de lotação/buffer no drop** — **~155 testes** (127 node + 28 jsdom; ver nota do sandbox no log da sessão 7) |
+| Fase atual | **Fase 5 — Adapter React idiomático** ✅ concluída (sessão 8) |
+| Próxima fase | **Fase 6 — Empacotamento, docs e validação** ⏳ não iniciada |
+| Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, store, GeometryEngine, render Preact + CalendarApp, views Week/Day/Month/NDays/List, Multiagenda + Timeline, capacity/buffers/multi-recurso, eventSource por range, slots renderEvent/renderToolbar, InteractionEngine (drag/resize/seleção, preview→commit→revert, validação dura de lotação/buffer). **`packages/react` (real): `<Calendar/>` (instância única + sync de props via API imperativa), `useCalendar` (handle imperativo estável), `createReactView` + `ReactIsland` (ponte React↔Preact), customToolbar/nativeToolbar, eventSource/refetchKey** — **~160 testes** (130 node + 30 jsdom; ver nota do sandbox) |
 | Nomenclatura | Passe de clareza em TODO o core (sem identificadores de 1 caractere; `T`→`temporal`). Regras adicionais travadas: **imports do preact com alias semântico** (`h as createElement`) e **condições extraídas para `const` booleanas nomeadas** (nada de valor "solto" em `if`). |
 | Motor de recorrência | Validado contra rrule.js: base 43/44 → **gap corrigido e provado (v2): 23/23**, incl. multi-ordinal. |
 | Gerenciador de pacotes | **yarn (workspaces)** — decidido na sessão 2 |
@@ -28,29 +28,31 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 ## Próximo passo concreto (para o próximo chat)
 
-Iniciar a **Fase 5** conforme `02-PLANO.md` (Adapter React idiomático):
-1. `<Calendar/>` fino em `packages/react` (cria o core 1x; entrega dados; callbacks estáveis) — hoje é stub.
-2. `eventSource.fetch({start,end})` + `refetchKey`; `customToolbar`/`nativeToolbar`; `createReactView`.
-3. Hook `useCalendar` para a API imperativa (prev/next/changeView) quando necessário.
-4. Ligar os callbacks de interação da Fase 4 (`onEventDrop`/`onEventResize`/`onDateSelect`/`onDropBlocked`/
-   `onClickBlocked`) na superfície React — **sem** `setTimeout`+diff manual do wsaude.
-- Base pronta da Fase 4 (core): `interaction/` = `gestureGeometry.ts` (snap/move/resize/select puros),
-  `occupancy.ts` (lotação/buffer), `model.ts` (`applyEventTimeChange`, `minutesToDateTime`), `interactionEngine.ts`
-  (Pointer Events, delegação, preview→commit→revert). `CalendarApp` liga tudo: draft no `ViewRenderContext`/`GridVM`,
-  fantasma + alça de resize no `TimeGrid` (`data-mc-draft`/`data-mc-resize`/`data-mc-start-min`), update otimista com
-  revert se o callback retornar `false`/rejeitar. `config.resources` habilita a validação de ocupação.
-- **Pendências abertas:** medir custo do polyfill Temporal no bundle; **split de eventos multi-dia timed**
-  (hoje ancorados no dia de início e recortados); **edição de ocorrência recorrente via drag** (hoje o commit
-  otimista só muta eventos NÃO recorrentes — recorrentes disparam o callback para o app criar override);
-  interação hoje é das views de time-grid (Week/Day/NDays) — estender a Multiagenda/Timeline (mover entre recursos).
-- **Resolvido nesta fase:** buffers/capacity deixaram de ser só visuais — o drop/resize agora é BARRADO por
-  lotação (`over-capacity`) e por buffer (`buffer-conflict`) via `interaction/occupancy.ts` (varredura de
-  concorrência com intervalos estendidos pelo buffer; genérico, sem regra de negócio — ADR-006).
+Iniciar a **Fase 6** conforme `02-PLANO.md` (Empacotamento, docs e validação):
+1. Build ESM+CJS+`.d.ts` por pacote (core/react/styles); CSS compilado isolado (`packages/styles`).
+   **Ordem de build importa:** react consome o core; para `tsc` cross-package sem dist, os `.tsx` do core levam
+   pragma `/** @jsxImportSource preact */` (resolvem o JSX do Preact mesmo sob o tsconfig React do adapter).
+2. README de consumo + exemplos (React e vanilla) + playground; **medir o custo do polyfill Temporal no bundle**
+   (pendência carregada desde a Fase 1).
+3. Bench de performance (muitos eventos) e a11y básica.
+- Base pronta da Fase 5 (`packages/react`): `Calendar.tsx` (cria o `CalendarApp` 1x, monta no `<div>`, sincroniza
+  props via API imperativa com guardas anti-redundância; callbacks/eventSource lidos de um ref → estáveis, sempre
+  a versão mais recente), `useCalendar.ts` (`{ ref, api }` — handle imperativo estável), `handle.ts`
+  (`createHandle`), `ReactIsland.tsx` (ponte: componente Preact que hospeda um root react-dom; reusado por
+  renderEvent/customToolbar/createReactView), `createReactView.tsx`. Peer deps `react`/`react-dom` (>=18).
+- **Views vanilla já funcionam** sem adapter: `app.registerView({...render→nós Preact})`. `createReactView` é só a
+  conveniência para o corpo em React.
+- **Pendências abertas:** medir custo do polyfill Temporal no bundle; **split de eventos multi-dia timed**;
+  **edição de ocorrência recorrente via drag** (commit otimista só muta eventos NÃO recorrentes; recorrentes
+  disparam o callback p/ o app criar override); interação hoje é das views de time-grid — estender à
+  Multiagenda/Timeline; **`customToolbar`/`renderEvent` em React criam 1 root react-dom por nó (ilha)** — ok p/ POC,
+  medir custo depois; per-file `@jsxImportSource react` nos `.tsx` do adapter para o esbuild do Vitest (a config
+  global é Preact).
 
 ### Como rodar o que já existe
 ```bash
 # na raiz (yarn é o gerenciador oficial; no sandbox de verificação usamos npm pois yarn não instala lá)
-yarn install && yarn test      # vitest: ~155 (127 node + 28 jsdom)
+yarn install && yarn test      # vitest: ~160 (130 node + 30 jsdom). Adapter React em packages/react.
 # core/src/index.ts exporta: ensureTemporal, createDateUtils, expandEvent, expandRule,
 # parseRRule/serializeRRule, ConstraintEngine e todos os tipos canônicos.
 ```
@@ -93,6 +95,37 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 ---
 
 ## Log de sessões
+
+### Sessão 8 — 2026-07-22 — Fase 5 (Adapter React idiomático) ✅
+- **`packages/react` deixou de ser stub.** Implementado o adapter FINO (ADR-001/002): a instância do
+  `CalendarApp` é criada **uma vez** e montada num `<div>`; o React nunca reconcilia a árvore interna (Preact).
+  - `Calendar.tsx` — `<Calendar/>`: cria o core no `useEffect` de montagem; props subsequentes entram por
+    **efeitos de sync** que chamam a API imperativa (`setEvents`/`setConstraints`/`setOptions`/`setResources`/
+    `changeView`/`setDate`/`refetch` por `refetchKey`) com **guardas anti-redundância** (compara com o estado
+    atual). Callbacks e `eventSource` são lidos de um `propsRef` → "estáveis" para o core, mas sempre chamam a
+    versão mais recente. Mata o `setTimeout`+diff manual do wsaude.
+  - `useCalendar.ts` — `{ ref, api }`: ligue `ref` em `<Calendar apiRef={ref}/>` e use `api` (métodos estáveis)
+    em handlers p/ comandar prev/next/changeView etc. `handle.ts` adapta a API do core p/ `CalendarHandle`.
+  - `ReactIsland.tsx` — **ponte React↔Preact**: componente Preact que cria um root `react-dom/client` no seu nó e
+    o atualiza quando o `node` muda (desmonta em microtask). Reusado por `renderEvent`, `customToolbar` e
+    `createReactView`. `createReactView.tsx` — view com corpo em React (defaults de 1 dia / ±1 / título ISO).
+  - **customToolbar/nativeToolbar:** com `customToolbar` a toolbar nativa é suprimida (vai por `renderToolbar` do
+    core embrulhando uma ilha React); sem ele, o core desenha a toolbar padrão.
+- **Deps:** `react`/`react-dom` como **peerDependencies** do `@meucalendario/react` (+ `preact` como dep, usada na
+  ilha); `react`, `react-dom`, `@types/react`, `@types/react-dom`, `@testing-library/react` como **devDeps** na raiz.
+- **Cross-package typecheck:** o adapter (tsconfig JSX = React) importa o core em **source**; para os `.tsx` do core
+  (JSX Preact) não quebrarem sob esse tsconfig, cada um recebeu o pragma `/** @jsxImportSource preact */`. Os `.tsx`
+  do adapter recebem `/** @jsxImportSource react */` (p/ o esbuild do Vitest, cuja config global é Preact).
+- **Testes:** `packages/react/tests/reactAdapter.spec.ts` (**3, node**) — delegação do `createHandle` e defaults do
+  `createReactView` (lógica pura, sem DOM). `packages/react/tests/Calendar.dom.spec.tsx` (**~5, jsdom, CI**) —
+  montagem única + render, sync da prop `events` sem recriar a instância, `useCalendar.next()`, `customToolbar`
+  substituindo a nativa, `createReactView` embutindo corpo React. **`tsc` estrito limpo nos DOIS pacotes**;
+  suíte node verde (49 no run combinado). **Sem demo** (mantido).
+- **NOTA do sandbox:** idem Fase 4 — jsdom não boota no limite de 45s, então os specs React/DOM não rodaram aqui
+  (só `tsc` + os specs node). Além disso, um `npm install` interrompido corrompeu `node_modules/csstype`; como
+  `node_modules` é efêmero (o `yarn install` real do projeto o restaura), usei um shim de tipos mínimo só p/ o `tsc`
+  local — **nada disso é versionado** (`dist/`, `node_modules/` no `.gitignore`).
+- **Próximo:** Fase 6 (empacotamento/build ESM+CJS+d.ts, README/exemplos, bench, a11y) — ver "Próximo passo".
 
 ### Sessão 7 — 2026-07-22 — Fase 4 (Interação: drag & drop + resize + seleção) ✅
 - **Novo módulo `packages/core/src/interaction/`** (puro + DOM-thin, seguindo a filosofia do projeto):

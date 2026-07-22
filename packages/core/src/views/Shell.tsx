@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 /**
  * Shell do calendário: dono do nó raiz (`data-mc-root`), desenha a toolbar (padrão ou custom
  * via render-prop) e o corpo da view ativa. Fica estável entre navegação/troca de view — o Preact

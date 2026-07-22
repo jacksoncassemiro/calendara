@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 /**
  * ListView (Agenda) — lista cronológica das ocorrências no range visível, agrupadas por dia.
  * Mesmo contrato `CalendarView`. Range alinhado à semana (paridade com a Week) por padrão,

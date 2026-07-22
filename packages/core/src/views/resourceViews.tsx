@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 /**
  * Views orientadas a recurso (Fase 3B / Agenda Desvinculada):
  *  - Multiagenda (`createResourceDayView`): um dia, N colunas — uma por recurso (padrão Feegow/GestãoDS).

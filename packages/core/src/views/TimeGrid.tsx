@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 /**
  * Componente Preact do time-grid (Semana/Dia). Puramente apresentacional: recebe um GridVM já
  * pronto (dias, rótulos, geometria, camada de fundo, linha "agora") e desenha.
