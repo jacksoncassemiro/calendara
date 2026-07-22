@@ -133,11 +133,12 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     const { container, column } = buildDom();
     const { engine, calls } = makeEngine();
     engine.attach(container);
-    firePointer(column, 'pointerdown', 5, 780);
-    firePointer(document, 'pointermove', 5, 840);
-    firePointer(document, 'pointerup', 5, 840);
+    // 10:00 (600) → 11:00 (660), abaixo da zona inválida do stub (≥720).
+    firePointer(column, 'pointerdown', 5, 600);
+    firePointer(document, 'pointermove', 5, 660);
+    firePointer(document, 'pointerup', 5, 660);
     expect(calls.select).toHaveLength(1);
-    expect(calls.select[0]).toEqual({ dateISO: REF, startMin: 780, endMin: 840 });
+    expect(calls.select[0]).toEqual({ dateISO: REF, startMin: 600, endMin: 660 });
     engine.detach();
   });
 
