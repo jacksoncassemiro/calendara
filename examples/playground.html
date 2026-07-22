@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>meucalendario — playground</title>
+  <link rel="stylesheet" href="../packages/styles/index.css" />
+
+  <!--
+    Playground SEM bundler. Requisitos p/ FUNCIONAR:
+      1) `yarn build` (gera packages/core/dist/esm) — o core é carregado desse build.
+      2) servir por HTTP (obrigatório): na RAIZ do repo rode `npx serve .` (ou o Live Server do
+         VSCode) e abra http://localhost:3000/examples/playground.html
+    Por que HTTP? Navegadores BLOQUEIAM módulos ES + CDN via file:// (segurança/CORS) — não é bug.
+    A página mostra qualquer problema em vermelho, não fica em branco/preto.
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "preact": "https://esm.sh/preact@10.23.2",
+      "preact/hooks": "https://esm.sh/preact@10.23.2/hooks",
+      "@js-temporal/polyfill": "https://esm.sh/@js-temporal/polyfill@0.4.4",
+      "@meucalendario/core": "../packages/core/dist/esm/index.js"
+    }
+  }
+  </script>
+
+  <style>
+    body { font: 14px system-ui, sans-serif; margin: 0; padding: 16px; color: #1a1a1a; }
+    h1 { font-size: 18px; }
+    .bar { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+    .bar button { padding: 4px 10px; cursor: pointer; }
+    #cal { border: 1px solid #e2e2e2; border-radius: 8px; overflow: hidden; margin-top: 8px; min-height: 120px; }
+    #status { padding: 10px; color: #6b7280; }
+    #status.error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; white-space: pre-wrap; font-family: ui-monospace, monospace; }
+    #log { margin-top: 12px; padding: 8px; background: #f8fafc; color: #334155; border: 1px solid #e2e8f0; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 12px; height: 120px; overflow: auto; white-space: pre-wrap; }
+  </style>
+</head>
+
+<body>
+  <h1>meucalendario — playground</h1>
+  <div class="bar">
+    <button id="prev">‹ anterior</button>
+    <button id="today">hoje</button>
+    <button id="next">próximo ›</button>
+    <span style="width:12px"></span>
+    <button data-view="week">Semana</button>
+    <button data-view="day">Dia</button>
+    <button data-view="month">Mês</button>
+    <button data-view="list">Lista</button>
+    <button data-view="resources">Recursos</button>
+    <button data-view="timeline">Timeline</button>
+  </div>
+  <div id="cal"><div id="status">carregando…</div></div>
+  <div id="log"></div>
+
+  <script type="module">
+    const showError = (title, detail) => {
+      const el = document.getElementById('status');
+      if (!el) return;
+      el.className = 'error';
+      el.textContent = `⚠ ${title}\n\n${detail}`;
+    };
+    const log = (msg) => {
+      const el = document.getElementById('log');
+      el.textContent += msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    };
+
+    // file:// não carrega módulos ES nem CDN — mostra a instrução e PARA (sem erro de runtime feio).
+    if (location.protocol === 'file:') {
+      showError('Aberto por file:// — módulos ES e CDN não carregam assim (bloqueio do navegador).',
+        'Sirva por HTTP: na RAIZ do repo rode `npx serve .` e abra http://localhost:3000/examples/playground.html');
+    } else {
+      boot();
+    }
+
+    async function boot() {
+      let core;
+      try {
+        core = await import('@meucalendario/core');
+      } catch (err) {
+        showError('Não consegui carregar @meucalendario/core (packages/core/dist/esm/index.js).',
+          'Provável causa: o build não foi gerado. Rode `yarn build` e recarregue.\n\n' + String(err));
+        return;
+      }
+
+      const { CalendarApp, createResourceDayView, createTimelineView } = core;
+      const TZ = 'America/Sao_Paulo';
+      const REF = '2026-07-22'; // quarta
+
+      const events = [
+        { id: 'e1', calendarId: 'c1', title: 'Consulta', resourceIds: ['sala-1'], color: '#2563eb',
+          time: { allDay: false, start: { dateTime: REF + 'T09:00:00', timeZone: TZ }, end: { dateTime: REF + 'T10:00:00', timeZone: TZ } } },
+        { id: 'e2', calendarId: 'c1', title: 'Retorno (semanal)', resourceIds: ['sala-1'],
+          time: { allDay: false, start: { dateTime: REF + 'T11:00:00', timeZone: TZ }, end: { dateTime: REF + 'T11:30:00', timeZone: TZ } },
+          recurrence: { rule: { freq: 'WEEKLY', count: 6 } } },
+        { id: 'e3', calendarId: 'c1', title: 'Exame', resourceIds: ['equip-raiox'], color: '#16a34a',
+          time: { allDay: false, start: { dateTime: REF + 'T14:00:00', timeZone: TZ }, end: { dateTime: REF + 'T15:00:00', timeZone: TZ } } },
+        { id: 'e4', calendarId: 'c1', title: 'Feriado', editable: false,
+          time: { allDay: true, start: { date: REF }, end: { date: '2026-07-23' } } },
+      ];
+      const constraints = {
+        businessHours: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '08:00', endTime: '18:00', start: '2026-07-01' }],
+        blocked: [{ scope: 'time', date: REF, startTime: '12:00', endTime: '13:00', description: 'Almoço' }],
+      };
+      const resources = [
+        { id: 'sala-1', title: 'Sala 1', type: 'sala', capacity: 1, bufferAfter: 15 },
+        { id: 'equip-raiox', title: 'Raio-X', type: 'equipamento', capacity: 2 },
+      ];
+
+      try {
+        const app = new CalendarApp({
+          view: 'week', date: REF, events, constraints, resources,
+          // startHour/endHour aceitam número (7) OU 'HH:mm' ('07:30') — aqui demonstra a string:
+          options: { timeZone: TZ, startHour: '07:00', endHour: '20:00', slotMinutes: 30 },
+          onEventDrop: (c) => { log(`drop: ${c.event.title} → ${c.startDateTime}`); return true; },
+          onEventResize: (c) => { log(`resize: ${c.event.title} → fim ${c.endDateTime}`); return true; },
+          onDateSelect: (s) => log(`seleção: ${s.dateISO} ${s.startMin}–${s.endMin} min`),
+          onEventClick: (o) => log(`clique: ${o.event.title}`),
+          onDropBlocked: (i) => log(`BARRADO (${i.reason})`),
+          onClickBlocked: (i) => log(`seleção barrada (${i.reason})`),
+        });
+        app.registerView(createResourceDayView(resources));
+        app.registerView(createTimelineView(resources));
+
+        const cal = document.getElementById('cal');
+        cal.innerHTML = '';
+        app.mount(cal);
+        await app.ready();
+        log('pronto. arraste/redimensione eventos, selecione área vazia, troque de view.');
+
+        document.getElementById('prev').onclick = () => app.prev();
+        document.getElementById('next').onclick = () => app.next();
+        document.getElementById('today').onclick = () => app.today();
+        for (const btn of document.querySelectorAll('[data-view]')) {
+          btn.onclick = () => app.changeView(btn.dataset.view);
+        }
+      } catch (err) {
+        showError('Erro ao montar o calendário.', String(err && err.stack || err));
+      }
+    }
+  </script>
+</body>
+
+</html>
