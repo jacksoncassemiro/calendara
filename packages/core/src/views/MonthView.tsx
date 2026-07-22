@@ -2,7 +2,7 @@
  * MonthView — grade de mês (day grid). Semanas em linhas, dias em células; eventos aparecem como
  * "chips" ordenados por horário. Implementa o mesmo contrato `CalendarView` (registrável/custom).
  */
-import { h, type JSX } from 'preact';
+import { h as createElement, type JSX } from 'preact';
 import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from './viewDef.js';
 import type { TemporalLike } from '../date/temporal.js';
 import type { EventOccurrence } from '../types/event.js';
@@ -49,7 +49,7 @@ export const monthView: CalendarView = {
   },
 
   render(context: ViewRenderContext): JSX.Element {
-    return h(MonthGrid, { context });
+    return createElement(MonthGrid, { context });
   },
 };
 

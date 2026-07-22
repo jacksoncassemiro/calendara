@@ -61,17 +61,18 @@ export function* expandRule(
 	let byMonthDay = model.byMonthDay ?? [];
 	let effectiveWeekdays = weekdayNumbers;
 
-	if (
-		frequency === "YEARLY" &&
-		!byMonth.length &&
-		!byDay.length &&
-		!byMonthDay.length
-	) {
+	const yearlyNeedsImplicitDate =
+		frequency === "YEARLY" && !byMonth.length && !byDay.length && !byMonthDay.length;
+	const monthlyNeedsImplicitDay =
+		frequency === "MONTHLY" && !byMonthDay.length && !byDay.length;
+	const weeklyNeedsImplicitWeekday = frequency === "WEEKLY" && !byDay.length;
+
+	if (yearlyNeedsImplicitDate) {
 		byMonth = [dtstart.month];
 		byMonthDay = [dtstart.day];
-	} else if (frequency === "MONTHLY" && !byMonthDay.length && !byDay.length) {
+	} else if (monthlyNeedsImplicitDay) {
 		byMonthDay = [dtstart.day];
-	} else if (frequency === "WEEKLY" && !byDay.length) {
+	} else if (weeklyNeedsImplicitWeekday) {
 		effectiveWeekdays = [dtstart.dayOfWeek];
 	}
 
@@ -110,43 +111,48 @@ export function* expandRule(
 
 		let candidates: PlainDate[] = [];
 
-		if ((frequency === "MONTHLY" || frequency === "YEARLY") && hasOrdinals) {
-			const months =
+		const isMonthlyOrYearly = frequency === "MONTHLY" || frequency === "YEARLY";
+		const usesOrdinalWeekdays = isMonthlyOrYearly && hasOrdinals;
+
+		if (usesOrdinalWeekdays) {
+			const monthsToScan =
 				frequency === "MONTHLY"
 					? [periodStart.month]
-					: Array.from({ length: 12 }, (_unused, offset) => offset + 1).filter(
-							(month) => !byMonth.length || byMonth.includes(month),
-						);
-			for (const month of months) {
+					: Array.from({ length: 12 }, (_unused, offset) => offset + 1).filter((month) => {
+							const monthAllowed = !byMonth.length || byMonth.includes(month);
+							return monthAllowed;
+						});
+			for (const month of monthsToScan) {
 				for (const entry of byDay) {
-					if (entry.ordinal === undefined) continue;
+					const hasOrdinal = entry.ordinal !== undefined;
+					if (!hasOrdinal) continue;
 					const candidate = dateUtils.nthWeekdayInMonth(
 						periodStart.year,
 						month,
 						weekdayCodeToDayOfWeek(entry.weekday),
-						entry.ordinal,
+						entry.ordinal!,
 					);
-					if (candidate && temporal.PlainDate.compare(candidate, dtstart) >= 0) {
-						candidates.push(candidate);
-					}
+					const onOrAfterStart =
+						candidate !== null && temporal.PlainDate.compare(candidate, dtstart) >= 0;
+					if (onOrAfterStart) candidates.push(candidate!);
 				}
 			}
 		} else {
 			let cursor = periodStart;
 			while (temporal.PlainDate.compare(cursor, periodEnd) < 0) {
-				if (temporal.PlainDate.compare(cursor, dtstart) >= 0) {
-					let matches = true;
-					if (byMonth.length && !byMonth.includes(cursor.month)) matches = false;
-					if (effectiveWeekdays.length && !effectiveWeekdays.includes(cursor.dayOfWeek)) {
-						matches = false;
-					}
-					if ((frequency === "MONTHLY" || frequency === "YEARLY") && byMonthDay.length) {
-						const negativeDay = cursor.day - cursor.daysInMonth - 1; // -1 = último
-						if (!byMonthDay.includes(cursor.day) && !byMonthDay.includes(negativeDay)) {
-							matches = false;
-						}
-					}
-					if (matches) candidates.push(cursor);
+				const withinSeries = temporal.PlainDate.compare(cursor, dtstart) >= 0;
+				if (withinSeries) {
+					const monthAllowed = !byMonth.length || byMonth.includes(cursor.month);
+					const weekdayAllowed =
+						!effectiveWeekdays.length || effectiveWeekdays.includes(cursor.dayOfWeek);
+					const checksMonthDay = isMonthlyOrYearly && byMonthDay.length > 0;
+					const negativeDay = cursor.day - cursor.daysInMonth - 1; // -1 = último dia do mês
+					const monthDayAllowed =
+						!checksMonthDay ||
+						byMonthDay.includes(cursor.day) ||
+						byMonthDay.includes(negativeDay);
+					const matchesRule = monthAllowed && weekdayAllowed && monthDayAllowed;
+					if (matchesRule) candidates.push(cursor);
 				}
 				cursor = cursor.add({ days: 1 });
 			}
@@ -176,28 +182,36 @@ export function* expandRule(
 
 		let yieldedInPeriod = false;
 		for (const candidate of candidates) {
-			if (until && temporal.PlainDate.compare(candidate, until) > 0) return;
-			if (options.windowEnd && temporal.PlainDate.compare(candidate, options.windowEnd) > 0) {
-				return;
-			}
+			const pastUntil = until !== null && temporal.PlainDate.compare(candidate, until) > 0;
+			if (pastUntil) return;
+			const pastWindowEnd =
+				options.windowEnd !== undefined &&
+				temporal.PlainDate.compare(candidate, options.windowEnd) > 0;
+			if (pastWindowEnd) return;
+
 			countedOccurrences++;
-			if (!exDates.has(candidate.toString())) {
-				if (
-					!options.windowStart ||
-					temporal.PlainDate.compare(candidate, options.windowStart) >= 0
-				) {
-					yield candidate;
-					yieldedInPeriod = true;
-				}
+
+			const isExcluded = exDates.has(candidate.toString());
+			const beforeWindowStart =
+				options.windowStart !== undefined &&
+				temporal.PlainDate.compare(candidate, options.windowStart) < 0;
+			const shouldEmit = !isExcluded && !beforeWindowStart;
+			if (shouldEmit) {
+				yield candidate;
+				yieldedInPeriod = true;
 			}
-			if (count !== null && countedOccurrences >= count) return;
+
+			const reachedCount = count !== null && countedOccurrences >= count;
+			if (reachedCount) return;
 		}
 
 		periodStart = nextPeriodStart;
-		if (yieldedInPeriod) emptyPeriodStreak = 0;
-		else {
+		if (yieldedInPeriod) {
+			emptyPeriodStreak = 0;
+		} else {
 			emptyPeriodStreak++;
-			if (emptyPeriodStreak > maxEmptyPeriods) return;
+			const exceededEmptyStreak = emptyPeriodStreak > maxEmptyPeriods;
+			if (exceededEmptyStreak) return;
 		}
 	}
 }

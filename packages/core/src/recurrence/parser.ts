@@ -12,6 +12,9 @@ import type {
 
 const FREQUENCIES: readonly Frequency[] = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"];
 const WEEKDAY_CODE_SET = new Set<string>(WEEKDAY_CODES);
+/** Defaults do RFC 5545 — omitidos na serialização quando o valor é o padrão. */
+const DEFAULT_INTERVAL = 1;
+const DEFAULT_WEEK_START = "MO";
 
 function parseByDay(value: string): ByDayEntry[] {
 	const entries: ByDayEntry[] = [];
@@ -109,17 +112,16 @@ function serializeUntil(iso: string): string {
 /** Serializa um RRuleModel de volta para a string RFC 5545 (sem o prefixo `RRULE:`). */
 export function serializeRRule(model: RRuleModel): string {
 	const parts: string[] = [`FREQ=${model.freq}`];
-	if (model.interval !== undefined && model.interval !== 1) {
-		parts.push(`INTERVAL=${model.interval}`);
-	}
+	const hasCustomInterval = model.interval !== undefined && model.interval !== DEFAULT_INTERVAL;
+	if (hasCustomInterval) parts.push(`INTERVAL=${model.interval}`);
 	if (model.count !== undefined) parts.push(`COUNT=${model.count}`);
 	if (model.until !== undefined) parts.push(`UNTIL=${serializeUntil(model.until)}`);
 	if (model.byMonth?.length) parts.push(`BYMONTH=${model.byMonth.join(",")}`);
 	if (model.byMonthDay?.length) parts.push(`BYMONTHDAY=${model.byMonthDay.join(",")}`);
 	if (model.byDay?.length) parts.push(`BYDAY=${serializeByDay(model.byDay)}`);
 	if (model.bySetPos?.length) parts.push(`BYSETPOS=${model.bySetPos.join(",")}`);
-	if (model.weekStart !== undefined && model.weekStart !== "MO") {
-		parts.push(`WKST=${model.weekStart}`);
-	}
+	const hasCustomWeekStart =
+		model.weekStart !== undefined && model.weekStart !== DEFAULT_WEEK_START;
+	if (hasCustomWeekStart) parts.push(`WKST=${model.weekStart}`);
 	return parts.join(";");
 }

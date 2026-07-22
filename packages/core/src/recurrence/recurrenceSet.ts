@@ -132,10 +132,14 @@ export function expandEvent(
   const windowEnd = window.end ? temporal.PlainDate.from(window.end) : undefined;
 
   // Sem recorrência: uma única ocorrência (o próprio mestre).
-  if (!event.recurrence || (!event.recurrence.rule && !event.recurrence.rDates?.length)) {
+  const hasRule = !!event.recurrence?.rule;
+  const hasRDates = (event.recurrence?.rDates?.length ?? 0) > 0;
+  const isRecurring = hasRule || hasRDates;
+  if (!isRecurring) {
     const baseDate = startPlainDate(temporal, event);
-    if (windowStart && temporal.PlainDate.compare(baseDate, windowStart) < 0) return [];
-    if (windowEnd && temporal.PlainDate.compare(baseDate, windowEnd) > 0) return [];
+    const beforeWindow = windowStart !== undefined && temporal.PlainDate.compare(baseDate, windowStart) < 0;
+    const afterWindow = windowEnd !== undefined && temporal.PlainDate.compare(baseDate, windowEnd) > 0;
+    if (beforeWindow || afterWindow) return [];
     const times = occurrenceTimes(temporal, shape, baseDate);
     return [
       {
@@ -147,7 +151,8 @@ export function expandEvent(
     ];
   }
 
-  const recurrence = event.recurrence;
+  // isRecurring garante recurrence definido aqui.
+  const recurrence = event.recurrence!;
   const model = ruleModel(recurrence);
   const dtStart = startPlainDate(temporal, event);
 
@@ -166,9 +171,11 @@ export function expandEvent(
   // RDATE: datas extras (não contam para COUNT). Respeita janela e EXDATE.
   for (const rDate of recurrence.rDates ?? []) {
     const plainDate = temporal.PlainDate.from(rDate.slice(0, 10));
-    if (excludedDates.has(plainDate.toString())) continue;
-    if (windowStart && temporal.PlainDate.compare(plainDate, windowStart) < 0) continue;
-    if (windowEnd && temporal.PlainDate.compare(plainDate, windowEnd) > 0) continue;
+    const excluded = excludedDates.has(plainDate.toString());
+    const beforeWindow = windowStart !== undefined && temporal.PlainDate.compare(plainDate, windowStart) < 0;
+    const afterWindow = windowEnd !== undefined && temporal.PlainDate.compare(plainDate, windowEnd) > 0;
+    const skip = excluded || beforeWindow || afterWindow;
+    if (skip) continue;
     dates.push(plainDate);
   }
 
@@ -177,7 +184,8 @@ export function expandEvent(
   const uniqueDates = dates
     .filter((date) => {
       const key = date.toString();
-      if (seenKeys.has(key)) return false;
+      const alreadySeen = seenKeys.has(key);
+      if (alreadySeen) return false;
       seenKeys.add(key);
       return true;
     })
@@ -187,12 +195,13 @@ export function expandEvent(
   for (const date of uniqueDates) {
     const times = occurrenceTimes(temporal, shape, date);
     const effectiveEvent = applyOverride(event, recurrence, times.originalStart);
-    if (effectiveEvent === null) continue; // cancelada
+    const isCancelled = effectiveEvent === null;
+    if (isCancelled) continue;
     const isMaster = date.toString() === dtStart.toString();
-    const occurrenceTime =
-      effectiveEvent.time && effectiveEvent !== event
-        ? effectiveEvent.time
-        : { allDay: shape.allDay, start: times.start, end: times.end };
+    const usesOverriddenTime = effectiveEvent.time !== undefined && effectiveEvent !== event;
+    const occurrenceTime = usesOverriddenTime
+      ? effectiveEvent.time
+      : { allDay: shape.allDay, start: times.start, end: times.end };
     results.push({
       event: { ...effectiveEvent, time: occurrenceTime },
       masterId: event.id,

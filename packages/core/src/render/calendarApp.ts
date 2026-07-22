@@ -332,7 +332,8 @@ export class CalendarApp {
     const token = ++this.fetchToken;
     const range = this.getVisibleRange();
     return Promise.resolve(this.eventSource(range)).then((events) => {
-      if (token === this.fetchToken) this.store.setState({ events });
+      const isLatestFetch = token === this.fetchToken;
+      if (isLatestFetch) this.store.setState({ events });
     });
   }
 
@@ -342,7 +343,8 @@ export class CalendarApp {
     const token = ++this.fetchToken;
     const range = this.getVisibleRange();
     void Promise.resolve(this.eventSource(range)).then((events) => {
-      if (token === this.fetchToken) this.store.setState({ events });
+      const isLatestFetch = token === this.fetchToken;
+      if (isLatestFetch) this.store.setState({ events });
     });
   }
 

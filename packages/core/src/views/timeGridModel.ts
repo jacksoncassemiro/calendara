@@ -74,6 +74,8 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
     });
 
     const isToday = day.dateISO === nowDayISO;
+    const nowWithinGrid = nowMinuteOfDay >= gridTopMin && nowMinuteOfDay <= gridBottomMin;
+    const showNowLine = isToday && nowWithinGrid;
     return {
       dateISO: day.dateISO,
       weekdayLabel: formatDate(day.date, options.locale, { weekday: 'short' }),
@@ -83,10 +85,7 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
       blocked: day.blocked,
       allDay,
       events,
-      nowMinutes:
-        isToday && nowMinuteOfDay >= gridTopMin && nowMinuteOfDay <= gridBottomMin
-          ? nowMinuteOfDay
-          : null,
+      nowMinutes: showNowLine ? nowMinuteOfDay : null,
     };
   });
 

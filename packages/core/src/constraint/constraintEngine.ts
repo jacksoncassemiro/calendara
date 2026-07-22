@@ -25,6 +25,10 @@ export interface Slot {
   endMin?: number;
 }
 
+/** Meia-noite (minuto 0) e fim do dia (24h = 1440) em minutos-do-dia. */
+const DAY_START_MIN = 0;
+const DAY_END_MIN = 24 * 60;
+
 function toMinutes(hhmm: string): number {
   const [hours, minutes] = hhmm.split(':');
   return parseInt(hours ?? '0', 10) * 60 + parseInt(minutes ?? '0', 10);
@@ -47,9 +51,10 @@ function overlaps(
 
 /** Normaliza o slot para [start,end) em minutos; dia inteiro vira [0,1440). */
 function slotMinutes(slot: Slot): { start: number; end: number; wholeDay: boolean } {
-  if (slot.startMin === undefined) return { start: 0, end: 1440, wholeDay: true };
-  const start = slot.startMin;
-  const end = slot.endMin ?? slot.startMin;
+  const isWholeDay = slot.startMin === undefined;
+  if (isWholeDay) return { start: DAY_START_MIN, end: DAY_END_MIN, wholeDay: true };
+  const start = slot.startMin!;
+  const end = slot.endMin ?? slot.startMin!;
   return { start, end: Math.max(end, start), wholeDay: false };
 }
 
@@ -74,42 +79,52 @@ export class ConstraintEngine {
   private isBlocked(slot: Slot): boolean {
     const { start, end } = slotMinutes(slot);
     for (const blocking of this.blocked) {
-      if (blocking.date !== slot.date) continue;
-      if (blocking.scope === 'day') return true;
+      const appliesToThisDay = blocking.date === slot.date;
+      if (!appliesToThisDay) continue;
+      const blocksWholeDay = blocking.scope === 'day';
+      if (blocksWholeDay) return true;
       // scope 'time'
-      const blockStart = blocking.start ? toMinutes(blocking.start) : 0;
-      const blockEnd =
-        blocking.end ?? blocking.endTime ? toMinutes((blocking.end ?? blocking.endTime)!) : 1440;
-      if (overlaps(start, end, blockStart, blockEnd)) return true;
+      const blockStart = blocking.start ? toMinutes(blocking.start) : DAY_START_MIN;
+      const rawBlockEnd = blocking.end ?? blocking.endTime;
+      const blockEnd = rawBlockEnd ? toMinutes(rawBlockEnd) : DAY_END_MIN;
+      const overlapsBlock = overlaps(start, end, blockStart, blockEnd);
+      if (overlapsBlock) return true;
     }
     return false;
   }
 
   private inBusinessHours(slot: Slot): boolean {
-    if (!this.businessHours.length) return true; // sem regra = sempre aberto
+    const hasBusinessRule = this.businessHours.length > 0;
+    if (!hasBusinessRule) return true; // sem regra = sempre aberto
     const dayOfWeek = jsDayOfWeek(slot.date);
     const { start, end, wholeDay } = slotMinutes(slot);
     for (const businessHour of this.businessHours) {
-      if (!businessHour.daysOfWeek.includes(dayOfWeek)) continue;
-      if (businessHour.start && slot.date < businessHour.start) continue;
-      if (businessHour.end && slot.date > businessHour.end) continue;
+      const appliesToWeekday = businessHour.daysOfWeek.includes(dayOfWeek);
+      const beforeRuleValidity = businessHour.start !== undefined && slot.date < businessHour.start;
+      const afterRuleValidity = businessHour.end !== undefined && slot.date > businessHour.end;
+      const ruleApplies = appliesToWeekday && !beforeRuleValidity && !afterRuleValidity;
+      if (!ruleApplies) continue;
+      if (wholeDay) return true; // há expediente nesse dia
       const businessStart = toMinutes(businessHour.startTime);
       const businessEnd = toMinutes(businessHour.endTime);
-      if (wholeDay) return true; // há expediente nesse dia
-      if (start >= businessStart && end <= businessEnd) return true;
+      const withinBusinessWindow = start >= businessStart && end <= businessEnd;
+      if (withinBusinessWindow) return true;
     }
     return false;
   }
 
   private inAllowed(slot: Slot): boolean {
-    if (!this.allowedRanges.length) return true; // sem restrição
+    const hasAllowedRule = this.allowedRanges.length > 0;
+    if (!hasAllowedRule) return true; // sem restrição
     const { start, end, wholeDay } = slotMinutes(slot);
     for (const range of this.allowedRanges) {
-      if (slot.date < range.start || slot.date > range.end) continue;
+      const withinDateRange = slot.date >= range.start && slot.date <= range.end;
+      if (!withinDateRange) continue;
       if (wholeDay) return true;
-      const rangeStart = range.startTime ? toMinutes(range.startTime) : 0;
-      const rangeEnd = range.endTime ? toMinutes(range.endTime) : 1440;
-      if (start >= rangeStart && end <= rangeEnd) return true;
+      const rangeStart = range.startTime ? toMinutes(range.startTime) : DAY_START_MIN;
+      const rangeEnd = range.endTime ? toMinutes(range.endTime) : DAY_END_MIN;
+      const withinAllowedWindow = start >= rangeStart && end <= rangeEnd;
+      if (withinAllowedWindow) return true;
     }
     return false;
   }

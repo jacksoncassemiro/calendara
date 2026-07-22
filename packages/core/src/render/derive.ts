@@ -13,6 +13,9 @@ import type { GeoInput } from '../geometry/geometry.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
+/** Minutos num dia completo (24h) — usado como fim padrão quando um evento cruza a meia-noite. */
+const MINUTES_PER_DAY = 24 * 60;
+
 /** Segmento vertical em minutos-do-dia. */
 export interface Segment {
   startMin: number;
@@ -143,10 +146,11 @@ export function buildDays(
     const endZoned = toDisplayZoned(temporal, time.end, displayTimeZone);
     const dayIso = startZoned.toPlainDate().toString();
     const column = dataByDay.get(dayIso);
-    if (!column) continue; // fora dos dias visíveis
+    const outsideVisibleDays = column === undefined;
+    if (outsideVisibleDays) continue;
     const startMin = startZoned.hour * 60 + startZoned.minute;
     const endsSameDay = endZoned.toPlainDate().toString() === dayIso;
-    const endMin = endsSameDay ? endZoned.hour * 60 + endZoned.minute : 1440;
+    const endMin = endsSameDay ? endZoned.hour * 60 + endZoned.minute : MINUTES_PER_DAY;
     column.timed.push({
       id: occurrenceKey(occurrence),
       startMin,
@@ -166,16 +170,20 @@ function deriveNonBusiness(
   gridEndMin: number,
 ): Segment[] {
   const businessHours = constraints.businessHours ?? [];
-  if (businessHours.length === 0) return []; // sem regra = sempre aberto (nada sombreado)
+  const hasBusinessRule = businessHours.length > 0;
+  if (!hasBusinessRule) return []; // sem regra = sempre aberto (nada sombreado)
   const dayOfWeek = jsDayOfWeek(dateISO);
   const openSegments: Segment[] = [];
   for (const rule of businessHours) {
-    if (!rule.daysOfWeek.includes(dayOfWeek)) continue;
-    if (rule.start && dateISO < rule.start) continue;
-    if (rule.end && dateISO > rule.end) continue;
+    const appliesToWeekday = rule.daysOfWeek.includes(dayOfWeek);
+    const beforeValidity = rule.start !== undefined && dateISO < rule.start;
+    const afterValidity = rule.end !== undefined && dateISO > rule.end;
+    const ruleApplies = appliesToWeekday && !beforeValidity && !afterValidity;
+    if (!ruleApplies) continue;
     const start = Math.max(toMinutes(rule.startTime), gridStartMin);
     const end = Math.min(toMinutes(rule.endTime), gridEndMin);
-    if (end > start) openSegments.push({ startMin: start, endMin: end });
+    const hasOpenWindow = end > start;
+    if (hasOpenWindow) openSegments.push({ startMin: start, endMin: end });
   }
   return complement(mergeSegments(openSegments), gridStartMin, gridEndMin);
 }
@@ -189,12 +197,15 @@ function deriveBlocked(
 ): Segment[] {
   const segments: Segment[] = [];
   for (const blocking of constraints.blocked ?? []) {
-    if (blocking.date !== dateISO) continue;
-    if (blocking.scope === 'day') return [{ startMin: gridStartMin, endMin: gridEndMin }];
+    const appliesToThisDay = blocking.date === dateISO;
+    if (!appliesToThisDay) continue;
+    const blocksWholeDay = blocking.scope === 'day';
+    if (blocksWholeDay) return [{ startMin: gridStartMin, endMin: gridEndMin }];
     const start = Math.max(blocking.start ? toMinutes(blocking.start) : gridStartMin, gridStartMin);
     const rawEnd = blocking.end ?? blocking.endTime;
     const end = Math.min(rawEnd ? toMinutes(rawEnd) : gridEndMin, gridEndMin);
-    if (end > start) segments.push({ startMin: start, endMin: end });
+    const hasSpan = end > start;
+    if (hasSpan) segments.push({ startMin: start, endMin: end });
   }
   return mergeSegments(segments);
 }
@@ -205,9 +216,10 @@ function mergeSegments(segments: Segment[]): Segment[] {
   const sorted = [...segments].sort((first, second) => first.startMin - second.startMin);
   const merged: Segment[] = [];
   for (const segment of sorted) {
-    const last = merged[merged.length - 1];
-    if (last && segment.startMin <= last.endMin) {
-      last.endMin = Math.max(last.endMin, segment.endMin);
+    const previous = merged[merged.length - 1];
+    const overlapsPrevious = previous !== undefined && segment.startMin <= previous.endMin;
+    if (overlapsPrevious) {
+      previous.endMin = Math.max(previous.endMin, segment.endMin);
     } else {
       merged.push({ ...segment });
     }
@@ -220,9 +232,11 @@ function complement(segments: Segment[], lowerBound: number, upperBound: number)
   const gaps: Segment[] = [];
   let cursor = lowerBound;
   for (const segment of segments) {
-    if (segment.startMin > cursor) gaps.push({ startMin: cursor, endMin: segment.startMin });
+    const hasGapBefore = segment.startMin > cursor;
+    if (hasGapBefore) gaps.push({ startMin: cursor, endMin: segment.startMin });
     cursor = Math.max(cursor, segment.endMin);
   }
-  if (cursor < upperBound) gaps.push({ startMin: cursor, endMin: upperBound });
+  const hasTrailingGap = cursor < upperBound;
+  if (hasTrailingGap) gaps.push({ startMin: cursor, endMin: upperBound });
   return gaps;
 }

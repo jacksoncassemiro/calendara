@@ -3,7 +3,7 @@
  * via render-prop) e o corpo da view ativa. Fica estável entre navegação/troca de view — o Preact
  * reaproveita este nó e só troca o corpo (nada é recriado do zero).
  */
-import { h, type JSX } from 'preact';
+import { h as createElement, type JSX } from 'preact';
 import type { ToolbarContext, ToolbarRenderSlot } from './viewDef.js';
 import type { ComponentChildren } from 'preact';
 
@@ -16,7 +16,7 @@ export interface ShellProps {
 export function CalendarShell(props: ShellProps): JSX.Element {
   const toolbar = props.renderToolbar
     ? props.renderToolbar(props.toolbar)
-    : h(DefaultToolbar, { toolbar: props.toolbar });
+    : createElement(DefaultToolbar, { toolbar: props.toolbar });
   return (
     <div class="mc-calendar" data-mc-root data-mc-view={props.toolbar.viewName}>
       {toolbar}

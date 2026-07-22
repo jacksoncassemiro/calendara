@@ -3,7 +3,7 @@
  * Mesmo contrato `CalendarView`. Range alinhado à semana (paridade com a Week) por padrão,
  * configurável via `createListView(spanDays)`.
  */
-import { h, type JSX } from 'preact';
+import { h as createElement, type JSX } from 'preact';
 import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from './viewDef.js';
 import type { TemporalLike } from '../date/temporal.js';
 import type { EventOccurrence } from '../types/event.js';
@@ -57,7 +57,7 @@ export function createListView(spanDays = 7, name = 'list'): CalendarView {
     },
 
     render(context: ViewRenderContext): JSX.Element {
-      return h(AgendaList, { context });
+      return createElement(AgendaList, { context });
     },
   };
 }

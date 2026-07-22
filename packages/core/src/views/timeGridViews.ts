@@ -3,7 +3,7 @@
  * Todas compartilham o MESMO componente (`TimeGrid`) e o mesmo builder (`buildTimeGridVM`);
  * só mudam range/navegação/título.
  */
-import { h } from 'preact';
+import { h as createElement } from 'preact';
 import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from './viewDef.js';
 import type { TemporalLike } from '../date/temporal.js';
 import { formatDate } from './format.js';
@@ -35,7 +35,8 @@ function rangeTitle(range: ViewRange, context: ViewContext): string {
 }
 
 function renderTimeGrid(name: string) {
-  return (context: ViewRenderContext) => h(TimeGrid, { vm: buildTimeGridVM(context, name) });
+  return (context: ViewRenderContext) =>
+    createElement(TimeGrid, { vm: buildTimeGridVM(context, name) });
 }
 
 export const weekView: CalendarView = {

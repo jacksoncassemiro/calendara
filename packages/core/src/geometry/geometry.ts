@@ -47,6 +47,11 @@ export interface GeoBlock {
   columns: number;
 }
 
+/** Altura mínima visual padrão (minutos) quando o grid não especifica. */
+const DEFAULT_MIN_EVENT_MINUTES = 15;
+/** Largura mínima de um bloco como fração da coluna (evita blocos "sumirem" ao empacotar). */
+const MIN_WIDTH_FRACTION_OF_COLUMN = 0.5;
+
 interface WorkItem extends GeoInput {
   /** Início/fim recortados ao grid (para px). */
   renderStart: number;
@@ -67,7 +72,7 @@ function overlaps(first: WorkItem, second: WorkItem): boolean {
 export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[] {
   const gridStartMin = grid.startHour * 60;
   const gridEndMin = grid.endHour * 60;
-  const minimumMinutes = grid.minEventMinutes ?? 15;
+  const minimumMinutes = grid.minEventMinutes ?? DEFAULT_MIN_EVENT_MINUTES;
   const gutter = grid.gutter ?? 0;
 
   // 1) Recorte ao grid + normalização.
@@ -75,7 +80,8 @@ export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[]
   for (const item of items) {
     const clippedStart = Math.max(item.startMin, gridStartMin);
     const clippedEnd = Math.min(item.endMin, gridEndMin);
-    if (clippedEnd <= gridStartMin || clippedStart >= gridEndMin) continue; // fora da janela
+    const outsideGrid = clippedEnd <= gridStartMin || clippedStart >= gridEndMin;
+    if (outsideGrid) continue;
     const renderStart = clippedStart;
     const renderEnd = Math.max(clippedEnd, clippedStart); // nunca negativo
     const collisionEnd = Math.max(renderEnd, renderStart + minimumMinutes);
@@ -112,7 +118,8 @@ export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[]
   };
 
   for (const workItem of workItems) {
-    if (cluster.length > 0 && workItem.startMin >= clusterEnd) flushCluster();
+    const startsNewCluster = cluster.length > 0 && workItem.startMin >= clusterEnd;
+    if (startsNewCluster) flushCluster();
     cluster.push(workItem);
     clusterEnd = Math.max(clusterEnd, workItem.collisionEnd);
   }
@@ -129,16 +136,19 @@ function resolveCluster(
   blocks: GeoBlock[],
 ): void {
   // Atribuição gulosa de colunas: reusa a primeira coluna livre.
+  const NO_COLUMN = -1;
   const columnEnds: number[] = [];
   for (const workItem of cluster) {
-    let placedColumn = -1;
+    let placedColumn = NO_COLUMN;
     for (let columnIndex = 0; columnIndex < columnEnds.length; columnIndex++) {
-      if ((columnEnds[columnIndex] ?? -Infinity) <= workItem.startMin) {
+      const columnIsFree = (columnEnds[columnIndex] ?? -Infinity) <= workItem.startMin;
+      if (columnIsFree) {
         placedColumn = columnIndex;
         break;
       }
     }
-    if (placedColumn === -1) {
+    const needsNewColumn = placedColumn === NO_COLUMN;
+    if (needsNewColumn) {
       placedColumn = columnEnds.length;
       columnEnds.push(workItem.collisionEnd);
     } else {
@@ -147,7 +157,7 @@ function resolveCluster(
     workItem.column = placedColumn;
   }
   const columnCount = columnEnds.length;
-  const minimumMinutes = grid.minEventMinutes ?? 15;
+  const minimumMinutes = grid.minEventMinutes ?? DEFAULT_MIN_EVENT_MINUTES;
 
   // Expansão waterfall: cada evento cresce à direita enquanto as colunas seguintes
   // não tiverem nenhum evento que o sobreponha no tempo.
@@ -162,13 +172,15 @@ function resolveCluster(
     }
     const columnWidth = 1 / columnCount;
     const left = workItem.column * columnWidth;
-    const width = columnSpan * columnWidth - gutter;
+    const expandedWidth = columnSpan * columnWidth - gutter;
+    const minimumWidth = columnWidth * MIN_WIDTH_FRACTION_OF_COLUMN;
+    const renderedMinutes = Math.max(workItem.renderEnd - workItem.renderStart, minimumMinutes);
     blocks.push({
       id: workItem.id,
       top: (workItem.renderStart - gridStartMin) * grid.pxPerMinute,
-      height: Math.max(workItem.renderEnd - workItem.renderStart, minimumMinutes) * grid.pxPerMinute,
+      height: renderedMinutes * grid.pxPerMinute,
       left,
-      width: Math.max(width, columnWidth * 0.5),
+      width: Math.max(expandedWidth, minimumWidth),
       column: workItem.column,
       columns: columnCount,
     });
