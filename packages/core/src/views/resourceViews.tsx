@@ -8,38 +8,28 @@
  * `resourceIds` por evento e o toggle `options.visibleResourceIds`. Nenhuma regra de negócio (ADR-006).
  */
 import { h as createElement, type JSX } from 'preact';
-import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from './viewDef.js';
+import type { CalendarView, ViewRange, ViewRenderContext } from './viewDef.js';
 import type { TemporalLike } from '../date/temporal.js';
 import type { CalendarResource } from '../types/resource.js';
-import type { EventOccurrence } from '../types/event.js';
-import type { Segment } from '../render/derive.js';
 import {
   buildResourceColumns,
   type ResourceColumnData,
 } from '../render/resourceDerive.js';
 import { layoutDay, type GeoGrid } from '../geometry/geometry.js';
 import { formatDate, formatHourLabel } from './format.js';
+import { GUTTER_PX, toPx, segmentStyle } from './utils.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
-const GUTTER_PX = 56;
 const RESOURCE_LABEL_PX = 120;
 const TIMELINE_ROW_PX = 44;
-
-function toPx(value: number): string {
-  return `${value}px`;
-}
-
-function occurrenceKey(occurrence: EventOccurrence): string {
-  return `${occurrence.masterId}@${occurrence.originalStart}`;
-}
 
 function geometryGridOf(context: ViewRenderContext): GeoGrid {
   return {
     startHour: context.options.startHour,
     endHour: context.options.endHour,
     pxPerMinute: context.options.pxPerMinute,
-    minEventMinutes: 15,
+    minEventMinutes: context.options.minEventMinutes,
     gutter: 0,
   };
 }
@@ -166,19 +156,6 @@ function ResourceGrid(props: {
   );
 }
 
-function bandStyle(
-  segment: Segment,
-  minuteToY: (minuteOfDay: number) => number,
-  pxPerMinute: number,
-): JSX.CSSProperties {
-  return {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: toPx(minuteToY(segment.startMin)),
-    height: toPx((segment.endMin - segment.startMin) * pxPerMinute),
-  };
-}
 
 function ResourceColumn(props: {
   column: ResourceColumnData;
@@ -204,7 +181,7 @@ function ResourceColumn(props: {
           key={`nonbusiness-${index}`}
           class="mc-nonbusiness"
           data-mc-nonbusiness
-          style={bandStyle(segment, minuteToY, pxPerMinute)}
+          style={segmentStyle(segment, minuteToY, pxPerMinute)}
         />
       ))}
       {column.bufferSegments.map((segment, index) => (
@@ -212,7 +189,7 @@ function ResourceColumn(props: {
           key={`buffer-${index}`}
           class="mc-buffer"
           data-mc-buffer
-          style={bandStyle(segment, minuteToY, pxPerMinute)}
+          style={segmentStyle(segment, minuteToY, pxPerMinute)}
         />
       ))}
       {column.day.blocked.map((segment, index) => (
@@ -220,7 +197,7 @@ function ResourceColumn(props: {
           key={`blocked-${index}`}
           class="mc-blocked"
           data-mc-blocked
-          style={bandStyle(segment, minuteToY, pxPerMinute)}
+          style={segmentStyle(segment, minuteToY, pxPerMinute)}
         />
       ))}
       {hourMinutes.map((minute) => (

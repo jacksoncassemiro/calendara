@@ -23,7 +23,7 @@ import type { CalendarEvent, EventOccurrence } from '../types/event.js';
 import type { ConstraintSet, SlotEvaluation } from '../types/constraint.js';
 import type { CalendarResource } from '../types/resource.js';
 
-import { expandRange, buildDays } from './derive.js';
+import { expandRange, buildDays, occurrenceKey } from './derive.js';
 import { occurrencesForResource } from './resourceDerive.js';
 import {
   InteractionEngine,
@@ -39,7 +39,6 @@ import {
   type SelectionChange,
   type BlockedInfo,
   type PointerSlot,
-  type PlacementInfo,
   type ResourceOccupancy,
   type CommitResult,
 } from '../interaction/index.js';
@@ -110,11 +109,6 @@ export interface CalendarConfig {
 
 function padTwo(value: number): string {
   return value < 10 ? `0${value}` : `${value}`;
-}
-
-/** Chave estável de uma ocorrência (mesmo formato dos blocos de evento no DOM). */
-function occurrenceKey(occurrence: EventOccurrence): string {
-  return `${occurrence.masterId}@${occurrence.originalStart}`;
 }
 
 export class CalendarApp {

@@ -3,16 +3,11 @@
  * Extraído do CalendarApp para que Week/Day/NDays compartilhem exatamente o mesmo pipeline
  * (buildDays → geometria waterfall → rótulos → linha "agora") e o mesmo componente de render.
  */
-import { buildDays } from '../render/derive.js';
+import { buildDays, occurrenceKey } from '../render/derive.js';
 import { layoutDay, type GeoGrid } from '../geometry/geometry.js';
 import { formatDate, formatHourLabel } from './format.js';
 import type { ViewRenderContext } from './viewDef.js';
 import type { GridVM, DayColumnVM, EventVM, AllDayVM, DraftVM } from './viewModel.js';
-import type { EventOccurrence } from '../types/event.js';
-
-function occurrenceKey(occurrence: EventOccurrence): string {
-  return `${occurrence.masterId}@${occurrence.originalStart}`;
-}
 
 export function buildTimeGridVM(context: ViewRenderContext, viewName: string): GridVM {
   const { temporal, options, range, occurrences, constraints, renderEvent } = context;

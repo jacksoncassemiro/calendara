@@ -8,13 +8,7 @@
  */
 import type { JSX } from 'preact';
 import type { GridVM, DayColumnVM, DraftVM } from './viewModel.js';
-import type { Segment } from '../render/derive.js';
-
-const GUTTER_PX = 56;
-
-function toPx(value: number): string {
-  return `${value}px`;
-}
+import { GUTTER_PX, toPx, segmentStyle } from './utils.js';
 
 export function TimeGrid(props: { vm: GridVM }): JSX.Element {
   const vm = props.vm;
@@ -112,20 +106,6 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
       </div>
     </div>
   );
-}
-
-function segmentStyle(
-  segment: Segment,
-  minuteToY: (minuteOfDay: number) => number,
-  pxPerMinute: number,
-): JSX.CSSProperties {
-  return {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: `${minuteToY(segment.startMin)}px`,
-    height: `${(segment.endMin - segment.startMin) * pxPerMinute}px`,
-  };
 }
 
 function DayColumn(props: {

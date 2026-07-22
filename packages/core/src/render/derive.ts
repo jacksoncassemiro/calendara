@@ -9,6 +9,7 @@ import type { EventDateTime } from '../types/datetime.js';
 import type { ConstraintSet } from '../types/constraint.js';
 import { expandEvent } from '../recurrence/recurrenceSet.js';
 import { jsDayOfWeek } from '../constraint/constraintEngine.js';
+import { hhmmToMinutes } from '../date/time.js';
 import type { GeoInput } from '../geometry/geometry.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
@@ -39,13 +40,9 @@ export interface DayData {
   blocked: Segment[];
 }
 
-function occurrenceKey(occurrence: EventOccurrence): string {
+/** Chave estável de uma ocorrência (`${masterId}@${originalStart}`). Fonte única, reusada por render/views. */
+export function occurrenceKey(occurrence: EventOccurrence): string {
   return `${occurrence.masterId}@${occurrence.originalStart}`;
-}
-
-function toMinutes(hhmm: string): number {
-  const [hours, minutes] = hhmm.split(':');
-  return parseInt(hours ?? '0', 10) * 60 + parseInt(minutes ?? '0', 10);
 }
 
 /** Expande todos os eventos no range [startISO, endISO] (datas inclusivas). Memoizável por chamador. */
@@ -180,8 +177,8 @@ function deriveNonBusiness(
     const afterValidity = rule.end !== undefined && dateISO > rule.end;
     const ruleApplies = appliesToWeekday && !beforeValidity && !afterValidity;
     if (!ruleApplies) continue;
-    const start = Math.max(toMinutes(rule.startTime), gridStartMin);
-    const end = Math.min(toMinutes(rule.endTime), gridEndMin);
+    const start = Math.max(hhmmToMinutes(rule.startTime), gridStartMin);
+    const end = Math.min(hhmmToMinutes(rule.endTime), gridEndMin);
     const hasOpenWindow = end > start;
     if (hasOpenWindow) openSegments.push({ startMin: start, endMin: end });
   }
@@ -201,9 +198,9 @@ function deriveBlocked(
     if (!appliesToThisDay) continue;
     const blocksWholeDay = blocking.scope === 'day';
     if (blocksWholeDay) return [{ startMin: gridStartMin, endMin: gridEndMin }];
-    const start = Math.max(blocking.start ? toMinutes(blocking.start) : gridStartMin, gridStartMin);
+    const start = Math.max(blocking.start ? hhmmToMinutes(blocking.start) : gridStartMin, gridStartMin);
     const rawEnd = blocking.end ?? blocking.endTime;
-    const end = Math.min(rawEnd ? toMinutes(rawEnd) : gridEndMin, gridEndMin);
+    const end = Math.min(rawEnd ? hhmmToMinutes(rawEnd) : gridEndMin, gridEndMin);
     const hasSpan = end > start;
     if (hasSpan) segments.push({ startMin: start, endMin: end });
   }

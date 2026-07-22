@@ -16,8 +16,8 @@ sem os problemas de rerender do FullCalendar, com **bloqueios**, **horário come
 
 | Item | Estado |
 |---|---|
-| Fase atual | **Fase 5 — Adapter React idiomático** ✅ concluída (sessão 8) |
-| Próxima fase | **Fase 6 — Empacotamento, docs e validação** ⏳ não iniciada |
+| Fase atual | **Fase 6 — Empacotamento, docs e validação** 🔨 em andamento (sessão 9): passe de tech-debt + estilização real + guia de estilização feitos; **falta** build ESM+CJS+d.ts, README/exemplos, bench, a11y |
+| Próxima fase | Concluir Fase 6 (build/README/bench/a11y) — idealmente rodado no VSCode (jsdom/bundler não rodam no sandbox) |
 | Código de produção | `packages/core` (headless): tipos, DateUtils, recorrência, ConstraintEngine, store, GeometryEngine, render Preact + CalendarApp, views Week/Day/Month/NDays/List, Multiagenda + Timeline, capacity/buffers/multi-recurso, eventSource por range, slots renderEvent/renderToolbar, InteractionEngine (drag/resize/seleção, preview→commit→revert, validação dura de lotação/buffer). **`packages/react` (real): `<Calendar/>` (instância única + sync de props via API imperativa), `useCalendar` (handle imperativo estável), `createReactView` + `ReactIsland` (ponte React↔Preact), customToolbar/nativeToolbar, eventSource/refetchKey** — **~160 testes** (130 node + 30 jsdom; ver nota do sandbox) |
 | Nomenclatura | Passe de clareza em TODO o core (sem identificadores de 1 caractere; `T`→`temporal`). Regras adicionais travadas: **imports do preact com alias semântico** (`h as createElement`) e **condições extraídas para `const` booleanas nomeadas** (nada de valor "solto" em `if`). |
 | Motor de recorrência | Validado contra rrule.js: base 43/44 → **gap corrigido e provado (v2): 23/23**, incl. multi-ordinal. |
@@ -95,6 +95,31 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 ---
 
 ## Log de sessões
+
+### Sessão 9 — 2026-07-22 — Fase 6 (parcial): tech-debt + estilização ✅ (build/docs pendentes)
+- **Passe de tech-debt (skill `engineering:tech-debt` + `tsc --noUnusedLocals --noUnusedParameters` como detector).**
+  Achados e correções:
+  - **Código morto removido:** `occurrenceKey` (definido e NUNCA usado em `views/resourceViews.tsx` — era o que o
+    Jackson apontou), import `ViewContext` idem, e import `PlacementInfo` sem uso em `render/calendarApp.ts`.
+  - **Duplicação eliminada (fonte única):** `occurrenceKey` estava em 4 arquivos → agora exportado só de
+    `render/derive.ts` (reusado por calendarApp/timeGridModel). `toMinutes` (hh:mm→min) duplicado em
+    constraintEngine+derive → novo `date/time.ts` (`hhmmToMinutes`). `toPx`/`GUTTER_PX` e `segmentStyle` (que no
+    resourceViews se chamava `bandStyle`, idêntico) duplicados em TimeGrid+resourceViews → novo **`views/utils.ts`**
+    (responde à pergunta do Jackson: sim, os helpers de apresentação das views foram isolados num util da própria
+    pasta `views/`). Também unifiquei o magic number de altura mínima: resourceViews agora usa `options.minEventMinutes`.
+  - Verificação: `tsc` estrito **+ noUnusedLocals/Parameters = 0** nos dois pacotes; 56 testes node verdes no run.
+- **Estilização (item "CSS compilado isolado" da Fase 6).** `packages/styles` deixou de ser stub: `index.css` agora
+  tem o **tema padrão** — 30 tokens (`--mc-*`) + ~60 regras de classe `mc-*` consumindo-os, tudo escopado por
+  `[data-mc-root]`. Reafirmado o contrato: **core só escreve geometria inline**; cor/borda/tipografia vêm das classes.
+  Novo **`docs/04-ESTILIZACAO.md`**: tabela de TODOS os tokens, todas as classes por área, os hooks `data-mc-*`
+  (contrato estável, alguns consumidos pela interação) e como customizar (redefinir tokens ou mirar classe).
+- **NOTA (execução definitiva no VSCode):** o preview de artefato do Cowork não suporta `preact`/imports de workspace
+  (erro "bibliotecas não suportadas") — é esperado: são módulos de biblioteca para build, não artefatos live. E o
+  sandbox não boota jsdom nem roda bundler no tempo dado. Então **build (ESM+CJS+d.ts), specs jsdom e bench devem
+  rodar no VSCode** (`yarn install && yarn test && yarn typecheck && yarn build`).
+- **Falta na Fase 6:** build por pacote (tsup/tsc ESM+CJS+`.d.ts`), README de consumo + exemplos (React e vanilla),
+  bench de performance (muitos eventos), a11y básica, e **medir o polyfill Temporal no bundle**.
+- **Próximo:** concluir a Fase 6 (build/README/bench/a11y).
 
 ### Sessão 8 — 2026-07-22 — Fase 5 (Adapter React idiomático) ✅
 - **`packages/react` deixou de ser stub.** Implementado o adapter FINO (ADR-001/002): a instância do

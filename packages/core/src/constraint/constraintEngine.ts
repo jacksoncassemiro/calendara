@@ -14,6 +14,7 @@ import type {
   ConstraintSet,
   SlotEvaluation,
 } from '../types/index.js';
+import { hhmmToMinutes } from '../date/time.js';
 
 /** Slot a avaliar: uma data e (opcional) faixa de horário em minutos. */
 export interface Slot {
@@ -28,11 +29,6 @@ export interface Slot {
 /** Meia-noite (minuto 0) e fim do dia (24h = 1440) em minutos-do-dia. */
 const DAY_START_MIN = 0;
 const DAY_END_MIN = 24 * 60;
-
-function toMinutes(hhmm: string): number {
-  const [hours, minutes] = hhmm.split(':');
-  return parseInt(hours ?? '0', 10) * 60 + parseInt(minutes ?? '0', 10);
-}
 
 /** dia-da-semana JS (0=dom..6=sáb) de uma data 'YYYY-MM-DD' (UTC-safe, sem tz). */
 export function jsDayOfWeek(dateISO: string): number {
@@ -84,9 +80,9 @@ export class ConstraintEngine {
       const blocksWholeDay = blocking.scope === 'day';
       if (blocksWholeDay) return true;
       // scope 'time'
-      const blockStart = blocking.start ? toMinutes(blocking.start) : DAY_START_MIN;
+      const blockStart = blocking.start ? hhmmToMinutes(blocking.start) : DAY_START_MIN;
       const rawBlockEnd = blocking.end ?? blocking.endTime;
-      const blockEnd = rawBlockEnd ? toMinutes(rawBlockEnd) : DAY_END_MIN;
+      const blockEnd = rawBlockEnd ? hhmmToMinutes(rawBlockEnd) : DAY_END_MIN;
       const overlapsBlock = overlaps(start, end, blockStart, blockEnd);
       if (overlapsBlock) return true;
     }
@@ -105,8 +101,8 @@ export class ConstraintEngine {
       const ruleApplies = appliesToWeekday && !beforeRuleValidity && !afterRuleValidity;
       if (!ruleApplies) continue;
       if (wholeDay) return true; // há expediente nesse dia
-      const businessStart = toMinutes(businessHour.startTime);
-      const businessEnd = toMinutes(businessHour.endTime);
+      const businessStart = hhmmToMinutes(businessHour.startTime);
+      const businessEnd = hhmmToMinutes(businessHour.endTime);
       const withinBusinessWindow = start >= businessStart && end <= businessEnd;
       if (withinBusinessWindow) return true;
     }
@@ -121,8 +117,8 @@ export class ConstraintEngine {
       const withinDateRange = slot.date >= range.start && slot.date <= range.end;
       if (!withinDateRange) continue;
       if (wholeDay) return true;
-      const rangeStart = range.startTime ? toMinutes(range.startTime) : DAY_START_MIN;
-      const rangeEnd = range.endTime ? toMinutes(range.endTime) : DAY_END_MIN;
+      const rangeStart = range.startTime ? hhmmToMinutes(range.startTime) : DAY_START_MIN;
+      const rangeEnd = range.endTime ? hhmmToMinutes(range.endTime) : DAY_END_MIN;
       const withinAllowedWindow = start >= rangeStart && end <= rangeEnd;
       if (withinAllowedWindow) return true;
     }
