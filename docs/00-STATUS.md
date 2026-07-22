@@ -136,6 +136,24 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
   (≥720) → ajustado p/ 600–660 (mesmo fix já feito no spec node). Suíte real do Jackson: **163/163** após o fix.
 - **Fase 6 concluída.** Backlog (fases posteriores): teclado no grid, split multi-dia timed, edição de recorrência
   via drag, interação em Multiagenda/Timeline, adapters Vue/Angular/vanilla, pacote `ical`.
+- **Polimento pós-feedback do Jackson (2 rodadas):** (a) `license: "UNLICENSED"` em todos os package.json (silencia
+  o warning do yarn; trocar p/ MIT/Apache se publicar aberto). (b) **`docs/05-API.md` reescrito como GUIA de uso** —
+  antes era só a estrutura dos tipos; agora tem exemplos PREENCHIDOS com valores reais + propósito de cada campo
+  (evento timed/all-day, recorrência incl. "2ª e 4ª sexta"/exceção/override, businessHours com validade start/end,
+  allowedRanges, recursos capacity/buffer/multi-recurso, options, interação com revert, views, React props).
+  (c) **`examples/playground.html`** — sem bundler (import-map + esm.sh; core do build local; styles via `<link>`);
+  **agora com surfacing de erro** (detecta `file://`, core não-buildado, erros de runtime → mostra em vermelho em vez
+  de tela preta). Requer `yarn build` + servir por HTTP (`npx serve .` na raiz) → `/examples/playground.html`.
+  (d) **React 19:** peers do adapter `^18 || ^19` E devDeps da raiz subidos p/ React 19 + `@testing-library/react@16`
+  + `@testing-library/dom@10` (o root ainda estava em 18). (e) a11y: roles/aria na toolbar.
+- **Storybook: NÃO feito** (descopo consciente — pesado de instalar/configurar e o sandbox não roda browser p/
+  verificar). Validação de funcionamento = testes jsdom (montam DOM real) + playground manual. Se o Jackson quiser
+  Storybook ou um app Vite de exemplo, é uma tarefa dedicada (a fazer no VSCode dele, que tem browser).
+- **Reavaliação honesta (arquitetura):** minha 1ª resposta ("React puro reintroduz o problema") foi forte demais.
+  React puro É viável p/ calendário (react-big-calendar, Mui X são all-React) COM memoização/virtualização
+  cuidadosas. O ganho real do headless+Preact-isolado é **portabilidade multi-framework + isolamento garantido**
+  (host nunca reconcilia a árvore interna) — não que o React "não consiga". Se o alvo for React-para-sempre, um
+  repo/pasta SEPARADO all-React+TS é uma opção legítima a explorar (decisão do Jackson, adiada p/ depois).
 
 ### Sessão 8 — 2026-07-22 — Fase 5 (Adapter React idiomático) ✅
 - **`packages/react` deixou de ser stub.** Implementado o adapter FINO (ADR-001/002): a instância do

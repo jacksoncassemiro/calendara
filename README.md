@@ -111,6 +111,22 @@ node scripts/bench.mjs 2000 15   # bench (requer core buildado)
 
 > **Perf:** o bench roda sob o **polyfill** Temporal (Node não tem nativo) — em navegadores com Temporal nativo é bem mais rápido; o gargalo são as conversões de timezone por ocorrência.
 
+### Playground (validação visual)
+
+Além dos testes automatizados (jsdom montam o calendário e checam o DOM real), há um playground para ver rodando no navegador:
+
+```bash
+yarn build                       # gera packages/core/dist (usado pelo playground)
+npx serve .                      # ou o "Live Server" do VSCode
+# abra http://localhost:3000/examples/playground.html
+```
+
+Ele exercita as views, drag & drop / resize / seleção, recorrência, bloqueios e recursos (lotação/buffer), com um log das interações.
+
+### Compatibilidade React
+
+O adapter declara `react`/`react-dom` como peers em **`^18 || ^19`** — funciona no React 18 e 19. A suíte de testes do repo roda no 18 (matriz estável); usar 19 no app consumidor é suportado.
+
 ## Documentação
 
 | Doc | O que é |
@@ -120,6 +136,7 @@ node scripts/bench.mjs 2000 15   # bench (requer core buildado)
 | [`docs/02-PLANO.md`](docs/02-PLANO.md) | Plano de execução faseado + ADRs (decisões) |
 | [`docs/03-ARQUITETURA.md`](docs/03-ARQUITETURA.md) | Desenho técnico alvo (core headless, anti-rerender, views) |
 | [`docs/04-ESTILIZACAO.md`](docs/04-ESTILIZACAO.md) | Tokens, classes e hooks de customização |
+| [`docs/05-API.md`](docs/05-API.md) | **Referência completa**: modelo de dados, opções, callbacks, views (todos os campos) |
 | [`docs/reference/`](docs/reference) | Referências open-source, modelos Google/Outlook/RFC 5545, validação de recorrência |
 
 ## Decisões-chave (resumo)
