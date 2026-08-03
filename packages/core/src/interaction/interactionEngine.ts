@@ -101,6 +101,7 @@ export class InteractionEngine {
 	private readonly onPointerDown = (event: Event): void => this.handlePointerDown(event);
 	private readonly onPointerMove = (event: Event): void => this.handlePointerMove(event);
 	private readonly onPointerUp = (event: Event): void => this.handlePointerUp(event);
+	private readonly onPointerCancel = (event: Event): void => this.handlePointerCancel(event);
 
 	constructor(deps: InteractionDeps) {
 		this.deps = deps;
@@ -127,6 +128,11 @@ export class InteractionEngine {
 
 	private handlePointerDown(event: Event): void {
 		if (!this.root) return;
+		// Reentrância: já existe um gesto ativo (segundo dedo tocando durante um arrasto, clique
+		// perdido etc.) — o calendário só acompanha UM ponteiro por vez. Ignora o novo pointerdown
+		// em vez de sobrescrever `this.gesture` (o que faria o gesto original nunca receber seu
+		// pointerup, pois o `matchesPointer` do handlePointerUp compararia contra o pointerId novo).
+		if (this.gesture) return;
 		const coords = readCoords(event);
 		const isPrimaryButton = coords.button === 0;
 		if (!isPrimaryButton) return;
@@ -225,6 +231,24 @@ export class InteractionEngine {
 
 		this.commitDraft(gesture, draft);
 		callbacks.onDraftChange(null);
+	}
+
+	/**
+	 * `pointercancel` — o browser assumiu o ponteiro (scroll nativo, long-press de menu de contexto,
+	 * mudança de orientação, chrome do browser). Diferente do `pointerup`, isto NÃO é um "soltar":
+	 * é um aborto. Nada de commit/click — só limpar o estado e o fantasma, do jeito que o
+	 * `handlePointerUp` limparia, mas sem tentar interpretar a intenção do usuário.
+	 */
+	private handlePointerCancel(event: Event): void {
+		const gesture = this.gesture;
+		if (!gesture) return;
+		const coords = readCoords(event);
+		const matchesPointer = coords.pointerId === gesture.pointerId;
+		if (!matchesPointer) return;
+
+		this.finishDrag(gesture);
+		this.gesture = null;
+		this.deps.callbacks.onDraftChange(null);
 	}
 
 	private commitDraft(gesture: ActiveGesture, draft: InteractionDraft): void {
@@ -349,6 +373,7 @@ export class InteractionEngine {
 		if (documentRef) {
 			documentRef.addEventListener('pointermove', this.onPointerMove);
 			documentRef.addEventListener('pointerup', this.onPointerUp);
+			documentRef.addEventListener('pointercancel', this.onPointerCancel);
 		}
 		const canCapture = typeof (captureTarget as Element & {
 			setPointerCapture?: (id: number) => void;
@@ -384,6 +409,7 @@ export class InteractionEngine {
 		if (!documentRef) return;
 		documentRef.removeEventListener('pointermove', this.onPointerMove);
 		documentRef.removeEventListener('pointerup', this.onPointerUp);
+		documentRef.removeEventListener('pointercancel', this.onPointerCancel);
 	}
 }
 

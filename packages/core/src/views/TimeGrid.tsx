@@ -121,7 +121,7 @@ function DayColumn(props: {
     <div
       class={`mc-day-col${column.isToday ? ' mc-today' : ''}`}
       data-mc-day={column.dateISO}
-      style={{ flex: '1 1 0', position: 'relative', height: toPx(bodyHeight) }}
+      style={{ flex: '1 1 0', position: 'relative', height: toPx(bodyHeight), touchAction: 'none' }}
     >
       {/* Fundo: fora do expediente */}
       {column.nonBusiness.map((segment, index) => (
@@ -183,7 +183,15 @@ function DayColumn(props: {
             <div
               class="mc-resize-handle"
               data-mc-resize
-              style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '6px', cursor: 'ns-resize' }}
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: '6px',
+                cursor: 'ns-resize',
+                touchAction: 'none',
+              }}
             />
           )}
         </div>
