@@ -16,6 +16,23 @@ function firePointer(target: EventTarget, type: string, clientX: number, clientY
   target.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, clientY, button: 0 }));
 }
 
+/**
+ * Igual a `firePointer`, mas com um `pointerId` explícito (MouseEvent não tem esse campo nativo —
+ * o motor lê `event.pointerId` via `readCoords`, então injetamos como propriedade expando antes
+ * do dispatch). Usado para simular múltiplos ponteiros (multi-touch) num mesmo teste.
+ */
+function firePointerId(
+  target: EventTarget,
+  type: string,
+  clientX: number,
+  clientY: number,
+  pointerId: number,
+): void {
+  const event = new MouseEvent(type, { bubbles: true, clientX, clientY, button: 0 });
+  Object.defineProperty(event, 'pointerId', { value: pointerId, configurable: true });
+  target.dispatchEvent(event);
+}
+
 // ---------------------------------------------------------------------------
 // InteractionEngine isolado (localizador injetado ⇒ determinístico, sem layout).
 // ---------------------------------------------------------------------------
@@ -150,6 +167,39 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     firePointer(document, 'pointerup', 5, 540);
     expect(calls.move).toHaveLength(0);
     expect(calls.clickEvent).toHaveLength(1);
+    engine.detach();
+  });
+
+  it('um segundo pointerdown (pointerId diferente) durante um gesto ativo não o corrompe — o original ainda commita', () => {
+    const { container, eventNode, column } = buildDom();
+    const { engine, calls } = makeEngine();
+    engine.attach(container);
+    firePointerId(eventNode, 'pointerdown', 5, 540, 1);
+    // segundo "dedo" toca a coluna vazia enquanto o gesto 1 (mover) está ativo.
+    firePointerId(column, 'pointerdown', 5, 600, 2);
+    firePointerId(document, 'pointermove', 5, 660, 1);
+    firePointerId(document, 'pointerup', 5, 660, 1);
+    expect(calls.move).toHaveLength(1);
+    expect(calls.move[0]!.startMin).toBe(660);
+    expect(calls.select).toHaveLength(0);
+    engine.detach();
+  });
+
+  it('pointercancel aborta o gesto sem commitar; o próximo pointerdown (pointerId novo) é aceito', () => {
+    const { container, eventNode, column } = buildDom();
+    const { engine, calls } = makeEngine();
+    engine.attach(container);
+    firePointerId(eventNode, 'pointerdown', 5, 540, 1);
+    firePointerId(document, 'pointermove', 5, 660, 1);
+    firePointerId(document, 'pointercancel', 5, 660, 1);
+    expect(calls.move).toHaveLength(0);
+    expect(calls.blocked).toHaveLength(0);
+
+    // o motor não ficou travado: um gesto novo com pointerId diferente completa normalmente.
+    firePointerId(column, 'pointerdown', 5, 600, 2);
+    firePointerId(document, 'pointermove', 5, 660, 2);
+    firePointerId(document, 'pointerup', 5, 660, 2);
+    expect(calls.select).toHaveLength(1);
     engine.detach();
   });
 });
@@ -327,6 +377,49 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     expect(app.getState().events.find((event) => event.id === 'e1')!.time.start.dateTime).toBe(
       '2026-07-22T09:00:00',
     );
+    app.destroy();
+  });
+
+  it('pointercancel (ex.: browser assume o scroll) aborta o arrasto sem commit, limpa o fantasma e libera o próximo gesto', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const drops: EventChange[] = [];
+    const app = new CalendarApp({
+      date: REF,
+      view: 'day',
+      events: [eventE1],
+      temporal: Temporal as unknown as never,
+      options: baseOptions,
+      onEventDrop: (change) => {
+        drops.push(change);
+      },
+    });
+    app.mount(container);
+    await app.ready();
+    stubColumnRects(container, (20 - 6) * 60);
+
+    const eventNode = container.querySelector('[data-mc-event]') as HTMLElement;
+    firePointer(eventNode, 'pointerdown', 5, 180);
+    firePointer(document, 'pointermove', 5, 300); // passa o threshold ⇒ agenda o render do fantasma
+    // o render do rascunho agora é throttled via rAF (Bug de hardening #3) — espera o frame.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(container.querySelector('[data-mc-draft]')).toBeTruthy();
+
+    firePointer(document, 'pointercancel', 5, 300);
+
+    // aborto: nenhum commit, evento permanece no horário original.
+    expect(drops).toHaveLength(0);
+    expect(app.getState().events[0]!.time.start.dateTime).toBe('2026-07-22T09:00:00');
+    // fantasma limpo (onDraftChange(null) renderizou de imediato).
+    expect(container.querySelector('[data-mc-draft]')).toBeNull();
+
+    // o motor não ficou travado: um novo arrasto (mesmo pointerId, gesto novo) ainda funciona.
+    firePointer(eventNode, 'pointerdown', 5, 180);
+    firePointer(document, 'pointermove', 5, 300);
+    firePointer(document, 'pointerup', 5, 300);
+    expect(drops).toHaveLength(1);
+    expect(app.getState().events[0]!.time.start.dateTime).toBe('2026-07-22T11:00:00');
+
     app.destroy();
   });
 });

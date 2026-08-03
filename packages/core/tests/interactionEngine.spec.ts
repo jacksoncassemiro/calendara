@@ -113,8 +113,13 @@ class FakeDocument {
   }
 }
 
-function makeEvent(target: FakeElement | FakeDocument, clientX: number, clientY: number) {
-  return { target, clientX, clientY, pointerId: 0, button: 0 };
+function makeEvent(
+  target: FakeElement | FakeDocument,
+  clientX: number,
+  clientY: number,
+  pointerId = 0,
+) {
+  return { target, clientX, clientY, pointerId, button: 0 };
 }
 
 // --- fixture -----------------------------------------------------------------
@@ -289,6 +294,61 @@ describe('InteractionEngine — gesto com localizador injetado', () => {
     dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660));
     expect(calls.move).toHaveLength(0);
     expect(calls.clickEvent).toHaveLength(1);
+  });
+
+  it('um segundo pointerdown (pointerId diferente) durante um gesto ativo é ignorado — o gesto original continua e commita normalmente', () => {
+    const { calls } = makeEngine(dom);
+    // pointerId 1 inicia um MOVER no evento.
+    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540, 1));
+    // segundo "dedo" (pointerId 2) toca a coluna vazia enquanto o gesto 1 ainda está ativo — deve
+    // ser ignorado (sem sobrescrever `this.gesture`), não deve iniciar um gesto de seleção.
+    dom.container.emit('pointerdown', makeEvent(dom.column, 5, 600, 2));
+    // pointermove/pointerup do gesto ORIGINAL (pointerId 1) seguem funcionando e commitam.
+    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660, 1));
+    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660, 1));
+    expect(calls.move).toHaveLength(1);
+    expect(calls.move[0]!.startMin).toBe(660);
+    expect(calls.move[0]!.endMin).toBe(720);
+    // o segundo pointerdown não iniciou gesto nenhum próprio.
+    expect(calls.select).toHaveLength(0);
+    expect(calls.clickEmpty).toHaveLength(0);
+  });
+
+  it('pointercancel aborta o gesto ativo: limpa o estado sem commitar e limpa o fantasma', () => {
+    const { calls } = makeEngine(dom);
+    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540, 1));
+    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660, 1)); // passa o threshold ⇒ gera fantasma
+    expect(calls.drafts.length).toBeGreaterThan(0);
+    expect(calls.drafts[calls.drafts.length - 1]).not.toBeNull();
+
+    dom.documentRef.emit('pointercancel', makeEvent(dom.documentRef, 5, 660, 1));
+
+    // aborto, não "soltar": nenhum commit/blocked disparado.
+    expect(calls.move).toHaveLength(0);
+    expect(calls.resize).toHaveLength(0);
+    expect(calls.select).toHaveLength(0);
+    expect(calls.blocked).toHaveLength(0);
+    // onDraftChange(null) foi chamado ⇒ fantasma limpo.
+    expect(calls.drafts[calls.drafts.length - 1]).toBeNull();
+
+    // `this.gesture` foi limpo: um pointerdown NOVO (pointerId diferente) é aceito e completa
+    // normalmente — prova de que o cancel não deixou o motor "travado" para sempre.
+    dom.container.emit('pointerdown', makeEvent(dom.column, 5, 600, 2));
+    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660, 2));
+    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660, 2));
+    expect(calls.select).toHaveLength(1);
+    expect(calls.select[0]).toEqual({ dateISO: '2026-07-22', startMin: 600, endMin: 660 });
+  });
+
+  it('pointercancel com pointerId de outro ponteiro (não o do gesto ativo) é ignorado', () => {
+    const { calls } = makeEngine(dom);
+    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540, 1));
+    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660, 1));
+    // pointercancel de um pointerId que NÃO é o do gesto ativo (ex.: segundo dedo que nunca virou gesto).
+    dom.documentRef.emit('pointercancel', makeEvent(dom.documentRef, 5, 660, 2));
+    // gesto original continua vivo e ainda commita normalmente no pointerup dele.
+    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660, 1));
+    expect(calls.move).toHaveLength(1);
   });
 });
 

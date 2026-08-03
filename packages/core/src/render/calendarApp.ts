@@ -112,6 +112,28 @@ function padTwo(value: number): string {
   return value < 10 ? `0${value}` : `${value}`;
 }
 
+/**
+ * rAF com fallback (ambientes sem `requestAnimationFrame` — node puro fora do jsdom). jsdom 24
+ * já implementa rAF nativamente, então isto só protege SSR/testes exóticos. `setTimeout(~16ms)`
+ * aproxima 1 frame quando não há um relógio de vídeo de verdade.
+ */
+function scheduleFrame(callback: () => void): number {
+  const globalRaf = (globalThis as { requestAnimationFrame?: (cb: FrameRequestCallback) => number })
+    .requestAnimationFrame;
+  if (typeof globalRaf === 'function') return globalRaf(() => callback());
+  return setTimeout(callback, 16) as unknown as number;
+}
+
+function cancelFrame(handle: number): void {
+  const globalCancel = (globalThis as { cancelAnimationFrame?: (handle: number) => void })
+    .cancelAnimationFrame;
+  if (typeof globalCancel === 'function') {
+    globalCancel(handle);
+    return;
+  }
+  clearTimeout(handle);
+}
+
 export class CalendarApp {
   private readonly store: Store<CalendarState>;
   private readonly views = new Map<string, CalendarView>();
@@ -145,6 +167,8 @@ export class CalendarApp {
   private temporal: TemporalLike | null = null;
   private dateUtils: DateUtils | null = null;
   private fetchToken = 0;
+  /** rAF pendente do render de rascunho (throttle do fantasma durante drag — ver scheduleDraftRender). */
+  private draftRenderHandle: number | null = null;
 
   constructor(config: CalendarConfig = {}) {
     const options: CalendarOptions = { ...DEFAULT_OPTIONS, ...config.options };
@@ -209,6 +233,7 @@ export class CalendarApp {
       this.unsubscribe = null;
     }
     this.interaction.detach();
+    this.cancelScheduledDraftRender();
     if (this.container) {
       preactRender(null, this.container);
       this.container = null;
@@ -399,6 +424,22 @@ export class CalendarApp {
     this.emit('render', renderContext);
   }
 
+  /** Agenda (no máx. 1 por frame) o render do rascunho vivo — ver `onDraftChange` acima. */
+  private scheduleDraftRender(): void {
+    if (this.draftRenderHandle !== null) return; // já agendado: pegará o `this.draft` mais recente
+    this.draftRenderHandle = scheduleFrame(() => {
+      this.draftRenderHandle = null;
+      this.renderNow();
+    });
+  }
+
+  /** Cancela um render de rascunho pendente (fim de gesto, destroy). */
+  private cancelScheduledDraftRender(): void {
+    if (this.draftRenderHandle === null) return;
+    cancelFrame(this.draftRenderHandle);
+    this.draftRenderHandle = null;
+  }
+
   // ---- interação (Fase 4) ----------------------------------------------------
 
   /** Constrói o InteractionEngine ligado a este app (dados vivos + política de avaliação). */
@@ -415,7 +456,19 @@ export class CalendarApp {
       callbacks: {
         onDraftChange: (draft) => {
           this.draft = draft;
-          this.renderNow();
+          if (draft === null) {
+            // Fim do gesto (commit/revert/blocked/cancel): não há motivo pra esperar o próximo
+            // frame — renderiza já e descarta qualquer render de rascunho ainda agendado, pra
+            // nenhum render "atrasado" pisar em cima do estado final.
+            this.cancelScheduledDraftRender();
+            this.renderNow();
+            return;
+          }
+          // Rascunho vivo (arrasto em andamento): `pointermove` bruto dispara MUITAS vezes por
+          // segundo; sem throttle, cada um vira um `renderNow()` (Preact completo) síncrono +
+          // `locateByRects` relendo `getBoundingClientRect()` de cada coluna — layout thrashing.
+          // Coalesce em no máximo 1 render por frame, sempre com o rascunho mais recente.
+          this.scheduleDraftRender();
         },
         commitMove: (change) => this.applyEventChange(change, this.onEventDrop),
         commitResize: (change) => this.applyEventChange(change, this.onEventResize),
