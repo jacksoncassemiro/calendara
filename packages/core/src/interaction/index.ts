@@ -5,6 +5,7 @@
 export {
 	minutesToDateTime,
 	applyEventTimeChange,
+	reassignResource,
 	type InteractionKind,
 	type DraftReason,
 	type PointerSlot,

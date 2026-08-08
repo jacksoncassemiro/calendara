@@ -10,6 +10,17 @@
  *
  * Nada de layout é assumido: a posição do ponteiro vira `PointerSlot` via `locateSlot`, que por
  * padrão lê os retângulos das colunas (`data-mc-day`) — injetável para teste.
+ *
+ * SUPERFÍCIES DE ARRASTO. Existem dois contratos de DOM, e o motor é UM só (uma instância por
+ * CalendarApp, compartilhada por todas as views):
+ *  1. `[data-mc-day="YYYY-MM-DD"]` — colunas verticais de DATA (Semana/Dia/NDias). Caminho legado,
+ *     intocado: X escolhe a coluna, Y projeta o minuto.
+ *  2. `[data-mc-slot]` — superfície GENÉRICA das views de recurso, que declara o próprio eixo:
+ *     `data-mc-slot="y"` (Multiagenda: colunas verticais por recurso, Y→minuto) ou
+ *     `data-mc-slot="x"` (Timeline: linhas horizontais por recurso, X→minuto), mais
+ *     `data-mc-slot-date` (a data REAL da superfície) e `data-mc-slot-resource`.
+ * O motor tenta (1) e só cai para (2) se não houver coluna de data — então quem só renderiza
+ * TimeGrid não paga nada e não muda de comportamento.
  */
 import type {
 	BlockedInfo,
@@ -34,6 +45,14 @@ export interface EvaluationInput {
 	endMin: number;
 	/** Ocorrência envolvida (move/resize); ausente em seleção. */
 	occurrence?: EventOccurrence;
+	/**
+	 * Recurso-ALVO do candidato (views de recurso). Quando presente, a ocupação (lotação/buffer)
+	 * é validada contra ESTE recurso — e não contra os `resourceIds` atuais do evento, que ainda
+	 * apontam para a coluna de origem enquanto o arrasto está em curso.
+	 */
+	resourceId?: string;
+	/** Recurso de ORIGEM do bloco: com ele o avaliador reconstrói o conjunto pós-drop. */
+	fromResourceId?: string;
 }
 
 /** Resultado combinado da avaliação de um candidato. */
@@ -145,7 +164,10 @@ export class InteractionEngine {
 
 		const eventNode = targetElement.closest('[data-mc-event]') as HTMLElement | null;
 		const resizeHandle = targetElement.closest('[data-mc-resize]');
+		// Alvo de SELEÇÃO em área vazia: coluna de data ou, nas views de recurso, a superfície
+		// genérica. Só procura a segunda se a primeira falhou (custo zero no TimeGrid).
 		const dayNode = targetElement.closest('[data-mc-day]') as HTMLElement | null;
+		const emptyAreaNode = dayNode ?? (targetElement.closest('[data-mc-slot]') as HTMLElement | null);
 
 		if (eventNode) {
 			const placement = this.placementFromNode(eventNode);
@@ -166,7 +188,7 @@ export class InteractionEngine {
 			return;
 		}
 
-		if (dayNode) {
+		if (emptyAreaNode) {
 			this.gesture = {
 				kind: 'select',
 				pointerId: coords.pointerId,
@@ -176,9 +198,9 @@ export class InteractionEngine {
 				editable: true,
 				movedEnough: false,
 				lastDraft: null,
-				captureTarget: dayNode,
+				captureTarget: emptyAreaNode,
 			};
-			this.beginDrag(dayNode, coords.pointerId);
+			this.beginDrag(emptyAreaNode, coords.pointerId);
 		}
 	}
 
@@ -190,9 +212,13 @@ export class InteractionEngine {
 		if (!point) return;
 
 		const crossedDay = point.dateISO !== gesture.anchor.dateISO;
+		// Atravessar de coluna/linha de recurso conta como arrasto mesmo sem mexer no horário:
+		// mover uma consulta de um profissional para outro no MESMO horário é o caso central da
+		// Multiagenda, e sem isto o gesto seria interpretado como clique.
+		const crossedResource = point.resourceId !== gesture.anchor.resourceId;
 		const movedMinutes = Math.abs(point.minuteOfDay - gesture.anchor.minuteOfDay);
 		const threshold = this.deps.dragThresholdMin ?? DEFAULT_DRAG_THRESHOLD_MIN;
-		const passedThreshold = crossedDay || movedMinutes >= threshold;
+		const passedThreshold = crossedDay || crossedResource || movedMinutes >= threshold;
 		if (passedThreshold) gesture.movedEnough = true;
 
 		const readOnlyEventDrag =
@@ -262,6 +288,7 @@ export class InteractionEngine {
 				reason: draft.reason,
 			};
 			if (gesture.origin) blockedInfo.occurrence = gesture.origin.occurrence;
+			if (draft.resourceId) blockedInfo.resourceId = draft.resourceId;
 			callbacks.blocked(blockedInfo);
 			return;
 		}
@@ -272,6 +299,7 @@ export class InteractionEngine {
 				startMin: draft.startMin,
 				endMin: draft.endMin,
 			};
+			if (draft.resourceId) selection.resourceId = draft.resourceId;
 			callbacks.commitSelect(selection);
 			return;
 		}
@@ -306,6 +334,8 @@ export class InteractionEngine {
 			endMin: geometry.endMin,
 		};
 		if (gesture.origin) evaluationInput.occurrence = gesture.origin.occurrence;
+		if (geometry.resourceId) evaluationInput.resourceId = geometry.resourceId;
+		if (gesture.origin?.resourceId) evaluationInput.fromResourceId = gesture.origin.resourceId;
 		const evaluation = this.deps.evaluate(evaluationInput);
 
 		const draft: InteractionDraft = {
@@ -317,6 +347,7 @@ export class InteractionEngine {
 			reason: evaluation.reason,
 		};
 		if (gesture.origin) draft.eventId = gesture.origin.eventId;
+		if (geometry.resourceId) draft.resourceId = geometry.resourceId;
 		return draft;
 	}
 
@@ -324,7 +355,12 @@ export class InteractionEngine {
 		const eventId = eventNode.dataset.mcEvent;
 		if (!eventId) return null;
 		const dayNode = eventNode.closest('[data-mc-day]') as HTMLElement | null;
-		const dateISO = dayNode?.dataset.mcDay;
+		// Nas views de recurso o bloco não está dentro de nenhuma coluna de data — a data (e o
+		// recurso de ORIGEM) vêm da superfície genérica que o contém.
+		const slotNode = dayNode
+			? null
+			: (eventNode.closest('[data-mc-slot]') as HTMLElement | null);
+		const dateISO = dayNode?.dataset.mcDay ?? slotNode?.dataset.mcSlotDate;
 		if (!dateISO) return null;
 		const startMin = Number(eventNode.dataset.mcStartMin);
 		const endMin = Number(eventNode.dataset.mcEndMin);
@@ -333,12 +369,17 @@ export class InteractionEngine {
 		const occurrence = this.deps.resolveOccurrence(eventId);
 		if (!occurrence) return null;
 		const editable = eventNode.dataset.mcEditable !== 'false';
-		return { eventId, dateISO, startMin, endMin, occurrence, editable };
+		const placement: PlacementInfo = { eventId, dateISO, startMin, endMin, occurrence, editable };
+		const resourceId = slotNode?.dataset.mcSlotResource;
+		if (resourceId) placement.resourceId = resourceId;
+		return placement;
 	}
 
 	private locate(clientX: number, clientY: number): PointerSlot | null {
 		if (this.deps.locateSlot) return this.deps.locateSlot(clientX, clientY);
-		return this.locateByRects(clientX, clientY);
+		// Colunas de data primeiro (caminho legado, inalterado); superfícies de recurso só quando
+		// não há nenhuma — as duas famílias de view nunca coexistem num mesmo render.
+		return this.locateByRects(clientX, clientY) ?? this.locateBySlots(clientX, clientY);
 	}
 
 	/** Localizador padrão: escolhe a coluna sob (ou mais próxima de) clientX e projeta clientY. */
@@ -366,6 +407,53 @@ export class InteractionEngine {
 		const rawMinute = bounds.startMin + minutesFromTop;
 		const clampedMinute = Math.max(bounds.startMin, Math.min(rawMinute, bounds.endMin));
 		return { dateISO: best.dateISO, minuteOfDay: clampedMinute };
+	}
+
+	/**
+	 * Localizador das views de RECURSO. Cada superfície `[data-mc-slot]` declara qual eixo é o do
+	 * tempo (`'y'` = Multiagenda, `'x'` = Timeline); o eixo TRANSVERSAL é o que escolhe a
+	 * superfície. Com isso a Timeline (layout transposto) não precisa de motor nem de geometria
+	 * própria — só troca qual coordenada é qual.
+	 */
+	private locateBySlots(clientX: number, clientY: number): PointerSlot | null {
+		if (!this.root) return null;
+		const bounds = this.deps.getGridBounds();
+		const spanMinutes = Math.max(1, bounds.endMin - bounds.startMin);
+		const surfaces = this.root.querySelectorAll('[data-mc-slot]');
+		let best: { surface: HTMLElement; rect: DOMRect; distance: number } | null = null;
+		for (const node of Array.from(surfaces)) {
+			const surface = node as HTMLElement;
+			const dateISO = surface.dataset.mcSlotDate;
+			if (!dateISO) continue;
+			const rect = surface.getBoundingClientRect();
+			const transposed = surface.dataset.mcSlot === 'x';
+			const crossPosition = transposed ? clientY : clientX;
+			const crossStart = transposed ? rect.top : rect.left;
+			const crossEnd = transposed ? rect.bottom : rect.right;
+			const insideSurface = crossPosition >= crossStart && crossPosition <= crossEnd;
+			const crossDistance = insideSurface
+				? 0
+				: Math.min(Math.abs(crossPosition - crossStart), Math.abs(crossPosition - crossEnd));
+			const isBetter = best === null || crossDistance < best.distance;
+			if (isBetter) best = { surface, rect, distance: crossDistance };
+			if (insideSurface) break;
+		}
+		if (!best) return null;
+
+		const transposed = best.surface.dataset.mcSlot === 'x';
+		const timePosition = transposed ? clientX : clientY;
+		const timeOrigin = transposed ? best.rect.left : best.rect.top;
+		const rawSize = transposed ? best.rect.width : best.rect.height;
+		const usableSize = rawSize > 0 ? rawSize : spanMinutes;
+		const minutesFromOrigin = ((timePosition - timeOrigin) / usableSize) * spanMinutes;
+		const rawMinute = bounds.startMin + minutesFromOrigin;
+		const slot: PointerSlot = {
+			dateISO: best.surface.dataset.mcSlotDate!,
+			minuteOfDay: Math.max(bounds.startMin, Math.min(rawMinute, bounds.endMin)),
+		};
+		const resourceId = best.surface.dataset.mcSlotResource;
+		if (resourceId) slot.resourceId = resourceId;
+		return slot;
 	}
 
 	private beginDrag(captureTarget: Element, pointerId: number): void {
@@ -436,7 +524,7 @@ function buildEventChange(
 	origin: PlacementInfo,
 	draft: InteractionDraft,
 ): EventChange {
-	return {
+	const change: EventChange = {
 		kind,
 		occurrence: origin.occurrence,
 		event: origin.occurrence.event,
@@ -446,4 +534,7 @@ function buildEventChange(
 		startDateTime: minutesToDateTime(draft.dateISO, draft.startMin),
 		endDateTime: minutesToDateTime(draft.dateISO, draft.endMin),
 	};
+	if (draft.resourceId) change.resourceId = draft.resourceId;
+	if (origin.resourceId) change.fromResourceId = origin.resourceId;
+	return change;
 }

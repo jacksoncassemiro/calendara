@@ -98,6 +98,7 @@ export {
 	computeSelectDraft,
 	validateOccupancy,
 	applyEventTimeChange,
+	reassignResource,
 	minutesToDateTime,
 	type InteractionKind,
 	type DraftReason,

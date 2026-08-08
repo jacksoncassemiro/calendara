@@ -24,7 +24,7 @@ import type { ConstraintSet, SlotEvaluation } from '../types/constraint.js';
 import type { CalendarResource } from '../types/resource.js';
 
 import { expandRange, buildDays, occurrenceKey } from './derive.js';
-import { occurrencesForResource } from './resourceDerive.js';
+import { occurrencesForResource, resourceConstraintSet } from './resourceDerive.js';
 import {
   InteractionEngine,
   type EvaluationInput,
@@ -32,6 +32,7 @@ import {
 } from '../interaction/interactionEngine.js';
 import {
   applyEventTimeChange,
+  reassignResource,
   validateOccupancy,
   type InteractionDraft,
   type DraftReason,
@@ -488,7 +489,11 @@ export class CalendarApp {
   /** Avalia um candidato: ConstraintEngine (business/blocked/allowed) + ocupação de recurso. */
   private evaluateDraft(input: EvaluationInput): DraftEvaluation {
     const slot: Slot = { date: input.dateISO, startMin: input.startMin, endMin: input.endMin };
-    const baseEvaluation = this.engine.evaluate(slot);
+    const targetResource =
+      input.resourceId === undefined
+        ? undefined
+        : this.resources.find((candidate) => candidate.id === input.resourceId);
+    const baseEvaluation = this.constraintEngineFor(targetResource).evaluate(slot);
     if (!baseEvaluation.valid) {
       const reason = (baseEvaluation.reason ?? 'blocked') as DraftReason;
       return { valid: false, reason };
@@ -496,8 +501,7 @@ export class CalendarApp {
     const occurrence = input.occurrence;
     const canCheckOccupancy = occurrence !== undefined && this.temporal !== null;
     if (canCheckOccupancy) {
-      const resourceIds = occurrence!.event.resourceIds ?? [];
-      for (const resourceId of resourceIds) {
+      for (const resourceId of this.resourceIdsAfterDrop(occurrence!, input)) {
         const resource = this.resources.find((candidate) => candidate.id === resourceId);
         if (!resource) continue;
         const occupancyResult = this.evaluateResourceOccupancy(resource.id, input);
@@ -505,6 +509,39 @@ export class CalendarApp {
       }
     }
     return { valid: true, reason: 'ok' };
+  }
+
+  /**
+   * Recursos que o evento passará a ocupar SE o candidato for aceito — o que a ocupação precisa
+   * validar. Numa view de data é o conjunto atual; numa view de recurso é o conjunto atual com a
+   * coluna de origem trocada pela de destino (mesma função que o commit aplica, para fantasma e
+   * commit nunca discordarem). Um evento sala+profissional arrastado entre profissionais continua
+   * sendo validado contra a sala.
+   */
+  private resourceIdsAfterDrop(
+    occurrence: EventOccurrence,
+    input: EvaluationInput,
+  ): readonly string[] {
+    const current = occurrence.event.resourceIds ?? [];
+    if (input.resourceId === undefined) return current;
+    if (input.fromResourceId === undefined) return [input.resourceId];
+    return reassignResource(current, input.fromResourceId, input.resourceId);
+  }
+
+  /**
+   * ConstraintEngine a usar na avaliação: o do calendário, ou um do RECURSO-alvo quando o gesto
+   * veio de uma view de recurso. Sem isto o fantasma diria "válido" sobre a faixa que a própria
+   * coluna desenha como fora do expediente (o sombreado usa `resourceConstraintSet`).
+   * Instanciar por avaliação é O(1) (o construtor só guarda três arrays) e mantém o motor sempre
+   * coerente com o `constraints`/`resources` do momento, sem cache para invalidar.
+   */
+  private constraintEngineFor(resource: CalendarResource | undefined): ConstraintEngine {
+    if (!resource) return this.engine;
+    const hasOwnRules = (resource.businessHours?.length ?? 0) > 0;
+    if (!hasOwnRules) return this.engine;
+    return new ConstraintEngine(
+      resourceConstraintSet(resource, this.store.getState().constraints),
+    );
   }
 
   /** Ocupação de UM recurso: concorrência (lotação) + buffers na nova posição do candidato. */
