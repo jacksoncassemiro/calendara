@@ -18,91 +18,97 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
 
   return (
     <div class="mc-timegrid" data-mc-view={vm.viewName}>
-      {/* Cabeçalho dos dias */}
-      <div class="mc-header-row" style={{ display: 'flex' }}>
-        <div class="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
-        {vm.columns.map((column) => (
-          <div
-            key={column.dateISO}
-            class={`mc-day-header${column.isToday ? ' mc-today' : ''}`}
-            data-mc-day-header={column.dateISO}
-            style={{ flex: '1 1 0', textAlign: 'center' }}
-          >
-            <div class="mc-weekday">{column.weekdayLabel}</div>
-            <div class="mc-daynum">{column.dayLabel}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Faixa "dia inteiro" */}
-      <div class="mc-allday-row" data-mc-allday style={{ display: 'flex' }}>
-        <div
-          class="mc-gutter-label mc-allday-label"
-          style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}
-        >
-          dia inteiro
-        </div>
-        {vm.columns.map((column) => (
-          <div
-            key={column.dateISO}
-            class="mc-allday-cell"
-            data-mc-allday-cell={column.dateISO}
-            style={{ flex: '1 1 0' }}
-          >
-            {column.allDay.map((allDayEvent) => (
-              <div
-                key={allDayEvent.id}
-                class="mc-allday-event"
-                data-mc-allday-event={allDayEvent.id}
-                style={allDayEvent.color ? { borderLeft: `3px solid ${allDayEvent.color}` } : undefined}
-                title={allDayEvent.title}
-              >
-                {allDayEvent.content ?? allDayEvent.title}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      {/* Corpo com eixo de horas + colunas de dia */}
-      <div class="mc-body" data-mc-body style={{ display: 'flex', position: 'relative' }}>
-        {/* Eixo de horas */}
-        <div
-          class="mc-time-axis"
-          style={{
-            width: toPx(GUTTER_PX),
-            flex: '0 0 auto',
-            position: 'relative',
-            height: toPx(bodyHeight),
-          }}
-        >
-          {vm.hourLabels.map((hourLabel) => (
+      {/* Scroller horizontal ÚNICO das três faixas (cabeçalho + dia-inteiro + corpo). Em tela
+          estreita as colunas ganham um piso de largura (`--mc-day-min-width`, ver styles) e o grid
+          passa a rolar na horizontal; sem este wrapper compartilhado cada faixa rolaria sozinha e
+          os rótulos de dia sairiam do lugar sobre suas colunas. Só estrutura: zero geometria. */}
+      <div class="mc-hscroll" data-mc-hscroll>
+        {/* Cabeçalho dos dias */}
+        <div class="mc-header-row" style={{ display: 'flex' }}>
+          <div class="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
+          {vm.columns.map((column) => (
             <div
-              key={hourLabel.min}
-              class="mc-hour-label"
-              style={{ position: 'absolute', top: toPx(minuteToY(hourLabel.min)), right: '4px' }}
+              key={column.dateISO}
+              class={`mc-day-header${column.isToday ? ' mc-today' : ''}`}
+              data-mc-day-header={column.dateISO}
+              style={{ flex: '1 1 0', textAlign: 'center' }}
             >
-              {hourLabel.label}
+              <div class="mc-weekday">{column.weekdayLabel}</div>
+              <div class="mc-daynum">{column.dayLabel}</div>
             </div>
           ))}
         </div>
 
-        {/* Colunas de dia */}
-        {vm.columns.map((column) => {
-          const columnDraft =
-            vm.draft && vm.draft.dateISO === column.dateISO ? vm.draft : undefined;
-          return (
-            <DayColumn
+        {/* Faixa "dia inteiro" */}
+        <div class="mc-allday-row" data-mc-allday style={{ display: 'flex' }}>
+          <div
+            class="mc-gutter-label mc-allday-label"
+            style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}
+          >
+            dia inteiro
+          </div>
+          {vm.columns.map((column) => (
+            <div
               key={column.dateISO}
-              column={column}
-              bodyHeight={bodyHeight}
-              hourMinutes={vm.hourLabels.map((hourLabel) => hourLabel.min)}
-              minuteToY={minuteToY}
-              pxPerMinute={vm.pxPerMinute}
-              draft={columnDraft}
-            />
-          );
-        })}
+              class="mc-allday-cell"
+              data-mc-allday-cell={column.dateISO}
+              style={{ flex: '1 1 0' }}
+            >
+              {column.allDay.map((allDayEvent) => (
+                <div
+                  key={allDayEvent.id}
+                  class="mc-allday-event"
+                  data-mc-allday-event={allDayEvent.id}
+                  style={allDayEvent.color ? { borderLeft: `3px solid ${allDayEvent.color}` } : undefined}
+                  title={allDayEvent.title}
+                >
+                  {allDayEvent.content ?? allDayEvent.title}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Corpo com eixo de horas + colunas de dia */}
+        <div class="mc-body" data-mc-body style={{ display: 'flex', position: 'relative' }}>
+          {/* Eixo de horas */}
+          <div
+            class="mc-time-axis"
+            style={{
+              width: toPx(GUTTER_PX),
+              flex: '0 0 auto',
+              position: 'relative',
+              height: toPx(bodyHeight),
+            }}
+          >
+            {vm.hourLabels.map((hourLabel) => (
+              <div
+                key={hourLabel.min}
+                class="mc-hour-label"
+                style={{ position: 'absolute', top: toPx(minuteToY(hourLabel.min)), right: '4px' }}
+              >
+                {hourLabel.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Colunas de dia */}
+          {vm.columns.map((column) => {
+            const columnDraft =
+              vm.draft && vm.draft.dateISO === column.dateISO ? vm.draft : undefined;
+            return (
+              <DayColumn
+                key={column.dateISO}
+                column={column}
+                bodyHeight={bodyHeight}
+                hourMinutes={vm.hourLabels.map((hourLabel) => hourLabel.min)}
+                minuteToY={minuteToY}
+                pxPerMinute={vm.pxPerMinute}
+                draft={columnDraft}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );

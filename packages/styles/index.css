@@ -62,6 +62,11 @@
   --mc-event-radius: 4px;
   --mc-gap: 6px;
 
+  /* responsivo — os três pisos que o breakpoint redefine (ver seção "Responsivo" no fim) */
+  --mc-touch-target: 0px; /* área mínima de toque dos botões; vira 44px em toque/tela estreita */
+  --mc-day-min-width: 0px; /* piso da coluna de DIA; > 0 faz o time-grid rolar na horizontal */
+  --mc-resource-min-width: 0px; /* idem para a coluna de RECURSO (Multiagenda) */
+
   box-sizing: border-box;
   font-family: var(--mc-font-family);
   font-size: var(--mc-font-size);
@@ -98,6 +103,9 @@
 [data-mc-root] .mc-nav-next,
 [data-mc-root] .mc-view-btn {
   padding: 4px 10px;
+  /* Piso de área de toque: 0 no desktop (densidade original), 44px em toque/tela estreita. */
+  min-height: var(--mc-touch-target);
+  min-width: var(--mc-touch-target);
   border: 1px solid var(--mc-color-border);
   border-radius: var(--mc-radius);
   background: var(--mc-color-btn-bg);
@@ -110,6 +118,77 @@
   background: var(--mc-color-btn-active-bg);
   color: var(--mc-color-btn-active-fg);
   border-color: var(--mc-color-btn-active-bg);
+}
+
+/* ---------------------------------------------------------------------------
+ * Scroller horizontal (`mc-hscroll`) — time-grid, Multiagenda e Timeline
+ *
+ * O core envolve TODAS as faixas de uma view (cabeçalho + dia-inteiro + corpo) num único
+ * `.mc-hscroll`. Motivo: quando as colunas ganham piso de largura (`--mc-day-min-width` /
+ * `--mc-resource-min-width`, > 0 só em tela estreita) o grid fica mais largo que a viewport e
+ * precisa rolar — se cada faixa rolasse sozinha, o rótulo do dia sairia de cima da sua coluna.
+ * ------------------------------------------------------------------------- */
+[data-mc-root] .mc-hscroll {
+  overflow-x: auto;
+  /*
+   * NENHUM scrollport vertical aqui. `overflow-x: auto` sozinho promove `overflow-y` a `auto`
+   * (regra da spec): o rótulo da ÚLTIMA hora — que o core desenha exatamente na borda de baixo
+   * do eixo — passaria a "transbordar" e viraria uma barra de rolagem vertical parasita, ainda
+   * roubando ~15px da largura útil. Com `hidden` não há barra nem sequestro do scroll vertical
+   * da página; o padding devolve, na caixa de preenchimento, o espaço que esse rótulo ocupa
+   * (senão ele seria recortado).
+   */
+  overflow-y: hidden;
+  padding-bottom: calc(var(--mc-font-size-sm) * 1.5);
+  /* Evita que o swipe horizontal vire "voltar página" no navegador. */
+  overscroll-behavior-x: contain;
+}
+/* Cada faixa: no mínimo a largura visível, no máximo o que o piso das colunas exigir. */
+[data-mc-root] .mc-hscroll > * {
+  min-width: 100%;
+  width: max-content;
+}
+/*
+ * Piso de largura por coluna. É o que transforma "7 colunas de 40px" em "N colunas legíveis +
+ * scroll". Com o token em 0 (default/desktop) o `flex: 1 1 0` inline do core manda, exatamente
+ * como antes — e as células passam a poder encolher de verdade (com `min-width: auto` um título
+ * de dia-inteiro `nowrap` longo travava o encolhimento e estourava a faixa).
+ */
+[data-mc-root] .mc-day-header,
+[data-mc-root] .mc-allday-cell,
+[data-mc-root] .mc-day-col {
+  min-width: var(--mc-day-min-width);
+}
+[data-mc-root] .mc-resource-header,
+[data-mc-root] .mc-resource-col {
+  min-width: var(--mc-resource-min-width);
+}
+/*
+ * Zera a contribuição de largura INTRÍNSECA do conteúdo dessas células. Sem isso, um título de
+ * evento dia-inteiro (ou um nome de recurso) longo faria SÓ a faixa dele ficar mais larga que as
+ * outras — e o alinhamento coluna↔rótulo quebraria no meio do scroll. Assim toda coluna contribui
+ * exatamente o piso, e as três faixas dão sempre a mesma largura.
+ */
+[data-mc-root] .mc-day-header,
+[data-mc-root] .mc-allday-cell,
+[data-mc-root] .mc-resource-header {
+  contain: inline-size;
+}
+/*
+ * Calha (eixo de horas / rótulo do recurso) presa à esquerda enquanto rola — sem isso as horas
+ * somem justamente quando se rola para os últimos dias. Única regra do tema que sobrepõe
+ * `position` do core: `sticky` é superconjunto de `relative` (mesmo bloco contêiner para os
+ * filhos absolutos, sem deslocamento enquanto não gruda), então nada da geometria inline muda.
+ */
+[data-mc-root] .mc-hscroll .mc-gutter-corner,
+[data-mc-root] .mc-hscroll .mc-allday-label,
+[data-mc-root] .mc-hscroll .mc-time-axis,
+[data-mc-root] .mc-hscroll .mc-timeline-corner,
+[data-mc-root] .mc-hscroll .mc-timeline-label {
+  position: sticky !important;
+  left: 0;
+  z-index: 2;
+  background: var(--mc-color-bg);
 }
 
 /* ---------------------------------------------------------------------------
@@ -322,4 +401,75 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* ---------------------------------------------------------------------------
+ * Responsivo
+ *
+ * Dois eixos INDEPENDENTES, de propósito (um breakpoint só não cobre os dois casos):
+ *   (a) PONTEIRO GROSSO ou tela estreita → alvo de toque de 44px nos botões (WCAG 2.5.5 /
+ *       guias iOS e Android). Pega tablet com dedo sem inchar a densidade do desktop.
+ *   (b) TELA ESTREITA (<= 640px) → piso de largura por coluna: o time-grid rola na horizontal
+ *       em vez de espremer 7 colunas em ~40px (mesma saída do `dayMinWidth` do FullCalendar);
+ *       Mês aperta tipografia; Agenda empilha hora/título.
+ * Nenhum terceiro breakpoint: de 641px pra cima 7 colunas já cabem com folga.
+ *
+ * Nota (fase de toque): as colunas do grid trazem `touch-action: none` inline (contrato do
+ * InteractionEngine), então o swipe horizontal COM O DEDO só pega no cabeçalho/faixa dia-inteiro
+ * ou na barra de rolagem. Liberar `pan-x` na coluna é decisão da fase de interação por toque.
+ * ------------------------------------------------------------------------- */
+@media (pointer: coarse), (max-width: 640px) {
+  [data-mc-root] {
+    --mc-touch-target: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-mc-root] {
+    --mc-day-min-width: 104px; /* ~3 dias visíveis em 375px; os outros rolam */
+    --mc-resource-min-width: 140px; /* recurso precisa caber nome + badge de lotação */
+  }
+
+  /* Toolbar: título ganha a 1ª linha inteira; navegação e views dividem a 2ª. */
+  [data-mc-root] .mc-toolbar {
+    flex-wrap: wrap;
+  }
+  [data-mc-root] .mc-title {
+    order: -1;
+    flex: 1 0 100%;
+    text-align: center;
+  }
+  [data-mc-root] .mc-toolbar-views {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  /* Mês: a grade inteira precisa ser lida de relance, então NÃO rola — aperta a tipografia e
+     garante altura tocável na célula. */
+  [data-mc-root] .mc-month-day {
+    min-height: 64px;
+  }
+  [data-mc-root] .mc-month-weekday {
+    font-size: 10px;
+  }
+  [data-mc-root] .mc-month-daynum {
+    font-size: 11px;
+    padding: 1px 2px;
+  }
+  [data-mc-root] .mc-month-event {
+    font-size: 10px;
+    padding: 0 2px;
+    margin: 1px;
+  }
+
+  /* Agenda: hora ACIMA do título — a calha de 96px comia 1/4 da tela de um celular. */
+  [data-mc-root] .mc-list-item {
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 4px;
+  }
+  [data-mc-root] .mc-list-time {
+    min-width: 0;
+    font-size: var(--mc-font-size-sm);
+  }
 }
