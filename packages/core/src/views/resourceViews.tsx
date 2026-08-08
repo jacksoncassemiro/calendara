@@ -134,57 +134,62 @@ function ResourceGrid(props: {
 
   return (
     <div class="mc-resources" data-mc-view="resources">
-      <div class="mc-resource-header-row" style={{ display: 'flex' }}>
-        <div class="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
-        {columns.map((column) => (
-          <div
-            key={column.resource.id}
-            class={`mc-resource-header${column.overCapacity ? ' mc-over-capacity' : ''}`}
-            data-mc-resource-header={column.resource.id}
-            style={{ flex: '1 1 0', textAlign: 'center' }}
-          >
-            <span class="mc-resource-title">{column.resource.title}</span>
-            {column.overCapacity && (
-              <span class="mc-capacity-badge" data-mc-over-capacity>
-                {column.maxConcurrency}/{column.resource.capacity ?? 1}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div class="mc-body" style={{ display: 'flex', position: 'relative' }}>
-        <div
-          class="mc-time-axis"
-          style={{ width: toPx(GUTTER_PX), flex: '0 0 auto', position: 'relative', height: toPx(bodyHeight) }}
-        >
-          {hourLabels.map((hourLabel) => (
+      {/* Scroller horizontal ÚNICO (cabeçalho + corpo): em tela estreita as colunas de recurso
+          ganham piso de largura (`--mc-resource-min-width`) e o grid rola na horizontal — os dois
+          precisam rolar juntos, senão o nome do recurso desalinha da coluna. Só estrutura. */}
+      <div class="mc-hscroll" data-mc-hscroll>
+        <div class="mc-resource-header-row" style={{ display: 'flex' }}>
+          <div class="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
+          {columns.map((column) => (
             <div
-              key={hourLabel.minute}
-              class="mc-hour-label"
-              style={{ position: 'absolute', top: toPx(minuteToY(hourLabel.minute)), right: '4px' }}
+              key={column.resource.id}
+              class={`mc-resource-header${column.overCapacity ? ' mc-over-capacity' : ''}`}
+              data-mc-resource-header={column.resource.id}
+              style={{ flex: '1 1 0', textAlign: 'center' }}
             >
-              {hourLabel.label}
+              <span class="mc-resource-title">{column.resource.title}</span>
+              {column.overCapacity && (
+                <span class="mc-capacity-badge" data-mc-over-capacity>
+                  {column.maxConcurrency}/{column.resource.capacity ?? 1}
+                </span>
+              )}
             </div>
           ))}
         </div>
 
-        {columns.map((column) => {
-          const columnDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
-          return (
-            <ResourceColumn
-              key={column.resource.id}
-              column={column}
-              context={context}
-              bodyHeight={bodyHeight}
-              hourMinutes={hourLabels.map((hourLabel) => hourLabel.minute)}
-              minuteToY={minuteToY}
-              pxPerMinute={options.pxPerMinute}
-              nowMinutes={showNowLine ? nowMinuteOfDay : null}
-              {...(columnDraft ? { draft: columnDraft } : {})}
-            />
-          );
-        })}
+        <div class="mc-body" style={{ display: 'flex', position: 'relative' }}>
+          <div
+            class="mc-time-axis"
+            style={{ width: toPx(GUTTER_PX), flex: '0 0 auto', position: 'relative', height: toPx(bodyHeight) }}
+          >
+            {hourLabels.map((hourLabel) => (
+              <div
+                key={hourLabel.minute}
+                class="mc-hour-label"
+                style={{ position: 'absolute', top: toPx(minuteToY(hourLabel.minute)), right: '4px' }}
+              >
+                {hourLabel.label}
+              </div>
+            ))}
+          </div>
+
+          {columns.map((column) => {
+            const columnDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
+            return (
+              <ResourceColumn
+                key={column.resource.id}
+                column={column}
+                context={context}
+                bodyHeight={bodyHeight}
+                hourMinutes={hourLabels.map((hourLabel) => hourLabel.minute)}
+                minuteToY={minuteToY}
+                pxPerMinute={options.pxPerMinute}
+                nowMinutes={showNowLine ? nowMinuteOfDay : null}
+                {...(columnDraft ? { draft: columnDraft } : {})}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -406,126 +411,131 @@ function Timeline(props: {
 
   return (
     <div class="mc-timeline" data-mc-view="timeline">
-      <div class="mc-timeline-header" style={{ display: 'flex' }}>
-        <div class="mc-timeline-corner" style={{ width: toPx(RESOURCE_LABEL_PX), flex: '0 0 auto' }} />
-        <div class="mc-timeline-axis" style={{ position: 'relative', width: toPx(trackWidth), flex: '0 0 auto' }}>
-          {hourLabels.map((hourLabel) => (
-            <span
-              key={hourLabel.minute}
-              class="mc-timeline-hour"
-              style={{ position: 'absolute', left: toPx(minuteToX(hourLabel.minute)) }}
-            >
-              {hourLabel.label}
-            </span>
-          ))}
+      {/* Scroller horizontal ÚNICO (cabeçalho + todas as linhas). A Timeline JÁ nasce mais larga
+          que um celular — a trilha tem largura explícita (janela × pxPerMinute) —, então aqui o
+          scroll não depende de breakpoint: vale em qualquer largura. Só estrutura. */}
+      <div class="mc-hscroll" data-mc-hscroll>
+        <div class="mc-timeline-header" style={{ display: 'flex' }}>
+          <div class="mc-timeline-corner" style={{ width: toPx(RESOURCE_LABEL_PX), flex: '0 0 auto' }} />
+          <div class="mc-timeline-axis" style={{ position: 'relative', width: toPx(trackWidth), flex: '0 0 auto' }}>
+            {hourLabels.map((hourLabel) => (
+              <span
+                key={hourLabel.minute}
+                class="mc-timeline-hour"
+                style={{ position: 'absolute', left: toPx(minuteToX(hourLabel.minute)) }}
+              >
+                {hourLabel.label}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {columns.map((column) => {
-        const lanes = assignLanes(
-          column.day.timed.map((placement) => ({
-            id: placement.id,
-            startMin: placement.startMin,
-            endMin: placement.endMin,
-          })),
-        );
-        const laneCount = Math.max(1, ...[...lanes.values()].map((lane) => lane + 1));
-        const rowHeight = laneCount * TIMELINE_ROW_PX;
-        const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
-        const rowDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
-        return (
-          <div
-            key={column.resource.id}
-            class={`mc-timeline-row${column.overCapacity ? ' mc-over-capacity' : ''}`}
-            data-mc-timeline-row={column.resource.id}
-            style={{ display: 'flex', minHeight: toPx(rowHeight) }}
-          >
+        {columns.map((column) => {
+          const lanes = assignLanes(
+            column.day.timed.map((placement) => ({
+              id: placement.id,
+              startMin: placement.startMin,
+              endMin: placement.endMin,
+            })),
+          );
+          const laneCount = Math.max(1, ...[...lanes.values()].map((lane) => lane + 1));
+          const rowHeight = laneCount * TIMELINE_ROW_PX;
+          const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
+          const rowDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
+          return (
             <div
-              class="mc-timeline-label"
-              style={{ width: toPx(RESOURCE_LABEL_PX), flex: '0 0 auto' }}
+              key={column.resource.id}
+              class={`mc-timeline-row${column.overCapacity ? ' mc-over-capacity' : ''}`}
+              data-mc-timeline-row={column.resource.id}
+              style={{ display: 'flex', minHeight: toPx(rowHeight) }}
             >
-              {column.resource.title}
-            </div>
-            <div
-              class="mc-timeline-track"
-              data-mc-slot="x"
-              data-mc-slot-date={column.day.dateISO}
-              data-mc-slot-resource={column.resource.id}
-              style={{
-                position: 'relative',
-                width: toPx(trackWidth),
-                flex: '0 0 auto',
-                height: toPx(rowHeight),
-                touchAction: 'none',
-              }}
-            >
-              {[...lanes.entries()].map(([eventId, lane]) => {
-                const placement = placementById.get(eventId)!;
-                const event = placement.occurrence.event;
-                const left = minuteToX(Math.max(placement.startMin, gridStartMin));
-                const clippedEnd = Math.min(placement.endMin, gridEndMin);
-                const width = Math.max(0, clippedEnd - Math.max(placement.startMin, gridStartMin)) * options.pxPerMinute;
-                const editable = event.editable !== false;
-                return (
+              <div
+                class="mc-timeline-label"
+                style={{ width: toPx(RESOURCE_LABEL_PX), flex: '0 0 auto' }}
+              >
+                {column.resource.title}
+              </div>
+              <div
+                class="mc-timeline-track"
+                data-mc-slot="x"
+                data-mc-slot-date={column.day.dateISO}
+                data-mc-slot-resource={column.resource.id}
+                style={{
+                  position: 'relative',
+                  width: toPx(trackWidth),
+                  flex: '0 0 auto',
+                  height: toPx(rowHeight),
+                  touchAction: 'none',
+                }}
+              >
+                {[...lanes.entries()].map(([eventId, lane]) => {
+                  const placement = placementById.get(eventId)!;
+                  const event = placement.occurrence.event;
+                  const left = minuteToX(Math.max(placement.startMin, gridStartMin));
+                  const clippedEnd = Math.min(placement.endMin, gridEndMin);
+                  const width = Math.max(0, clippedEnd - Math.max(placement.startMin, gridStartMin)) * options.pxPerMinute;
+                  const editable = event.editable !== false;
+                  return (
+                    <div
+                      key={eventId}
+                      class={`mc-event${editable ? ' mc-editable' : ''}`}
+                      data-mc-event={eventId}
+                      // Minutos REAIS da ocorrência (não os recortados ao grid): são a origem do
+                      // gesto, e recortar aqui faria o evento "encolher" ao ser arrastado.
+                      data-mc-start-min={placement.startMin}
+                      data-mc-end-min={placement.endMin}
+                      data-mc-editable={editable ? 'true' : 'false'}
+                      title={event.title}
+                      style={{
+                        position: 'absolute',
+                        left: toPx(left),
+                        width: toPx(width),
+                        top: toPx(lane * TIMELINE_ROW_PX),
+                        height: toPx(TIMELINE_ROW_PX - 4),
+                        ...(editable ? { touchAction: 'none' } : {}),
+                        ...(event.color ? { backgroundColor: event.color } : {}),
+                      }}
+                    >
+                      {event.title}
+                      {/* Alça na borda DIREITA: aqui o tempo cresce no eixo X. */}
+                      {editable && (
+                        <div
+                          class="mc-resize-handle"
+                          data-mc-resize
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            bottom: 0,
+                            right: 0,
+                            width: '6px',
+                            cursor: 'ew-resize',
+                            touchAction: 'none',
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+                {rowDraft && (
                   <div
-                    key={eventId}
-                    class={`mc-event${editable ? ' mc-editable' : ''}`}
-                    data-mc-event={eventId}
-                    // Minutos REAIS da ocorrência (não os recortados ao grid): são a origem do
-                    // gesto, e recortar aqui faria o evento "encolher" ao ser arrastado.
-                    data-mc-start-min={placement.startMin}
-                    data-mc-end-min={placement.endMin}
-                    data-mc-editable={editable ? 'true' : 'false'}
-                    title={event.title}
+                    class={draftClass(rowDraft)}
+                    data-mc-draft={rowDraft.kind}
+                    data-mc-draft-valid={rowDraft.valid ? 'true' : 'false'}
                     style={{
                       position: 'absolute',
-                      left: toPx(left),
-                      width: toPx(width),
-                      top: toPx(lane * TIMELINE_ROW_PX),
-                      height: toPx(TIMELINE_ROW_PX - 4),
-                      ...(editable ? { touchAction: 'none' } : {}),
-                      ...(event.color ? { backgroundColor: event.color } : {}),
+                      top: 0,
+                      bottom: 0,
+                      left: toPx(minuteToX(rowDraft.startMin)),
+                      width: toPx((rowDraft.endMin - rowDraft.startMin) * options.pxPerMinute),
+                      pointerEvents: 'none',
                     }}
-                  >
-                    {event.title}
-                    {/* Alça na borda DIREITA: aqui o tempo cresce no eixo X. */}
-                    {editable && (
-                      <div
-                        class="mc-resize-handle"
-                        data-mc-resize
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          bottom: 0,
-                          right: 0,
-                          width: '6px',
-                          cursor: 'ew-resize',
-                          touchAction: 'none',
-                        }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-              {rowDraft && (
-                <div
-                  class={draftClass(rowDraft)}
-                  data-mc-draft={rowDraft.kind}
-                  data-mc-draft-valid={rowDraft.valid ? 'true' : 'false'}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: toPx(minuteToX(rowDraft.startMin)),
-                    width: toPx((rowDraft.endMin - rowDraft.startMin) * options.pxPerMinute),
-                    pointerEvents: 'none',
-                  }}
-                />
-              )}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
