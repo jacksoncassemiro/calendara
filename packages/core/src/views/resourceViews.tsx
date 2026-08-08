@@ -6,11 +6,18 @@
  *
  * Ambas: mesmo contrato `CalendarView`; respeitam capacity (lotação), buffers, múltiplos
  * `resourceIds` por evento e o toggle `options.visibleResourceIds`. Nenhuma regra de negócio (ADR-006).
+ *
+ * INTERAÇÃO. As duas publicam o contrato de superfície do InteractionEngine
+ * (`data-mc-slot` + `data-mc-slot-date` + `data-mc-slot-resource`), declarando o próprio eixo de
+ * tempo: `'y'` na Multiagenda (colunas verticais) e `'x'` na Timeline (faixas horizontais). A
+ * DATA é sempre a data real do dia da view — o recurso viaja no atributo próprio, nunca embutido
+ * na data, que o ConstraintEngine consome como data de calendário de verdade.
  */
 import { h as createElement, type JSX } from 'preact';
 import type { CalendarView, ViewRange, ViewRenderContext } from './viewDef.js';
 import type { TemporalLike } from '../date/temporal.js';
 import type { CalendarResource } from '../types/resource.js';
+import type { InteractionDraft } from '../interaction/model.js';
 import {
   buildResourceColumns,
   type ResourceColumnData,
@@ -24,6 +31,26 @@ type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
 const RESOURCE_LABEL_PX = 120;
 const TIMELINE_ROW_PX = 44;
+
+/**
+ * Fantasma que pertence a ESTA coluna/linha. Um rascunho sem `resourceId` veio de uma view de
+ * data (o motor é um só, compartilhado) e não deve ser desenhado aqui.
+ */
+function draftForResource(
+  draft: InteractionDraft | undefined,
+  resourceId: string,
+  dateISO: string,
+): InteractionDraft | undefined {
+  const belongsHere =
+    draft !== undefined && draft.resourceId === resourceId && draft.dateISO === dateISO;
+  return belongsHere ? draft : undefined;
+}
+
+/** Classe do fantasma (mesma convenção do TimeGrid). */
+function draftClass(draft: InteractionDraft): string {
+  const validity = draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid';
+  return `mc-draft mc-draft-${draft.kind}${validity}`;
+}
 
 function geometryGridOf(context: ViewRenderContext): GeoGrid {
   return {
@@ -142,18 +169,22 @@ function ResourceGrid(props: {
           ))}
         </div>
 
-        {columns.map((column) => (
-          <ResourceColumn
-            key={column.resource.id}
-            column={column}
-            context={context}
-            bodyHeight={bodyHeight}
-            hourMinutes={hourLabels.map((hourLabel) => hourLabel.minute)}
-            minuteToY={minuteToY}
-            pxPerMinute={options.pxPerMinute}
-            nowMinutes={showNowLine ? nowMinuteOfDay : null}
-          />
-        ))}
+        {columns.map((column) => {
+          const columnDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
+          return (
+            <ResourceColumn
+              key={column.resource.id}
+              column={column}
+              context={context}
+              bodyHeight={bodyHeight}
+              hourMinutes={hourLabels.map((hourLabel) => hourLabel.minute)}
+              minuteToY={minuteToY}
+              pxPerMinute={options.pxPerMinute}
+              nowMinutes={showNowLine ? nowMinuteOfDay : null}
+              {...(columnDraft ? { draft: columnDraft } : {})}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -168,8 +199,9 @@ function ResourceColumn(props: {
   minuteToY: (minuteOfDay: number) => number;
   pxPerMinute: number;
   nowMinutes: number | null;
+  draft?: InteractionDraft;
 }): JSX.Element {
-  const { column, context, bodyHeight, hourMinutes, minuteToY, pxPerMinute, nowMinutes } = props;
+  const { column, context, bodyHeight, hourMinutes, minuteToY, pxPerMinute, nowMinutes, draft } = props;
   const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
   const blocks = layoutDay(column.day.timed, geometryGridOf(context));
 
@@ -177,7 +209,10 @@ function ResourceColumn(props: {
     <div
       class={`mc-resource-col${column.overCapacity ? ' mc-over-capacity' : ''}`}
       data-mc-resource={column.resource.id}
-      style={{ flex: '1 1 0', position: 'relative', height: toPx(bodyHeight) }}
+      data-mc-slot="y"
+      data-mc-slot-date={column.day.dateISO}
+      data-mc-slot-resource={column.resource.id}
+      style={{ flex: '1 1 0', position: 'relative', height: toPx(bodyHeight), touchAction: 'none' }}
     >
       {column.day.nonBusiness.map((segment, index) => (
         <div
@@ -214,11 +249,15 @@ function ResourceColumn(props: {
         const placement = placementById.get(block.id)!;
         const event = placement.occurrence.event;
         const timeLabel = formatHourLabel(placement.startMin, context.options.locale);
+        const editable = event.editable !== false;
         return (
           <div
             key={block.id}
-            class="mc-event"
+            class={`mc-event${editable ? ' mc-editable' : ''}`}
             data-mc-event={block.id}
+            data-mc-start-min={placement.startMin}
+            data-mc-end-min={placement.endMin}
+            data-mc-editable={editable ? 'true' : 'false'}
             title={event.title}
             style={{
               position: 'absolute',
@@ -226,15 +265,46 @@ function ResourceColumn(props: {
               height: toPx(block.height),
               left: `${block.left * 100}%`,
               width: `${block.width * 100}%`,
+              ...(editable ? { touchAction: 'none' } : {}),
               ...(event.color ? { backgroundColor: event.color } : {}),
             }}
           >
             {context.renderEvent
               ? context.renderEvent({ occurrence: placement.occurrence, event, timeLabel, isAllDay: false })
               : createElement('span', { class: 'mc-event-title' }, `${timeLabel} ${event.title}`)}
+            {editable && (
+              <div
+                class="mc-resize-handle"
+                data-mc-resize
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: '6px',
+                  cursor: 'ns-resize',
+                  touchAction: 'none',
+                }}
+              />
+            )}
           </div>
         );
       })}
+      {draft && (
+        <div
+          class={draftClass(draft)}
+          data-mc-draft={draft.kind}
+          data-mc-draft-valid={draft.valid ? 'true' : 'false'}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: toPx(minuteToY(draft.startMin)),
+            height: toPx((draft.endMin - draft.startMin) * pxPerMinute),
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       {nowMinutes !== null && (
         <div
           class="mc-now-line"
@@ -362,6 +432,7 @@ function Timeline(props: {
         const laneCount = Math.max(1, ...[...lanes.values()].map((lane) => lane + 1));
         const rowHeight = laneCount * TIMELINE_ROW_PX;
         const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
+        const rowDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
         return (
           <div
             key={column.resource.id}
@@ -377,7 +448,16 @@ function Timeline(props: {
             </div>
             <div
               class="mc-timeline-track"
-              style={{ position: 'relative', width: toPx(trackWidth), flex: '0 0 auto', height: toPx(rowHeight) }}
+              data-mc-slot="x"
+              data-mc-slot-date={column.day.dateISO}
+              data-mc-slot-resource={column.resource.id}
+              style={{
+                position: 'relative',
+                width: toPx(trackWidth),
+                flex: '0 0 auto',
+                height: toPx(rowHeight),
+                touchAction: 'none',
+              }}
             >
               {[...lanes.entries()].map(([eventId, lane]) => {
                 const placement = placementById.get(eventId)!;
@@ -385,11 +465,17 @@ function Timeline(props: {
                 const left = minuteToX(Math.max(placement.startMin, gridStartMin));
                 const clippedEnd = Math.min(placement.endMin, gridEndMin);
                 const width = Math.max(0, clippedEnd - Math.max(placement.startMin, gridStartMin)) * options.pxPerMinute;
+                const editable = event.editable !== false;
                 return (
                   <div
                     key={eventId}
-                    class="mc-event"
+                    class={`mc-event${editable ? ' mc-editable' : ''}`}
                     data-mc-event={eventId}
+                    // Minutos REAIS da ocorrência (não os recortados ao grid): são a origem do
+                    // gesto, e recortar aqui faria o evento "encolher" ao ser arrastado.
+                    data-mc-start-min={placement.startMin}
+                    data-mc-end-min={placement.endMin}
+                    data-mc-editable={editable ? 'true' : 'false'}
                     title={event.title}
                     style={{
                       position: 'absolute',
@@ -397,13 +483,45 @@ function Timeline(props: {
                       width: toPx(width),
                       top: toPx(lane * TIMELINE_ROW_PX),
                       height: toPx(TIMELINE_ROW_PX - 4),
+                      ...(editable ? { touchAction: 'none' } : {}),
                       ...(event.color ? { backgroundColor: event.color } : {}),
                     }}
                   >
                     {event.title}
+                    {/* Alça na borda DIREITA: aqui o tempo cresce no eixo X. */}
+                    {editable && (
+                      <div
+                        class="mc-resize-handle"
+                        data-mc-resize
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          bottom: 0,
+                          right: 0,
+                          width: '6px',
+                          cursor: 'ew-resize',
+                          touchAction: 'none',
+                        }}
+                      />
+                    )}
                   </div>
                 );
               })}
+              {rowDraft && (
+                <div
+                  class={draftClass(rowDraft)}
+                  data-mc-draft={rowDraft.kind}
+                  data-mc-draft-valid={rowDraft.valid ? 'true' : 'false'}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    bottom: 0,
+                    left: toPx(minuteToX(rowDraft.startMin)),
+                    width: toPx((rowDraft.endMin - rowDraft.startMin) * options.pxPerMinute),
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
             </div>
           </div>
         );

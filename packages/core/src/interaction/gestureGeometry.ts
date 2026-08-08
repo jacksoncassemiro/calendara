@@ -5,8 +5,19 @@
  * existentes em colunas). Aqui é o inverso: converte o gesto do ponteiro
  * (mover/redimensionar/selecionar) numa NOVA posição tentativa, com SNAP à grade (`slotMinutes`),
  * duração mínima e recorte aos limites do grid. O resultado alimenta o fantasma e a avaliação.
+ *
+ * A dimensão de RECURSO não tem matemática nenhuma: é só carregada adiante (mover ⇒ recurso do
+ * ponteiro, pois atravessar colunas reatribui; redimensionar/selecionar ⇒ recurso de origem/âncora).
+ * Por isso a Timeline (eixo transposto) reusa estas funções sem mudança: quem decide se o minuto
+ * veio de X ou de Y é o localizador do motor, não a geometria.
  */
 import type { DraftGeometry, GridBounds, PlacementInfo, PointerSlot } from './model.js';
+
+/** Copia o recurso para a geometria só quando existe (views de data ficam sem a chave). */
+function withResource(geometry: DraftGeometry, resourceId: string | undefined): DraftGeometry {
+	if (resourceId === undefined) return geometry;
+	return { ...geometry, resourceId };
+}
 
 /** Modo de arredondamento ao snap. */
 export type SnapRounding = 'nearest' | 'floor' | 'ceil';
@@ -62,12 +73,16 @@ export function computeMoveDraft(
 	const rawStart = pointer.minuteOfDay - grabOffsetMin;
 	const snappedStart = snapMinute(rawStart, slotMinutes, 'nearest');
 	const clamped = clampSpanToGrid(snappedStart, snappedStart + duration, bounds);
-	return { dateISO: pointer.dateISO, startMin: clamped.startMin, endMin: clamped.endMin };
+	// Recurso vem do PONTEIRO (não da origem): arrastar para outra coluna reatribui o recurso.
+	return withResource(
+		{ dateISO: pointer.dateISO, startMin: clamped.startMin, endMin: clamped.endMin },
+		pointer.resourceId,
+	);
 }
 
 /**
  * REDIMENSIONAR (borda inferior): mantém o início, move o fim para o ponteiro, respeitando a
- * duração mínima e o fundo do grid. O dia não muda (redimensiona na coluna de origem).
+ * duração mínima e o fundo do grid. O dia (e o recurso) não mudam — redimensiona na coluna de origem.
  */
 export function computeResizeDraft(
 	origin: PlacementInfo,
@@ -79,11 +94,15 @@ export function computeResizeDraft(
 	const snappedEnd = snapMinute(pointer.minuteOfDay, slotMinutes, 'nearest');
 	const minimumEnd = origin.startMin + Math.max(minDurationMin, slotMinutes);
 	const boundedEnd = clamp(Math.max(snappedEnd, minimumEnd), minimumEnd, bounds.endMin);
-	return { dateISO: origin.dateISO, startMin: origin.startMin, endMin: boundedEnd };
+	return withResource(
+		{ dateISO: origin.dateISO, startMin: origin.startMin, endMin: boundedEnd },
+		origin.resourceId,
+	);
 }
 
 /**
- * SELECIONAR: intervalo num único dia (o da âncora). Ordena âncora/cursor, faz snap para fora
+ * SELECIONAR: intervalo num único dia (o da âncora) e, nas views de recurso, num único recurso
+ * (o da âncora — seleção não atravessa colunas). Ordena âncora/cursor, faz snap para fora
  * (floor no início, ceil no fim), garante duração mínima e recorta ao grid.
  */
 export function computeSelectDraft(
@@ -100,5 +119,5 @@ export function computeSelectDraft(
 	const minimumSpan = Math.max(minDurationMin, slotMinutes);
 	const start = clamp(snappedStart, bounds.startMin, bounds.endMin - minimumSpan);
 	const end = clamp(Math.max(snappedEnd, start + minimumSpan), start + minimumSpan, bounds.endMin);
-	return { dateISO: anchor.dateISO, startMin: start, endMin: end };
+	return withResource({ dateISO: anchor.dateISO, startMin: start, endMin: end }, anchor.resourceId);
 }
