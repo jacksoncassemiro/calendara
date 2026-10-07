@@ -602,3 +602,16 @@
 /* Keyboard slots stay transparent to pointer drag/selection. */
 .mc-slot-cell { position: absolute; border: 0; padding: 0; background: transparent; pointer-events: none; }
 .mc-slot-cell:focus-visible { outline: 2px solid var(--mc-primary, #2563eb); outline-offset: -2px; z-index: 5; }
+
+/* Adaptação pela largura do calendário, inclusive em painéis desktop. */
+[data-mc-root] { container: mc-calendar / inline-size; }
+@container mc-calendar (max-width: 640px) {
+  [data-mc-root] .mc-day-header,
+  [data-mc-root] .mc-allday-cell,
+  [data-mc-root] .mc-day-col { min-width: max(104px, var(--mc-day-min-width)); }
+  [data-mc-root] .mc-resource-header,
+  [data-mc-root] .mc-resource-col,
+  [data-mc-root] .mc-resource-allday-row > div:not(:first-child) {
+    min-width: max(140px, var(--mc-resource-min-width));
+  }
+}
