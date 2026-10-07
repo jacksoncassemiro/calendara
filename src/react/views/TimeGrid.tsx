@@ -3,18 +3,27 @@
  * Componente React do time-grid (Semana/Dia). Puramente apresentacional: recebe um GridVM já
  * pronto (dias, rótulos, geometria, camada de fundo, linha "agora") e desenha.
  *
- * Estilo: classes `mc-*` para tema (packages/styles) + estilos inline apenas para a GEOMETRIA
+ * Estilo: classes `mc-*` para tema (styles.css) + estilos inline apenas para a GEOMETRIA
  * (posições absolutas/alturas), que precisa existir no DOM independente de CSS carregado.
  */
 import type { JSX, CSSProperties } from 'react';
 import type { GridVM, DayColumnVM, DraftVM } from './viewModel.js';
 import { GUTTER_PX, toPx, segmentStyle } from './utils.js';
+import { SlotCells } from './SlotCells.js';
+import { packDateSpans } from './spanLayout.js';
+import { calendarDayOffset } from '../../core/interaction/model.js';
 
 export function TimeGrid(props: { vm: GridVM }): JSX.Element {
   const vm = props.vm;
   const gridTopMin = vm.startHour * 60;
   const bodyHeight = (vm.endHour - vm.startHour) * 60 * vm.pxPerMinute;
   const minuteToY = (minuteOfDay: number): number => (minuteOfDay - gridTopMin) * vm.pxPerMinute;
+  const uniqueAllDay = new Map(vm.columns.flatMap(column=>column.allDay.map(event=>[event.id,event] as const)));
+  const allDaySegments = packDateSpans([...uniqueAllDay.values()].map(event=>{
+    const dates = vm.columns.filter(column=>column.allDay.some(item=>item.id===event.id)).map(column=>column.dateISO);
+    return {event,dates,start:vm.columns.findIndex(column=>column.dateISO===dates[0]),span:dates.length};
+  }).sort((a,b)=>a.start-b.start || b.span-a.span));
+  const allDayHeight = Math.max(1,...allDaySegments.map(segment=>segment.lane+1))*26;
 
   return (
     <div className="mc-timegrid" data-mc-view={vm.viewName}>
@@ -52,15 +61,16 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
               key={column.dateISO}
               className="mc-allday-cell"
               data-mc-allday-cell={column.dateISO}
-              style={{ flex: '1 1 0' }}
+              style={{ flex: '1 1 0', position:'relative',height:allDayHeight }}
             >
               {vm.draft?.allDay && column.dateISO >= vm.draft.dateISO && column.dateISO < vm.draft.endDateISO! &&
                 <div className={`mc-allday-event mc-draft${vm.draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`} data-mc-draft={vm.draft.kind} aria-hidden="true">Dia inteiro</div>}
-              {column.allDay.map((allDayEvent) => (
+              {allDaySegments.filter(segment=>segment.dates[0]===column.dateISO).map(({event:allDayEvent,dates,span,lane}) => (
                 <div
                   key={allDayEvent.id}
                   className="mc-allday-event"
                   data-mc-allday-event={allDayEvent.id}
+                  data-mc-allday-dates={dates.join(' ')}
                   data-mc-event={allDayEvent.id}
                   data-mc-editable={allDayEvent.editable ? 'true' : 'false'}
                   data-mc-start-min="0"
@@ -75,11 +85,13 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
                       allDayEvent.activate();
                     }
                   }}
-                  style={allDayEvent.color ? { borderLeft: `3px solid ${allDayEvent.color}` } : undefined}
+                  style={{position:'absolute',top:lane*26,left:0,height:22,width:`calc(${span*100}% - 4px)`,zIndex:1,
+                    ...(allDayEvent.color ? {boxShadow:`inset 3px 0 0 ${allDayEvent.color}`} : {})}}
                   title={allDayEvent.title}
                 >
                   {allDayEvent.content ?? allDayEvent.title}
-                  {allDayEvent.editable && <span className="mc-allday-resize" data-mc-resize="end" aria-hidden="true" />}
+                  {allDayEvent.editable && (!allDayEvent.endDate || calendarDayOffset(dates.at(-1)!,allDayEvent.endDate)===1)
+                    && <span className="mc-allday-resize" data-mc-resize="end" aria-hidden="true" />}
                 </div>
               ))}
             </div>
@@ -121,6 +133,10 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
               <DayColumn
                 key={column.dateISO}
                 column={column}
+                first={column === vm.columns[0]}
+                startMin={gridTopMin}
+                endMin={vm.endHour * 60}
+                slotMinutes={vm.slotMinutes}
                 bodyHeight={bodyHeight}
                 hourMinutes={vm.hourLabels.map((hourLabel) => hourLabel.min)}
                 minuteToY={minuteToY}
@@ -137,6 +153,10 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
 
 function DayColumn(props: {
   column: DayColumnVM;
+  first: boolean;
+  startMin: number;
+  endMin: number;
+  slotMinutes: number;
   bodyHeight: number;
   hourMinutes: number[];
   minuteToY: (minuteOfDay: number) => number;
@@ -180,6 +200,8 @@ function DayColumn(props: {
       ))}
 
       {/* Eventos posicionados */}
+      <SlotCells dateISO={column.dateISO} first={props.first} startMin={props.startMin}
+        endMin={props.endMin} slotMinutes={props.slotMinutes} pxPerMinute={pxPerMinute} />
       {column.events.map((eventItem) => (
         <div
           key={eventItem.id}
@@ -209,15 +231,15 @@ function DayColumn(props: {
             left: `${eventItem.block.left * 100}%`,
             width: `${eventItem.block.width * 100}%`,
             ...(eventItem.editable ? { touchAction: 'none' } : {}),
-            ...(eventItem.color ? { borderLeft: `3px solid ${eventItem.color}` } : {}),
+              ...(eventItem.color ? { boxShadow: `inset 3px 0 0 ${eventItem.color}, inset 0 0 0 1px var(--mc-color-event-border)` } : {}),
           }}
         >
-          {eventItem.content ?? (
+          <div className="mc-event-content">{eventItem.content ?? (
             <>
               <span className="mc-event-time">{eventItem.timeLabel}</span>
               <span className="mc-event-title">{eventItem.title}</span>
             </>
-          )}
+            )}</div>
           {/* Alça de redimensionamento (borda inferior) — só em eventos editáveis. */}
           {eventItem.editable && (
             <div

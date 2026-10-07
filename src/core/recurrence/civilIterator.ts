@@ -50,6 +50,15 @@ export function* iterateCivilDates(model: RRuleModel, dtStart: string, window: C
     else period += Math.floor((first - period) / (interval * (model.freq === 'WEEKLY' ? 7 : 1))) * interval * (model.freq === 'WEEKLY' ? 7 : 1);
   }
   let count = 0, visited = 0, empty = 0;
+  // DAILY without filters has exactly one candidate per period. Its rank is
+  // arithmetic, so COUNT and exclusions remain correct without walking history.
+  if (model.count !== undefined && model.freq === 'DAILY' && first > period &&
+      !byDay.length && !months.length && !monthDays.length && !model.bySetPos?.length) {
+    const skipped = Math.floor((first - period) / interval);
+    if (skipped >= model.count) return;
+    period += skipped * interval;
+    count = skipped;
+  }
   while (period <= last) {
     if (++visited > budget) throw new RangeError('[meucalendario] orçamento de expansão RRULE excedido; reduza a janela');
     const p = parts(period);

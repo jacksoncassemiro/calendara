@@ -1,6 +1,6 @@
 # 05 — Guia de uso da API (com exemplos)
 
-Guia prático: para cada conceito, **um exemplo preenchido**, o **propósito** de cada campo e **quando usar**. A tipagem formal está no código (`packages/core/src/types`); aqui o foco é como preencher na prática.
+Guia prático: para cada conceito, **um exemplo preenchido**, o **propósito** de cada campo e **quando usar**. A tipagem formal está no código (`src/core/types`); aqui o foco é como preencher na prática.
 
 ---
 
@@ -188,7 +188,7 @@ onDropBlocked: (info) => toast(`Não pode: ${traduz(info.reason)}`), // 'blocked
 ```ts
 app.changeView('day');   // internas: 'week' | 'day' | 'month' | 'list'
 
-import { createNDaysView, createResourceDayView, createTimelineView } from '@meucalendario/core';
+import { createNDaysView, createResourceDayView, createTimelineView } from '@meucalendario/calendar';
 app.registerView(createNDaysView(3));                 // escala de 3 dias corridos → view 'ndays-3'
 app.registerView(createResourceDayView(resources));   // Multiagenda (1 dia, N colunas) → 'resources'
 app.registerView(createTimelineView(resources));      // Timeline (recursos em linhas) → 'timeline'
@@ -208,7 +208,13 @@ app.registerView({
 
 ---
 
-## 8. React (`@meucalendario/react`)
+## 8. React (`@meucalendario/calendar`)
+
+O pacote único exporta motor, componentes e tipos. Importe os estilos por `@meucalendario/calendar/styles.css`; `/core` é uma entrada opcional do mesmo pacote sem renderer.
+
+`CalendarEventEditor` é um formulário opcional para criação, edição e exclusão. Recebe `event`, `occurrence` opcional, `resources`, `timeZone`, `validate`, `onSave`, `onDelete` e `onCancel`. `validate` retorna uma mensagem de erro ou undefined; callbacks podem ser assíncronos e retornar false para rejeitar. O consumidor aplica as mudanças ao estado/servidor. `context.scope` informa occurrence/series; `context.occurrence.originalStart` identifica a exceção. Monte com key da ocorrência ao trocar de evento. A interface all-day pede o último dia inclusivo e converte para fim exclusivo nos dados.
+
+Gestos multiday timed e all-day na faixa de dias preservam o intervalo completo. `EventChange` e `SelectionChange` podem incluir `endDateISO` e `allDay`. `evaluatePlacement` valida todos os dias quando `endDateISO` é fornecido, incluindo ocupação fora do range visível. Regras do cliente não substituem validação transacional no servidor.
 
 ```tsx
 const { ref, api } = useCalendar();
@@ -232,10 +238,27 @@ const { ref, api } = useCalendar();
 api.next(); api.changeView('day'); api.getTitle();
 ```
 
-A instância acompanha a montagem; trocar `events`/`view`/`date` entra pela API imperativa. As extensões `renderEvent`, `customToolbar` e `createReactView` pertencem à árvore React do consumidor e compartilham seus providers. Props imutáveis equivalentes são deduplicadas; mudanças de dados/view/date são agrupadas. `CalendarApp` e as fábricas de views são exportados por @meucalendario/react. SSR renderiza inicialmente apenas o container.
+A instância acompanha a montagem; trocar `events`/`view`/`date` entra pela API imperativa. As extensões `renderEvent`, `customToolbar` e `createReactView` pertencem à árvore React do consumidor e compartilham seus providers. Props imutáveis equivalentes são deduplicadas; mudanças de dados/view/date são agrupadas. `CalendarApp` e as fábricas de views são exportados por @meucalendario/calendar. SSR renderiza inicialmente apenas o container.
 
 `evaluateSlot` consulta constraints globais. Para criação/edição com recursos, use `api.evaluatePlacement({ dateISO, startMin, endMin, resourceId, occurrence? })`: considera expediente do recurso, capacidade e buffers. A ocorrência original opcional evita contar a própria reserva durante a edição. Para eventos atravessando dias, avalie cada segmento diário e cada recurso antes de persistir; a biblioteca não grava no servidor.
 
-`useCompactCalendar(640)` retorna `{ containerRef, compact }` e acompanha a largura do container com ResizeObserver. Escolha `view={compact ? 'day' : 'week'}` ou Agenda conforme seu produto. A toolbar troca botões por seletor em containers estreitos. Confira o exemplo React para editor por formulário e filtro de recurso.
+`useCompactCalendar(640)` retorna `{ containerRef, compact }` e acompanha a largura do container com ResizeObserver. Defina a view inicial conforme a largura, preservando as escolhas posteriores do usuário (veja o exemplo React). Passar continuamente `view={compact ? 'day' : 'week'}` pode sobrescrever uma escolha manual quando a largura mudar. A toolbar troca botões por seletor em containers estreitos.
 
-> A tipagem formal (todos os campos e defaults) está em `packages/core/src/types` e em `render/state.ts` (`DEFAULT_OPTIONS`).
+Nas grades de horário, Tab entra na primeira célula; setas seguem o eixo de tempo ou mudam o dia/recurso, Home/End vão ao início/fim da coluna (Ctrl: grade inteira). Enter/Espaço disparam `onDateSelect` com um slot e `resourceId`, respeitando constraints, capacidade e buffers; se houver rejeição, disparam `onClickBlocked`. Sem `onDateSelect`, a ativação válida usa `onDateClick`. No mês, setas percorrem dias/semanas e Home/End a semana; a ativação mantém o comportamento do botão do dia. Seleção de intervalo e mover/redimensionar pelo teclado ainda são pendências.
+
+> A tipagem formal (todos os campos e defaults) está em `src/core/types` e em `render/state.ts` (`DEFAULT_OPTIONS`).
+
+## Editar ou excluir esta ocorrência e as seguintes
+
+`CalendarEventEditor` envia `context.scope === 'following'`. O consumidor pode chamar:
+
+```ts
+const {before, following} = splitEventSeries(temporal, master, occurrence.originalStart,
+  crypto.randomUUID(), {title: draft.title, time: draft.time, resourceIds: draft.resourceIds});
+// Substitua master por before (ou remova quando null) e persista following como novo mestre.
+// Para excluir esta e seguintes, persista somente before.
+```
+
+O corte usa a chave original da ocorrência, não seu horário efetivo após override. COUNT é dividido antes de EXDATE/cancelamentos; RDATE não consome COUNT. Exceções e overrides são particionados pelo início original e os futuros acompanham o deslocamento wall-clock do novo início. O histórico anterior permanece imutável. Um corte sem alterações recompõe a série original nos cenários existentes de frequências/filtros.
+
+O corte precisa ser uma ocorrência ativa gerada pela RRULE. Datas extras RDATE-only, troca de timezone ou all-day↔timed e início incompatível com os filtros são rejeitados. Para filtros explícitos como BYDAY=MO, reagendar o novo início para terça exige alterar a regra em uma operação própria. O helper não grava dados nem verifica constraints de todos os eventos futuros: faça essa validação e a persistência dos dois mestres em uma transação no consumidor; séries infinitas exigem uma política de janela de validação.

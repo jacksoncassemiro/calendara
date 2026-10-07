@@ -4,7 +4,7 @@ Como o calendário é estilizado e como o app consumidor customiza a aparência.
 
 ## Princípio: geometria inline, aparência por classe
 
-O **core** só escreve **geometria** inline (posição/tamanho absolutos: `top`/`height`/`left`/`width`/`flex`) — isso precisa existir no DOM independentemente de qualquer CSS carregado, senão o calendário "desmonta" sem folha de estilo. Toda a **aparência** (cor, borda, tipografia, raio, espaçamento, estados) vem do pacote `@meucalendario/styles`, via classes `mc-*` que consomem **tokens** (CSS custom properties `--mc-*`).
+O **core** só escreve **geometria** inline (posição/tamanho absolutos: `top`/`height`/`left`/`width`/`flex`) — isso precisa existir no DOM independentemente de qualquer CSS carregado, senão o calendário "desmonta" sem folha de estilo. Toda a **aparência** (cor, borda, tipografia, raio, espaçamento, estados) vem do pacote `@meucalendario/calendar/styles.css`, via classes `mc-*` que consomem **tokens** (CSS custom properties `--mc-*`).
 
 Consequência prática: para trocar a cara do calendário, **quase nunca** se reescreve regra CSS — redefine-se os **tokens** sob `[data-mc-root]`. Tudo é escopado por `[data-mc-root]` para não colidir com o CSS do app (ex.: Tailwind).
 
@@ -15,7 +15,7 @@ No sentido inverso há **uma** exceção, só no tema: dentro de `.mc-hscroll`, 
 ## Uso
 
 ```ts
-import '@meucalendario/styles';          // ou '@meucalendario/styles/index.css'
+import '@meucalendario/calendar/styles.css';          // ou '@meucalendario/calendar/styles.css/index.css'
 ```
 
 ## Customização por tokens (recomendado)
@@ -65,7 +65,7 @@ Redefina os tokens no seu CSS, com um seletor de igual ou maior especificidade:
 
 ## Responsivo / mobile
 
-Tudo o que é responsivo vive **só no CSS** (`packages/styles/index.css`). O core não conhece
+Tudo o que é responsivo vive **só no CSS** (`styles.css`). O core não conhece
 breakpoint, não mede viewport e não troca de view sozinho — continua escrevendo apenas geometria
 inline. Um app que não carrega o tema tem o mesmo DOM de sempre.
 

@@ -3,7 +3,7 @@
  * projetar em minutos-do-dia (buildDays) + geometria/empacotamento (layoutDay) — para N eventos.
  *
  * Roda contra o build ESM do core:
- *   yarn workspace @meucalendario/core run build   # gera packages/core/dist
+ *   yarn build   # gera dist/esm e dist/cjs do pacote único
  *   node scripts/bench.mjs [N] [iterações]
  */
 import { Temporal } from '@js-temporal/polyfill';

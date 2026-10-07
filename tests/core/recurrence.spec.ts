@@ -19,6 +19,13 @@ describe('motor de recorrência vs rrule.js (oráculo)', () => {
 });
 
 describe('regressões de filtros RFC 5545', () => {
+  it('seeks a distant daily COUNT window without spending its period budget on history', () => {
+    const dates=expandRuleAll(T,parseRRule('FREQ=DAILY;COUNT=3000'),T.PlainDate.from('2020-01-01'),new Set(),10,
+      {windowStart:T.PlainDate.from('2026-01-01'),windowEnd:T.PlainDate.from('2026-01-02'),maxPeriods:2});
+    expect(dates.map(date=>date.toString())).toEqual(['2026-01-01','2026-01-02']);
+    expect(expandRuleAll(T,parseRRule('FREQ=DAILY;COUNT=3'),T.PlainDate.from('2020-01-01'),new Set(),10,
+      {windowStart:T.PlainDate.from('2026-01-01'),windowEnd:T.PlainDate.from('2026-01-02'),maxPeriods:2})).toEqual([]);
+  });
   it('BYYEARDAY combines negative days, leap years and positional selection', () => {
     for (const rule of ['FREQ=YEARLY;BYYEARDAY=60,-1;COUNT=8', 'FREQ=YEARLY;BYYEARDAY=1,60,-1;BYSETPOS=-1;COUNT=5']) {
       expect(ours(T, '2023-01-01', `RRULE:${rule}`)).toEqual(oracle('2023-01-01', `RRULE:${rule}`));

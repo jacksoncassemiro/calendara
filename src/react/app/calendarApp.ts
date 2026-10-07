@@ -14,6 +14,7 @@
  */
 import { createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { keyboardGrid } from './keyboardGrid.js';
 import { flushSync } from 'react-dom';
 
 import { createStore, type Store } from '../../core/index.js';
@@ -63,6 +64,8 @@ import type {
   ViewRenderContext,
   ToolbarContext,
   EventRenderSlot,
+  MonthMoreInfo,
+  MonthMoreRenderSlot,
   ToolbarRenderSlot,
 } from '../views/viewDef.js';
 
@@ -94,6 +97,8 @@ export interface CalendarConfig {
   eventSource?: EventSource;
   /** Slot para conteúdo customizado de evento. */
   renderEvent?: EventRenderSlot;
+  renderMonthMore?: MonthMoreRenderSlot;
+  onMonthMoreClick?: (info: MonthMoreInfo) => void | false;
   /** Slot para toolbar customizada (render-prop). */
   renderToolbar?: ToolbarRenderSlot;
   /** Recursos (capacity/buffers/businessHours) — habilitam a validação DURA de ocupação (Fase 4). */
@@ -179,6 +184,8 @@ export class CalendarApp {
 
   private eventSource: EventSource | undefined;
   private renderEvent: EventRenderSlot | undefined;
+  private renderMonthMore: MonthMoreRenderSlot | undefined;
+  private readonly onMonthMoreClick: ((info: MonthMoreInfo) => void | false) | undefined;
   private renderToolbar: ToolbarRenderSlot | undefined;
   private readonly onEventClick: ((occurrence: EventOccurrence) => void) | undefined;
   private readonly onDateClick: ((dateISO: string, minuteOfDay?: number) => void) | undefined;
@@ -233,6 +240,8 @@ export class CalendarApp {
 
     this.eventSource = config.eventSource;
     this.renderEvent = config.renderEvent;
+    this.renderMonthMore = config.renderMonthMore;
+    this.onMonthMoreClick = config.onMonthMoreClick;
     this.renderToolbar = config.renderToolbar;
     this.onEventClick = config.onEventClick;
     this.onDateClick = config.onDateClick;
@@ -262,9 +271,11 @@ export class CalendarApp {
   mount(container: HTMLElement, options: { external?: boolean } = {}): void {
     if (this.destroyed) throw new Error('[meucalendario] calendário destruído');
     if (this.container === container) return;
+    this.container?.removeEventListener('keydown', this.onGridKeyDown);
     if (this.root) flushSync(() => this.root!.unmount());
     this.root = options.external ? null : createRoot(container);
     this.container = container;
+    container.addEventListener('keydown', this.onGridKeyDown);
     if (!this.unsubscribe) {
       this.unsubscribe = this.store.subscribe(() => this.renderNow());
     }
@@ -294,6 +305,7 @@ export class CalendarApp {
     this.interaction.detach();
     this.cancelScheduledDraftRender();
     if (this.container) {
+      this.container.removeEventListener('keydown', this.onGridKeyDown);
       if (this.root) flushSync(() => this.root!.unmount());
       this.root = null;
       this.snapshot = null;
@@ -323,6 +335,12 @@ export class CalendarApp {
   setRenderEvent(slot: EventRenderSlot | undefined): void {
     if (this.renderEvent === slot) return;
     this.renderEvent = slot;
+    this.renderNow();
+  }
+
+  setRenderMonthMore(slot: MonthMoreRenderSlot | undefined): void {
+    if (this.renderMonthMore === slot) return;
+    this.renderMonthMore = slot;
     this.renderNow();
   }
 
@@ -532,6 +550,9 @@ export class CalendarApp {
     if (this.hasResourceConfig) context.resources = this.resources;
     if (this.draft) context.draft = this.draft;
     if (this.renderEvent) context.renderEvent = this.renderEvent;
+    if (this.renderMonthMore) context.renderMonthMore = this.renderMonthMore;
+    if (this.onMonthMoreClick) context.onMonthMoreClick = this.onMonthMoreClick;
+    context.openDateView = (dateISO,viewName) => this.batchUpdate(() => { this.setDate(dateISO); this.changeView(viewName); });
     if (this.onEventClick) context.onEventClick = this.onEventClick;
     if (this.onDateClick) context.onDateClick = this.onDateClick;
     return context;
@@ -635,7 +656,7 @@ export class CalendarApp {
         commitSelect: (selection) => this.onDateSelect?.(selection),
         clickEvent: (placement) => this.onEventClick?.(placement.occurrence),
         clickEmpty: (slot: PointerSlot) =>
-          this.onDateClick?.(slot.dateISO, Math.round(slot.minuteOfDay)),
+          this.onDateClick?.(slot.dateISO, slot.dateOnly ? undefined : Math.round(slot.minuteOfDay)),
         blocked: (info: BlockedInfo) => {
           const isSelection = info.kind === 'select';
           if (isSelection) this.onClickBlocked?.(info);
@@ -646,6 +667,21 @@ export class CalendarApp {
   }
 
   /** Avalia um candidato: ConstraintEngine (business/blocked/allowed) + ocupação de recurso. */
+  private readonly onGridKeyDown = (event: KeyboardEvent): void => {
+    if (!this.container || !this.temporal) return;
+    keyboardGrid(event, this.container, (dateISO, startMin, endMin, resourceId) => {
+      const input: EvaluationInput = { kind: 'select', dateISO, startMin, endMin, resourceId };
+      const evaluation = this.evaluateDraft(input);
+      if (!evaluation.valid) {
+        this.onClickBlocked?.({ ...input, reason: evaluation.reason });
+      } else if (this.onDateSelect) {
+        this.onDateSelect({ dateISO, startMin, endMin, resourceId });
+      } else {
+        this.onDateClick?.(dateISO, startMin);
+      }
+    });
+  };
+
   private evaluateDraft(input: EvaluationInput): DraftEvaluation {
     if (input.endDateISO !== undefined && this.temporal) {
       const start = this.temporal.PlainDate.from(input.dateISO);

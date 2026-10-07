@@ -16,7 +16,7 @@ import type {
 } from '../types/index.js';
 import { isCancelledOverride } from '../types/index.js';
 import type { TemporalLike } from '../date/temporal.js';
-import { expandRule, type ExpandOptions } from './engine.js';
+import { ruleStarts } from './ruleStarts.js';
 import { parseRRule, validateRRuleModel } from './parser.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
@@ -197,17 +197,8 @@ export function expandEvent(
   const isUnbounded = model !== null && windowEnd === undefined && model.until === undefined &&
     (model.count === undefined || !Number.isFinite(model.count));
   if (isUnbounded) throw new Error('[meucalendario] expandEvent exige window.end, COUNT ou UNTIL para uma recorrência infinita.');
-  const timedUntil = !shape.allDay && model?.until && model.until.length > 10
-    ? localDateTime(temporal, model.until, shape.timeZone)
-    : null;
-  const untilInstant = !shape.allDay && model?.until && OFFSET_PATTERN.test(model.until)
-    ? temporal.Instant.from(model.until) : null;
-  const pastUntil = (originalStart: string): boolean => {
-    if (untilInstant) return temporal.Instant.compare(zonedStart(temporal, originalStart, shape.timeZone).toInstant(), untilInstant) > 0;
-    return timedUntil !== null && temporal.PlainDateTime.compare(temporal.PlainDateTime.from(originalStart), timedUntil) > 0;
-  };
-  const expansionModel = model && timedUntil ? { ...model, until: timedUntil.toPlainDate().toString() } : model;
   const dtStart = startPlainDate(temporal, event);
+  const masterStart = occurrenceTimes(temporal, shape, dtStart).originalStart;
 
   const excludedDates = new Set<string>((recurrence.exDates ?? []).filter((iso) => iso.length <= 10).map((iso) => iso.slice(0, 10)));
   const excludedInstants = new Set<string>((recurrence.exDates ?? []).filter((iso) => !shape.allDay && OFFSET_PATTERN.test(iso))
@@ -215,30 +206,16 @@ export function expandEvent(
   const excludedStarts = new Set<string>((recurrence.exDates ?? []).filter((iso) => iso.length > 10 && (shape.allDay || !OFFSET_PATTERN.test(iso)))
     .map((iso) => shape.allDay ? iso.slice(0, 10) : localDateTime(temporal, iso, shape.timeZone).toString()));
 
-  const dates: PlainDate[] = [];
-  if (model) {
-    const expandOptions: ExpandOptions = {};
-    const countsTimedStarts = !shape.allDay && model.count !== undefined;
-    if (windowStart && !countsTimedStarts) expandOptions.windowStart = windowStart;
-    if (windowEnd) expandOptions.windowEnd = windowEnd;
-    // RFC gap starts do not consume COUNT; EXDATE does. Count valid timed starts
-    // before removing exceptions, including those before the requested window.
-    const iteratedModel = countsTimedStarts ? { ...expansionModel!, count: undefined } : expansionModel!;
-    let validTimedStarts = 0;
-    for (const date of expandRule(temporal, iteratedModel, dtStart, shape.allDay ? excludedDates : new Set(), expandOptions)) {
-      const start = occurrenceTimes(temporal, shape, date).originalStart;
-      const isGap = !shape.allDay && isNonexistentStart(temporal, start, shape.timeZone);
-      if (isGap) continue;
-      const beyondUntil = !shape.allDay && pastUntil(start);
-      if (beyondUntil) break;
-      validTimedStarts++;
-      const withinWindow = !windowStart || temporal.PlainDate.compare(date, windowStart) >= 0;
-      const excludedDate = excludedDates.has(date.toString());
-      if (withinWindow && !excludedDate) dates.push(date);
-      const reachedCount = countsTimedStarts && validTimedStarts >= model.count!;
-      if (reachedCount) break;
-    }
-  }
+  const timesForRuleStart = (originalStart: string): ReturnType<typeof occurrenceTimes> => {
+    if (shape.allDay) return occurrenceTimes(temporal, shape, temporal.PlainDate.from(originalStart));
+    const start = temporal.PlainDateTime.from(originalStart);
+    const zone = shape.timeZone ? { timeZone: shape.timeZone } : {};
+    return { originalStart, start: { dateTime: originalStart, ...zone },
+      end: { dateTime: start.add(shape.durationForTimed!).toString(), ...zone } };
+  };
+  // The provider counts generated valid starts before calendar EXDATE/cancellation.
+  const ruleTimes = (model ? ruleStarts(temporal, event, model, window) : [])
+    .filter(start => !excludedDates.has(start.slice(0,10))).map(timesForRuleStart);
 
   // RDATE: datas extras (não contam para COUNT). Respeita janela e EXDATE.
   const extraTimes: ReturnType<typeof occurrenceTimes>[] = [];
@@ -260,9 +237,9 @@ export function expandEvent(
     if (!hasMovedTime) continue;
     const originalDate = temporal.PlainDate.from(originalStart.slice(0, 10));
     const originalISO = originalDate.toString();
-    const alreadyIncluded = dates.some((date) => date.toString() === originalISO);
-    if (alreadyIncluded || excludedDates.has(originalISO)) continue;
     const expectedStart = occurrenceTimes(temporal, shape, originalDate).originalStart;
+    const alreadyIncluded = ruleTimes.some((times) => times.originalStart === originalStart || originalStart === originalISO && times.originalStart === expectedStart);
+    if (alreadyIncluded || excludedDates.has(originalISO)) continue;
     const matchingRDate = recurrence.rDates?.find((iso) => extraOccurrenceTimes(temporal, shape, iso).originalStart === originalStart);
     const validKey = originalStart === originalISO || originalStart === expectedStart || matchingRDate !== undefined;
     if (!validKey) continue;
@@ -280,40 +257,17 @@ export function expandEvent(
         const unmodifiedSeries = { ...event, recurrence: { ...recurrence, overrides: undefined } };
         isRuleDate = expandEvent(temporal, unmodifiedSeries, { start: originalISO, end: originalISO })
           .some((candidate) => candidate.originalStart === expectedStart);
-      } else {
-        for (const candidate of expandRule(temporal, expansionModel!, dtStart, excludedDates, {
-          windowStart: originalDate,
-          windowEnd: originalDate,
-        })) {
-          isRuleDate = candidate.toString() === originalISO;
-        }
-      }
+      } else isRuleDate = ruleStarts(temporal, event, model, { start: originalISO, end: originalISO }).includes(originalISO);
     }
     if (isRDate && matchingRDate) extraTimes.push(extraOccurrenceTimes(temporal, shape, matchingRDate));
-    else if (isRDate || isRuleDate) dates.push(originalDate);
+    else if (isRDate || isRuleDate) ruleTimes.push(occurrenceTimes(temporal, shape, originalDate));
   }
 
-  // dedup + sort
-  const seenKeys = new Set<string>();
-  const uniqueDates = dates
-    .filter((date) => {
-      const key = date.toString();
-      const alreadySeen = seenKeys.has(key);
-      if (alreadySeen) return false;
-      seenKeys.add(key);
-      return true;
-    })
-    .sort((left, right) => temporal.PlainDate.compare(left, right));
-
   const results: EventOccurrence[] = [];
-  const ruleTimes = uniqueDates.map((date) => occurrenceTimes(temporal, shape, date)).filter((times) => {
-    const pastTimedUntil = !shape.allDay && pastUntil(times.originalStart);
-    return !pastTimedUntil;
-  });
   const uniqueTimes = new Map([...ruleTimes, ...extraTimes].map((times) => [times.originalStart, times]));
   for (const times of [...uniqueTimes.values()].sort((left, right) => left.originalStart.localeCompare(right.originalStart))) {
     if (excludedStarts.has(times.originalStart)) continue;
-    const excludedInstant = !shape.allDay && excludedInstants.has(zonedStart(temporal, times.originalStart, shape.timeZone).toInstant().toString());
+    const excludedInstant = !shape.allDay && excludedInstants.size > 0 && excludedInstants.has(zonedStart(temporal, times.originalStart, shape.timeZone).toInstant().toString());
     if (excludedInstant) continue;
     const occurrenceEvent: CalendarEvent = {
       ...event,
@@ -322,7 +276,7 @@ export function expandEvent(
     const effectiveEvent = applyOverride(occurrenceEvent, recurrence, times.originalStart);
     const isCancelled = effectiveEvent === null;
     if (isCancelled) continue;
-    const isMaster = times.originalStart === occurrenceTimes(temporal, shape, dtStart).originalStart;
+    const isMaster = times.originalStart === masterStart;
     results.push({
       event: effectiveEvent,
       masterId: event.id,

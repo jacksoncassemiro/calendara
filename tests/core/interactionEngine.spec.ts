@@ -77,6 +77,10 @@ class FakeElement {
     return matches;
   }
 
+  querySelector(selector: string): FakeElement | null {
+    return this.querySelectorAll(selector)[0] ?? null;
+  }
+
   getBoundingClientRect(): FakeRect {
     return this.rect;
   }

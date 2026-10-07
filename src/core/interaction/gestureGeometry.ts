@@ -70,6 +70,12 @@ export function computeMoveDraft(
 	slotMinutes: number,
 	bounds: GridBounds,
 ): DraftGeometry {
+	if (pointer.dateOnly && !origin.allDay) {
+		const grabbedDays = Math.round((grabOffsetMin + origin.startMin) / 1440);
+		const dateISO = shiftCalendarDate(pointer.dateISO, -grabbedDays);
+		return { dateISO, startMin: origin.startMin, endMin: origin.endMin,
+			endDateISO: shiftCalendarDate(dateISO, calendarDayOffset(origin.dateISO, origin.endDateISO ?? origin.dateISO)) };
+	}
 	if (origin.allDay) {
 		const durationDays = Math.max(1, calendarDayOffset(origin.dateISO, origin.endDateISO!));
 		const start = normalizeCalendarMinute(pointer.dateISO, -grabOffsetMin).dateISO;
@@ -105,6 +111,12 @@ export function computeResizeDraft(
 	minDurationMin: number,
 	bounds: GridBounds,
 ): DraftGeometry {
+	if (pointer.dateOnly && !origin.allDay) {
+		const endDate = shiftCalendarDate(pointer.dateISO, origin.endMin === 0 ? 1 : 0);
+		const requestedEnd = calendarDayOffset(origin.dateISO, endDate) * 1440 + origin.endMin;
+		const end = normalizeCalendarMinute(origin.dateISO, Math.max(requestedEnd, origin.startMin + minDurationMin));
+		return { dateISO: origin.dateISO, startMin: origin.startMin, endDateISO: end.dateISO, endMin: end.minute };
+	}
 	if (origin.allDay) {
 		const days = Math.max(1, calendarDayOffset(origin.dateISO, pointer.dateISO) + 1);
 		return withResource({ dateISO: origin.dateISO, startMin: 0, endMin: 0,

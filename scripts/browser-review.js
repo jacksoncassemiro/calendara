@@ -13,6 +13,7 @@ async page => {
   };
   const check = (condition, message) => { if (!condition) throw new Error(message); results.push(message); };
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('combobox',{name:'Espaçamento',exact:true}).selectOption('1');
   await page.getByRole('button', { name: 'Voltar ao exemplo', exact: true }).click();
   await page.getByRole('button', { name: 'Semana', exact: true }).click();
   await page.locator('[data-mc-event]').first().waitFor();
@@ -36,22 +37,40 @@ async page => {
   });
   check(civilComparison, 'Motor experimental: mesmas ocorrências/exceções no browser com Temporal global indisponível');
   check(await page.locator('[data-mc-day]').count() === 7, 'Semana: sete colunas');
-  check(await page.locator('[data-mc-allday-event]').count() === 3, 'Evento all-day: três dias e fim exclusivo');
+  check(await page.locator('[data-mc-allday-event]').count() === 1 && await page.locator('[data-mc-allday-event]').getAttribute('data-mc-allday-dates') === '2026-10-06 2026-10-07 2026-10-08', 'Evento all-day: barra contínua de três dias e fim exclusivo');
   check(await page.locator('[data-mc-event^="plantao@"]').count() === 2, 'Evento noturno: dois segmentos');
   // Move and resize the whole all-day interval through actual pointer surfaces.
+  await page.getByRole('checkbox', { name: 'Aplicar restrições de horário' }).uncheck();
   const allDayStart = page.locator('[data-mc-allday-cell="2026-10-06"] [data-mc-allday-event]');
   const a = await allDayStart.boundingBox();
-  const targetCell = await page.locator('[data-mc-allday-cell="2026-10-07"]').boundingBox();
+  const targetCell = await page.locator('[data-mc-allday-cell="2026-10-08"]').boundingBox();
   await page.mouse.move(a.x + 15, a.y + 10); await page.mouse.down();
   await page.mouse.move(targetCell.x + 15, a.y + 10, {steps:8}); await page.mouse.up();
-  await page.waitForFunction(()=>!document.querySelector('[data-mc-allday-cell="2026-10-06"] [data-mc-allday-event]') && !!document.querySelector('[data-mc-allday-cell="2026-10-09"] [data-mc-allday-event]'));
-  check(await page.locator('[data-mc-allday-event]').count() === 3, 'All-day drag: preserva duração e fim exclusivo');
-  const resizeAllDay = await page.locator('[data-mc-allday-cell="2026-10-09"] [data-mc-resize]').boundingBox();
-  const lastCell = await page.locator('[data-mc-allday-cell="2026-10-10"]').boundingBox();
+  await page.waitForFunction(()=>!document.querySelector('[data-mc-allday-cell="2026-10-06"] [data-mc-allday-event]') && !!document.querySelector('[data-mc-allday-dates~="2026-10-10"]'),null,{timeout:5000})
+    .catch(async()=>{throw new Error(`All-day move: ${await page.evaluate(()=>JSON.stringify({feedback:document.querySelector('.demo-feedback')?.textContent,days:[...document.querySelectorAll('[data-mc-allday-event]')].map(x=>x.parentElement.dataset.mcAlldayCell)}))}`);});
+  check(await page.locator('[data-mc-allday-event]').getAttribute('data-mc-allday-dates') === '2026-10-08 2026-10-09 2026-10-10', 'All-day drag: preserva duração e fim exclusivo');
+  const resizeAllDay = await page.locator('[data-mc-allday-dates~="2026-10-10"] [data-mc-resize]').boundingBox();
+  const lastCell = await page.locator('[data-mc-allday-cell="2026-10-11"]').boundingBox();
   await page.mouse.move(resizeAllDay.x + 4, resizeAllDay.y + 5); await page.mouse.down();
   await page.mouse.move(lastCell.x + 15, resizeAllDay.y + 5, {steps:8}); await page.mouse.up();
-  await page.waitForFunction(()=>document.querySelectorAll('[data-mc-allday-event]').length===4);
+  await page.waitForFunction(()=>document.querySelector('[data-mc-allday-event]')?.getAttribute('data-mc-allday-dates')==='2026-10-08 2026-10-09 2026-10-10 2026-10-11',null,{timeout:5000})
+    .catch(async()=>{throw new Error(`All-day resize: ${await page.locator('.demo-feedback').textContent()}`);});
   results.push('All-day resize: expande o intervalo completo');
+  // Move a timed overnight event to another date, preserving its full duration.
+  await page.locator('[data-mc-day="2026-10-07"] [data-mc-event^="plantao@"]').scrollIntoViewIfNeeded();
+  const overnight = await page.locator('[data-mc-day="2026-10-07"] [data-mc-event^="plantao@"]').boundingBox();
+  const nextDay = await page.locator('[data-mc-day="2026-10-08"]').boundingBox();
+  await page.mouse.move(overnight.x + 15, overnight.y + 10); await page.mouse.down();
+  await page.mouse.move(nextDay.x + 15, overnight.y + 10, {steps:8}); await page.mouse.up();
+  await page.waitForFunction(()=>!!document.querySelector('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"][data-mc-end-min="540"]'));
+  results.push('Multiday drag: preserva início e duração de todas as partes');
+  await page.locator('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"] [data-mc-resize]').scrollIntoViewIfNeeded();
+  const overnightHandle = await page.locator('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"] [data-mc-resize]').boundingBox();
+  await page.mouse.move(overnightHandle.x+10,overnightHandle.y+2);await page.mouse.down();
+  await page.mouse.move(overnightHandle.x+10,overnightHandle.y+62,{steps:8});await page.mouse.up();
+  await page.waitForFunction(()=>!!document.querySelector('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"][data-mc-end-min="600"]'));
+  results.push('Multiday resize: altera o fim sem truncar o início');
+  await page.getByRole('checkbox', { name: 'Aplicar restrições de horário' }).check();
   await page.screenshot({ path: 'output/playwright/react-desktop.png', fullPage: true });
   for (const [button, selector] of [['Dia', '[data-mc-day]'], ['Mês', '[data-mc-month-day]'], ['Agenda', '[data-mc-list-item]'], ['Recursos', '[data-mc-resource]'], ['Linha do tempo', '[data-mc-timeline-row]'], ['3 dias', '[data-mc-day]']]) {
     await page.getByRole('button', { name: button, exact: true }).click();
@@ -111,7 +130,7 @@ async page => {
   await page.mouse.click(column.x + column.width / 2, column.y + 540);
   await page.getByRole('textbox', { name: 'Título', exact: true }).fill('Conflito recusado');
   await page.getByLabel('Início', { exact: true }).fill('2026-10-07T15:00');
-  await page.getByLabel('Fim', { exact: true }).fill('2026-10-07T15:30');
+  await page.getByLabel('Término', { exact: true }).fill('2026-10-07T15:30');
   await page.getByRole('checkbox', { name: 'Sala 1', exact: true }).check();
   await page.getByRole('button', { name: 'Salvar evento' }).click();
   await page.getByRole('alert').filter({ hasText: 'over-capacity' }).waitFor();
@@ -151,6 +170,24 @@ async page => {
   for (let index = 0; index < 6; index++) await page.getByRole('button', { name: 'Próximo período', exact: true }).click();
   await page.locator('[data-mc-event][title="Retorno semanal"]').waitFor();
   check(await page.locator('[data-mc-event][title="Ocorrência revisada"]').count() === 0, 'Recorrência: edição isolada preserva próxima ocorrência');
+  await page.locator('[data-mc-event][title="Retorno semanal"]').first().focus();
+  await page.keyboard.press('Enter');
+  await page.getByLabel('Aplicar alterações').selectOption('following');
+  await page.getByRole('textbox', { name: 'Título', exact: true }).fill('Retornos futuros');
+  await page.getByRole('button', { name: 'Salvar evento' }).click();
+  await page.locator('[data-mc-event][title="Retornos futuros"]').waitFor();
+  for (let index = 0; index < 7; index++) await page.getByRole('button', { name: 'Próximo período', exact: true }).click();
+  await page.locator('[data-mc-event][title="Retornos futuros"]').waitFor();
+  results.push('Este e seguintes: edição aplicada à próxima ocorrência');
+  await page.locator('[data-mc-event][title="Retornos futuros"]').first().focus();
+  await page.keyboard.press('Enter');
+  await page.getByLabel('Aplicar alterações').selectOption('following');
+  await page.getByRole('button', { name: 'Excluir evento', exact: true }).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+  check(await page.locator('[data-mc-event][title="Retornos futuros"]').count() === 0, 'Este e seguintes: exclusão remove ocorrência atual');
+  for (let index = 0; index < 14; index++) await page.getByRole('button', { name: 'Período anterior', exact: true }).click();
+  await page.locator('[data-mc-event][title="Ocorrência revisada"]').waitFor();
+  results.push('Este e seguintes: edição/exclusão preservam override passado');
   await page.getByRole('button', { name: 'Voltar ao exemplo', exact: true }).click();
   await page.getByRole('button', { name: 'Desmontar calendário' }).click();
   check(await page.locator('[data-mc-root]').count() === 0, 'Unmount: DOM removido');
@@ -169,7 +206,35 @@ async page => {
   }
   await page.setViewportSize({ width: 375, height: 850 });
   await changeView('Dia');
+  await page.locator('[data-mc-view="day"]').first().waitFor();
+  await changeView('Mês');
+  await page.locator('[data-mc-month-day="2026-10-07"] button').click();
+  await page.keyboard.press('ArrowDown');
+  check(await page.evaluate(() => document.activeElement?.closest('[data-mc-month-day]')?.getAttribute('data-mc-month-day')) === '2026-10-14',
+    'Mês mobile/teclado: seta vertical avança uma semana');
+  await page.locator('[data-mc-month-day="2026-10-07"] button').click();
+  await page.locator('[data-mc-month-detail-event]').first().waitFor();
+  check(await page.locator('[data-mc-month-detail-event]').count() > 0,'Mês mobile: seleciona dia e mostra lista de eventos');
+  await page.screenshot({ path:'output/playwright/react-mobile-month.png',fullPage:true });
+  await page.locator('[data-mc-month-detail-event]').first().focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('dialog').waitFor();
+  check(await page.getByRole('textbox',{name:'Título',exact:true}).isVisible(),'Mobile/teclado: abre editor para reagendamento');
+  await page.screenshot({ path:'output/playwright/react-mobile-editor.png',fullPage:true });
+  await page.getByRole('button',{name:'Cancelar',exact:true}).click();
+  await changeView('Dia');
   await page.screenshot({ path: 'output/playwright/react-mobile.png', fullPage: true });
+  const slot = page.locator('[data-mc-cell-start]').first();
+  await slot.focus();
+  const before = await slot.getAttribute('data-mc-cell-start');
+  await page.keyboard.press('ArrowDown');
+  check(await page.evaluate(() => document.activeElement?.getAttribute('data-mc-cell-start')) !== before,
+    'Teclado/mobile: seta navega para próximo horário');
+  await page.locator('[data-mc-cell-start="1140"]').first().focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('dialog').waitFor();
+  check(await page.getByRole('textbox', { name: 'Título', exact: true }).isVisible(), 'Teclado: seleção abre editor de criação');
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   if (runtimeErrors.length) throw new Error(`Browser errors: ${runtimeErrors.join('; ')}`);
   return { results, responsive: mobile, runtimeErrors };
 }

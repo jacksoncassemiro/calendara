@@ -50,6 +50,7 @@ export function* expandRule(
 	// Expanded years/non-Gregorian inputs retain the established Temporal path.
 	const dates = [dtstart, options.windowStart, options.windowEnd].filter(Boolean) as PlainDate[];
 	if (dates.some(date => !/^\d{4}-/.test(date.toString()) || date.calendarId !== 'iso8601')) {
+		if (model.byYearDay?.length) throw new RangeError('BYYEARDAY requires four-digit ISO Gregorian dates');
 		yield* expandTemporalRule(temporal, model, dtstart, exDates, options);
 		return;
 	}

@@ -23,7 +23,7 @@ import {
   type ResourceColumnData,
 } from '../../core/index.js';
 import { layoutDay, type GeoGrid } from '../../core/index.js';
-import { formatDate, formatHourLabel } from './format.js';
+import { formatDate, formatHourLabel, timeLabelStep } from './format.js';
 import { occurrenceEditableForDay } from './occurrenceDays.js';
 import { GUTTER_PX, toPx, segmentStyle } from './utils.js';
 import { resolveHour } from '../../core/index.js';
@@ -62,6 +62,28 @@ function geometryGridOf(context: ViewRenderContext): GeoGrid {
     minEventMinutes: context.options.minEventMinutes,
     gutter: 0,
   };
+}
+
+function ResourceAllDay({ column, context }: { column: ResourceColumnData; context: ViewRenderContext }): JSX.Element {
+  return <div className="mc-resource-allday" data-mc-allday-cell={column.day.dateISO} data-mc-slot-resource={column.resource.id}>
+    {column.day.allDay.map((occurrence) => {
+      const event = occurrence.event;
+      const editable = event.editable !== false;
+      return <div key={`${occurrence.masterId}@${occurrence.originalStart}`} className="mc-allday-event"
+        data-mc-event={`${occurrence.masterId}@${occurrence.originalStart}`} data-mc-start-min="0" data-mc-end-min="0"
+        data-mc-editable={editable ? 'true' : 'false'} title={event.title}
+        role={context.onEventClick ? 'button' : undefined} tabIndex={context.onEventClick ? 0 : undefined}
+        onClick={(click) => { if (click.detail === 0) context.onEventClick?.(occurrence); }}
+        onKeyDown={(key) => {
+          if (key.target === key.currentTarget && (key.key === 'Enter' || key.key === ' ')) {
+            key.preventDefault(); context.onEventClick?.(occurrence);
+          }
+        }}>
+        {context.renderEvent ? context.renderEvent({ occurrence, event, timeLabel: '', isAllDay: true }) : event.title}
+        {editable && <span className="mc-allday-resize" data-mc-resize="end" aria-hidden="true" />}
+      </div>;
+    })}
+  </div>;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,7 +152,7 @@ function ResourceGrid(props: {
   const showNowLine = isToday && nowWithinGrid;
 
   const hourLabels: { minute: number; label: string }[] = [];
-  for (let minute = gridTopMin; minute <= gridBottomMin; minute += options.slotMinutes) {
+  for (let minute = gridTopMin; minute <= gridBottomMin; minute += timeLabelStep(options)) {
     hourLabels.push({ minute, label: formatHourLabel(minute, options.locale) });
   }
 
@@ -159,6 +181,12 @@ function ResourceGrid(props: {
           ))}
         </div>
 
+        {columns.some((column) => column.day.allDay.length > 0) && <div className="mc-resource-allday-row" style={{ display: 'flex' }}>
+          <div style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}>Dia inteiro</div>
+          {columns.map((column) => <div key={column.resource.id} style={{ flex: '1 1 0', minWidth: 0 }}>
+            <ResourceAllDay column={column} context={context} />
+          </div>)}
+        </div>}
         <div className="mc-body" style={{ display: 'flex', position: 'relative' }}>
           <div
             className="mc-time-axis"
@@ -181,6 +209,7 @@ function ResourceGrid(props: {
               <ResourceColumn
                 key={column.resource.id}
                 column={column}
+                first={column === columns[0]}
                 context={context}
                 bodyHeight={bodyHeight}
                 hourMinutes={hourLabels.map((hourLabel) => hourLabel.minute)}
@@ -199,6 +228,7 @@ function ResourceGrid(props: {
 
 
 function ResourceColumn(props: {
+  first: boolean;
   column: ResourceColumnData;
   context: ViewRenderContext;
   bodyHeight: number;
@@ -221,6 +251,9 @@ function ResourceColumn(props: {
       data-mc-slot-resource={column.resource.id}
       style={{ flex: '1 1 0', position: 'relative', height: toPx(bodyHeight), touchAction: 'pan-x pan-y' }}
     >
+      <SlotCells dateISO={column.day.dateISO} resourceId={column.resource.id} first={props.first}
+        startMin={resolveHour(context.options.startHour) * 60} endMin={resolveHour(context.options.endHour) * 60}
+        slotMinutes={context.options.slotMinutes} pxPerMinute={pxPerMinute} locale={context.options.locale} />
       {column.day.nonBusiness.map((segment, index) => (
         <div
           key={`nonbusiness-${index}`}
@@ -287,12 +320,12 @@ function ResourceColumn(props: {
               left: `${block.left * 100}%`,
               width: `${block.width * 100}%`,
               ...(editable ? { touchAction: 'none' } : {}),
-              ...(event.color ? { borderLeft: `3px solid ${event.color}` } : {}),
+              ...(event.color ? { boxShadow: `inset 3px 0 0 ${event.color}, inset 0 0 0 1px var(--mc-color-event-border)` } : {}),
             }}
           >
-            {context.renderEvent
+            <div className="mc-event-content">{context.renderEvent
               ? context.renderEvent({ occurrence: placement.occurrence, event, timeLabel, isAllDay: false })
-              : createElement('span', { className: 'mc-event-title' }, `${timeLabel} ${event.title}`)}
+              : createElement('span', { className: 'mc-event-title' }, `${timeLabel} ${event.title}`)}</div>
             {editable && (
               <div
                 className="mc-resize-handle"
@@ -408,6 +441,9 @@ function Timeline(props: {
   const gridEndMin = endHour * 60;
   const trackWidth = (gridEndMin - gridStartMin) * options.pxPerMinute;
   const minuteToX = (minuteOfDay: number): number => (minuteOfDay - gridStartMin) * options.pxPerMinute;
+  const now = context.temporal.Instant.fromEpochMilliseconds(context.nowMs).toZonedDateTimeISO(options.timeZone);
+  const nowMinute = now.hour * 60 + now.minute;
+  const showNow = now.toPlainDate().toString() === day.toString() && nowMinute >= gridStartMin && nowMinute <= gridEndMin;
 
   const columns = buildResourceColumns(
     context.temporal,
@@ -421,7 +457,8 @@ function Timeline(props: {
   );
 
   const hourLabels: { minute: number; label: string }[] = [];
-  for (let minute = gridStartMin; minute <= gridEndMin; minute += options.slotMinutes) {
+  const labelStep = timeLabelStep(options,true);
+  for (let minute = gridStartMin; minute < gridEndMin; minute += labelStep) {
     hourLabels.push({ minute, label: formatHourLabel(minute, options.locale) });
   }
 
@@ -450,12 +487,12 @@ function Timeline(props: {
           const lanes = assignLanes(
             column.day.timed.filter((placement) => placement.startMin < gridEndMin && placement.endMin > gridStartMin).map((placement) => ({
               id: placement.id,
-              startMin: placement.startMin,
-              endMin: placement.endMin,
+              startMin: Math.max(placement.startMin, gridStartMin),
+              endMin: Math.min(gridEndMin, Math.max(placement.endMin, Math.max(placement.startMin, gridStartMin) + options.minEventMinutes)),
             })),
           );
           const laneCount = Math.max(1, ...[...lanes.values()].map((lane) => lane + 1));
-          const rowHeight = laneCount * TIMELINE_ROW_PX;
+          const rowHeight = Math.max(laneCount * TIMELINE_ROW_PX, 28 + column.day.allDay.length * 28);
           const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
           const rowDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
           return (
@@ -470,6 +507,7 @@ function Timeline(props: {
                 style={{ width: toPx(RESOURCE_LABEL_PX), flex: '0 0 auto' }}
               >
                 {column.resource.title}
+                <ResourceAllDay column={column} context={context} />
               </div>
               <div
                 className="mc-timeline-track"
@@ -484,12 +522,22 @@ function Timeline(props: {
                   touchAction: 'pan-x pan-y',
                 }}
               >
+                <SlotCells dateISO={column.day.dateISO} resourceId={column.resource.id} first={column === columns[0]}
+                  startMin={gridStartMin} endMin={gridEndMin} slotMinutes={options.slotMinutes}
+                  pxPerMinute={options.pxPerMinute} locale={options.locale} horizontal />
+                {[
+                  {segments:column.day.nonBusiness, className:'mc-nonbusiness', attribute:'data-mc-nonbusiness'},
+                  {segments:column.bufferSegments, className:'mc-buffer', attribute:'data-mc-buffer'},
+                  {segments:column.day.blocked, className:'mc-blocked', attribute:'data-mc-blocked'},
+                ].flatMap(({segments,className,attribute})=>segments.map((segment,index)=><div
+                  key={`${className}-${index}`} className={className} {...{[attribute]:true}}
+                  style={{position:'absolute',top:0,bottom:0,left:toPx(minuteToX(segment.startMin)),width:toPx((segment.endMin-segment.startMin)*options.pxPerMinute)}} />))}
                 {[...lanes.entries()].map(([eventId, lane]) => {
                   const placement = placementById.get(eventId)!;
                   const event = placement.occurrence.event;
                   const timeLabel = formatHourLabel(placement.startMin, options.locale);
                   const left = minuteToX(Math.max(placement.startMin, gridStartMin));
-                  const clippedEnd = Math.min(placement.endMin, gridEndMin);
+                  const clippedEnd = Math.min(gridEndMin, Math.max(placement.endMin, Math.max(placement.startMin, gridStartMin) + options.minEventMinutes));
                   const width = Math.max(0, clippedEnd - Math.max(placement.startMin, gridStartMin)) * options.pxPerMinute;
                   const editable = occurrenceEditableForDay(placement.occurrence, column.day.dateISO, context);
                   return (
@@ -523,12 +571,12 @@ function Timeline(props: {
                         top: toPx(lane * TIMELINE_ROW_PX),
                         height: toPx(TIMELINE_ROW_PX - 4),
                         ...(editable ? { touchAction: 'none' } : {}),
-                        ...(event.color ? { borderLeft: `3px solid ${event.color}` } : {}),
+                        ...(event.color ? { boxShadow: `inset 3px 0 0 ${event.color}, inset 0 0 0 1px var(--mc-color-event-border)` } : {}),
                       }}
                     >
-                      {context.renderEvent
+                      <div className="mc-event-content">{context.renderEvent
                         ? context.renderEvent({ occurrence: placement.occurrence, event, timeLabel, isAllDay: false })
-                        : event.title}
+                        : event.title}</div>
                       {/* Alça na borda DIREITA: aqui o tempo cresce no eixo X. */}
                       {editable && (
                         <div
@@ -548,6 +596,8 @@ function Timeline(props: {
                     </div>
                   );
                 })}
+                {showNow && <div className="mc-now-line mc-timeline-now" data-mc-now
+                  style={{position:'absolute',top:0,bottom:0,left:toPx(minuteToX(nowMinute))}} />}
                 {rowDraft && (
                   <div
                     className={draftClass(rowDraft)}
@@ -571,3 +621,4 @@ function Timeline(props: {
     </div>
   );
 }
+import { SlotCells } from './SlotCells.js';

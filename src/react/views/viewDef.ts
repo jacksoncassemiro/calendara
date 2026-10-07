@@ -42,6 +42,16 @@ export interface EventSlotInfo {
 /** Slot opcional para renderizar o conteúdo de um evento. */
 export type EventRenderSlot = (info: EventSlotInfo) => ReactNode;
 
+export interface MonthMoreInfo {
+  dateISO: string;
+  occurrences: readonly EventOccurrence[];
+  hiddenOccurrences: readonly EventOccurrence[];
+  anchor: HTMLElement;
+  close(): void;
+  openView(viewName: string): void;
+}
+export type MonthMoreRenderSlot = (info: MonthMoreInfo) => ReactNode;
+
 /** Contexto completo entregue ao `render` da view (já com ocorrências expandidas no range). */
 export interface ViewRenderContext {
   /** Live resources supplied by the calendar; absent preserves factory resources. */
@@ -59,6 +69,10 @@ export interface ViewRenderContext {
   draft?: InteractionDraft;
   /** Slot custom para o conteúdo de evento (opcional). */
   renderEvent?: EventRenderSlot;
+  renderMonthMore?: MonthMoreRenderSlot;
+  /** Return false to replace the built-in opening behavior. */
+  onMonthMoreClick?: (info: MonthMoreInfo) => void | false;
+  openDateView?: (dateISO: string, viewName: string) => void;
   /** Callback de clique em evento (opcional; interação plena na Fase 4). */
   onEventClick?: (occurrence: EventOccurrence) => void;
   /** Callback de clique em data/slot vazio (opcional). */

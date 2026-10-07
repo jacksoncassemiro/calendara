@@ -22,6 +22,59 @@ const dateUtils = createDateUtils(temporal);
 const options = { ...DEFAULT_OPTIONS, timeZone: 'America/Sao_Paulo' };
 const mountedRoots = new Map<HTMLElement, Root>();
 
+describe('keyboard slot selection integrates with calendar validation', () => {
+  it('month: arrows move by week without creating an event until activation', () => {
+    const { element, onDateClick } = mount(monthView, []);
+    document.body.appendChild(element);
+    const first = element.querySelector<HTMLButtonElement>('[data-mc-month-day="2026-07-22"] button')!;
+    first.focus();
+    flushSync(() => first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })));
+    const target = document.activeElement as HTMLButtonElement;
+    expect(target.closest<HTMLElement>('[data-mc-month-day]')?.dataset.mcMonthDay).toBe('2026-07-29');
+    expect(onDateClick).not.toHaveBeenCalled();
+    expect(element.querySelectorAll('button.mc-month-daynum[tabindex="0"]')).toHaveLength(1);
+    target.click();
+    expect(onDateClick).toHaveBeenCalledWith('2026-07-29');
+    unmount(element);
+    element.remove();
+  });
+  for (const view of [dayView, createResourceDayView([]), createTimelineView([])]) {
+    it(`${view.name}: navigates the time axis, rejects a blocked slot and selects the next`, async () => {
+      const onDateSelect = vi.fn(), onClickBlocked = vi.fn();
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const app = new CalendarApp({ date: '2026-07-22', view: view.name, views: [view], temporal,
+        resources: [{ id: 'room', title: 'Sala' }],
+        options: { ...options, startHour: 9, endHour: 11, slotMinutes: 30 },
+        constraints: { blocked: [{ scope: 'time', date: '2026-07-22', startTime: '09:00', endTime: '09:30' }] },
+        onDateSelect, onClickBlocked,
+      });
+      try {
+        app.mount(container); await app.ready();
+        const first = container.querySelector<HTMLElement>('[data-mc-cell-start="540"]')!;
+        first.focus();
+        const press = (key: string) => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+        press('Enter');
+        expect(onDateSelect).not.toHaveBeenCalled();
+        expect(onClickBlocked).toHaveBeenCalledWith(expect.objectContaining({ reason: 'blocked', startMin: 540 }));
+        press(view.name === 'timeline' ? 'ArrowRight' : 'ArrowDown');
+        expect((document.activeElement as HTMLElement).dataset.mcCellStart).toBe('570');
+        press(' ');
+        expect(onDateSelect).toHaveBeenCalledTimes(1);
+        expect(onDateSelect).toHaveBeenCalledWith({ dateISO: '2026-07-22', startMin: 570, endMin: 600,
+          resourceId: view.name === 'day' ? undefined : 'room' });
+        expect(container.querySelectorAll('[data-mc-cell-start][tabindex="0"]')).toHaveLength(1);
+        const previous = container;
+        const remounted = document.createElement('div'); document.body.appendChild(remounted);
+        app.mount(remounted);
+        first.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(onClickBlocked).toHaveBeenCalledTimes(1);
+        previous.remove(); remounted.remove();
+      } finally { app.destroy(); container.remove(); }
+    });
+  }
+});
+
 function unmount(element: HTMLElement) {
   const root = mountedRoots.get(element);
   if (root) flushSync(() => root.unmount());
@@ -62,7 +115,8 @@ describe('Month and agenda interval rendering', () => {
       const { element } = mount(view, [occurrence({
         allDay: true, start: { date: '2026-07-21' }, end: { date: '2026-07-24' },
       })]);
-      expect(element.querySelectorAll(selector)).toHaveLength(3);
+      expect(element.querySelectorAll(selector)).toHaveLength(view.name==='month'?1:3);
+      if(view.name==='month') expect(element.querySelector(selector)?.getAttribute('data-mc-month-dates')).toBe('2026-07-21 2026-07-22 2026-07-23');
       unmount(element);
     });
 
@@ -72,8 +126,9 @@ describe('Month and agenda interval rendering', () => {
         start: { dateTime: '2026-07-21T23:00', timeZone: options.timeZone },
         end: { dateTime: '2026-07-23T00:00', timeZone: options.timeZone },
       })]);
-      expect(element.querySelectorAll(selector)).toHaveLength(2);
-      expect(element.querySelectorAll(selector)[1]?.textContent).toContain('00:00');
+      expect(element.querySelectorAll(selector)).toHaveLength(view.name==='month'?1:2);
+      if(view.name==='month') expect(element.querySelector(selector)?.getAttribute('data-mc-month-dates')).toBe('2026-07-21 2026-07-22');
+      else expect(element.querySelectorAll(selector)[1]?.textContent).toContain('00:00');
       unmount(element);
     });
 
@@ -202,7 +257,8 @@ describe('View ranges and formatting', () => {
     const { element, onEventClick } = mount(dayView, [timed, allDay]);
     const timedElement = element.querySelector<HTMLElement>('[data-mc-day] [data-mc-event]')!;
     expect(timedElement.style.backgroundColor).toBe('');
-    expect(timedElement.style.borderLeftColor).toBe('rgb(37, 99, 235)');
+    expect(timedElement.style.boxShadow).toContain('#2563eb');
+    expect(timedElement.style.borderLeftWidth).toBe('');
     timedElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(onEventClick).toHaveBeenLastCalledWith(timed);
     const allDayElement = element.querySelector<HTMLElement>('[data-mc-allday-event]')!;

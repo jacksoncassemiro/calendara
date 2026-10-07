@@ -32,6 +32,8 @@ export type DraftReason =
 
 /** Ponto do cursor projetado numa coluna: data do dia + minuto-do-dia. */
 export interface PointerSlot {
+	/** Day-grid pointer: changes dates while preserving the event's clock time. */
+	dateOnly?: boolean;
 	dateISO: string;
 	minuteOfDay: number;
 	allDay?: boolean;

@@ -1,5 +1,5 @@
 /**
- * @meucalendario/react — native React renderer, views and calendar controller.
+ * React components, views and controller of @meucalendario/calendar.
  */
 export { Calendar } from './Calendar.js';
 export { useCalendar, type UseCalendar } from './useCalendar.js';

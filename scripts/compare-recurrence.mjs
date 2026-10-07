@@ -14,9 +14,10 @@ import { iterateCivilDates } from '../dist/esm/core/recurrence/civilIterator.js'
 let checks = 0;
 for (const freq of ['DAILY','WEEKLY','MONTHLY','YEARLY']) for (const interval of [1,2,3])
 for (const filter of ['', ';BYDAY=MO,FR', ';BYMONTHDAY=1,-1', ';BYMONTH=2,7', ';BYDAY=MO,FR;BYSETPOS=-1'])
-for (const count of ['', ';COUNT=8']) for (const windowStart of ['2024-01-01','2025-06-10']) {
+for (const count of ['', ';COUNT=8']) for (const windowStart of ['2024-01-01','2024-02-28','2025-06-10','2026-12-31'])
+for (const dtStart of ['2024-01-03','2024-02-29','2024-12-31']) {
   const model = parseRRule(`FREQ=${freq};INTERVAL=${interval}${filter}${count}`);
-  const start = Temporal.PlainDate.from('2024-01-03');
+  const start = Temporal.PlainDate.from(dtStart);
   const options = {windowStart: Temporal.PlainDate.from(windowStart), windowEnd: Temporal.PlainDate.from('2026-12-31')};
   const reference = [...expandTemporalRule(Temporal,model,start,new Set(),options)].map(x=>x.toString());
   assert.deepEqual(expandRuleAll(Temporal,model,start,new Set(),10000,options).map(x=>x.toString()),reference,serializeRRule(model));
@@ -49,11 +50,13 @@ for (const [name,start,rule,from,to] of cases) {
       continue;
     }
     for(let i=0;i<2;i++)run();
-    const begin=performance.now();for(let i=0;i<10;i++)run();
-    timings[library]=+( (performance.now()-begin)/10 ).toFixed(3);
+    const samples=[];
+    for(let i=0;i<25;i++) { const begin=performance.now();run();samples.push(performance.now()-begin); }
+    samples.sort((a,b)=>a-b);
+    timings[library]={mean:+(samples.reduce((a,b)=>a+b,0)/samples.length).toFixed(3),median:+samples[12].toFixed(3),p95:+samples[23].toFixed(3)};
   }
   results.push({name,occurrences:expected.length,milliseconds:timings});
 }
-const report={checkedAt:new Date().toISOString(),node:process.version,differentialChecks:checks,iterations:10,results};
+const report={checkedAt:new Date().toISOString(),node:process.version,differentialChecks:checks,iterations:25,cache:false,results};
 writeFileSync('experiments/civil-recurrence/comparison.json',JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify(report,null,2));

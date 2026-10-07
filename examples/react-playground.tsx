@@ -1,8 +1,8 @@
 /** @jsxImportSource react */
 import { StrictMode, useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Calendar, useCalendar, createReactView, useCompactCalendar, createResourceDayView, createTimelineView, createNDaysView, type ViewRenderContext } from '@meucalendario/calendar';
-import { applyEventTimeChange, getTemporal, type CalendarEvent, type EventChange, type EventOccurrence } from '@meucalendario/calendar';
+import { CalendarEventEditor, Calendar, useCalendar, createReactView, useCompactCalendar, createResourceDayView, createTimelineView, createNDaysView, type ViewRenderContext } from '@meucalendario/calendar';
+import { applyEventTimeChange, getTemporal, splitEventSeries, type CalendarEvent, type EventChange, type EventOccurrence } from '@meucalendario/calendar';
 import '@meucalendario/calendar/styles.css';
 import './react-playground.css';
 
@@ -40,7 +40,9 @@ const views = [createResourceDayView(resources), createTimelineView(resources), 
 
 function App() {
   const { ref, api } = useCalendar();
-  const { containerRef, compact } = useCompactCalendar();
+  const { containerRef } = useCompactCalendar();
+  // Width changes alter layout, not a view the user explicitly selected.
+  const initialView = useRef(window.innerWidth < 640 ? 'day' : 'week');
   const [events, setEvents] = useState(initialEvents);
   const [rejectNext, setRejectNext] = useState(false);
   const [feedback, setFeedback] = useState('Selecione um horário livre ou abra um evento para editar.');
@@ -48,13 +50,16 @@ function App() {
   const [title, setTitle] = useState('');
   const [selection, setSelection] = useState<{ date: string; minute: number } | null>(null);
   const [mounted, setMounted] = useState(true);
-  const [businessHoursEnabled, setBusinessHoursEnabled] = useState(true);
+  const [businessHoursEnabled, setBusinessHoursEnabled] = useState(false);
   const [start, setStart] = useState(`${REF}T09:00`);
   const [end, setEnd] = useState(`${REF}T09:30`);
   const [allDay, setAllDay] = useState(false);
   const [editorResources, setEditorResources] = useState<string[]>([]);
   const [editorError, setEditorError] = useState('');
   const [visibleResource, setVisibleResource] = useState('');
+  const [timeScale,setTimeScale] = useState(1.5);
+  const [labelInterval,setLabelInterval] = useState(0);
+  const [moreBehavior,setMoreBehavior] = useState('popover');
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -94,73 +99,93 @@ function App() {
     </header>
     <section className="demo-tools" aria-label="Controles da demonstração">
       <label><input type="checkbox" checked={rejectNext} onChange={event => setRejectNext(event.target.checked)} /> Recusar próxima gravação</label>
-      <label><input type="checkbox" checked={businessHoursEnabled} onChange={event => setBusinessHoursEnabled(event.target.checked)} /> Limitar ao expediente</label>
+      <label><input type="checkbox" checked={businessHoursEnabled} onChange={event => setBusinessHoursEnabled(event.target.checked)} /> Aplicar restrições de horário</label>
       <label>Recurso visível<select value={visibleResource} onChange={event => setVisibleResource(event.target.value)}>
         <option value="">Todos os recursos</option>{resources.map(resource => <option key={resource.id} value={resource.id}>{resource.title}</option>)}
       </select></label>
       <button type="button" onClick={() => setMounted(value => !value)}>{mounted ? 'Desmontar calendário' : 'Montar calendário'}</button>
+      <label>Espaçamento<select value={timeScale} onChange={event=>setTimeScale(Number(event.target.value))}>
+        <option value={1}>Compacto · 30px/30min</option><option value={1.5}>Confortável · 45px/30min</option><option value={2}>Amplo · 60px/30min</option>
+      </select></label>
+      <label>Rótulos de horário<select value={labelInterval} onChange={event=>setLabelInterval(Number(event.target.value))}>
+        <option value={0}>Automático</option>
+        <option value={30}>A cada 30 minutos</option><option value={60}>A cada hora</option>
+      </select></label>
+      <label>Ver mais<select value={moreBehavior} onChange={event=>setMoreBehavior(event.target.value)}>
+        <option value="popover">Popover padrão</option><option value="custom">Conteúdo React personalizado</option><option value="day">Abrir view Dia</option>
+      </select></label>
     </section>
     <p className="demo-feedback" role="status">{feedback}</p>
     <section ref={containerRef} className="demo-calendar" aria-label="Agenda">
-      {mounted ? <Calendar apiRef={ref} date={REF} view={compact ? 'day' : 'week'} events={events} options={{ ...options, visibleResourceIds: visibleResource ? [visibleResource] : resources.map(resource => resource.id) }} constraints={businessHoursEnabled ? constraints : { blocked: constraints.blocked }} resources={resources} views={views}
+      {mounted ? <Calendar apiRef={ref} date={REF} view={initialView.current} events={events} options={{ ...options, pxPerMinute:timeScale, timeLabelInterval:labelInterval || undefined,monthMoreView:moreBehavior==='day'?'day':undefined, visibleResourceIds: visibleResource ? [visibleResource] : resources.map(resource => resource.id) }} constraints={businessHoursEnabled ? constraints : {}} resources={resources} views={views}
+        renderMonthMore={moreBehavior==='custom' ? info=><div className="demo-more-custom"><p>{info.occurrences.length} eventos nesta data</p>
+          {info.occurrences.map(occurrence=><button type="button" key={`${occurrence.masterId}@${occurrence.originalStart}`} onClick={()=>{info.close();openEditor(occurrence);}}>{occurrence.event.title}</button>)}
+          <button type="button" onClick={()=>info.openView('day')}>Abrir agenda do dia</button></div> : undefined}
         onEventDrop={commit} onEventResize={commit}
         onEventClick={openEditor}
         onDateClick={(date, minute = 9 * 60) => openCreate(date, minute)}
-        onDateSelect={selection => openCreate(selection.dateISO, selection.startMin, selection.endMin, selection.resourceId)}
-        onDropBlocked={info => setFeedback(`Movimento indisponível: ${info.reason}.`)}
+        onDateSelect={selection => {
+          if (selection.allDay) {
+            setEditing(null); setSelection({date:selection.dateISO,minute:0});
+            setAllDay(true);setStart(selection.dateISO);setEnd(selection.endDateISO!);
+            setEditorResources(selection.resourceId ? [selection.resourceId] : []);
+          } else openCreate(selection.dateISO, selection.startMin, selection.endMin, selection.resourceId);
+        }}
+        onDropBlocked={info => setFeedback(info.reason==='blocked' ? 'Alteração recusada: o intervalo atravessa um bloqueio. Desative “Aplicar restrições de horário” para experimentar livremente.'
+          : info.reason==='outside-business-hours' ? 'Alteração recusada: o intervalo ultrapassa o expediente. Desative “Aplicar restrições de horário” para experimentar livremente.'
+          : info.reason==='over-capacity' || info.reason==='buffer-conflict' ? 'Alteração recusada: a sala está ocupada ou o intervalo de preparação está em conflito.' : `Alteração recusada: ${info.reason}.`)}
         onClickBlocked={info => setFeedback(`Horário indisponível: ${info.reason}.`)}
       /> : <p>Calendário desmontado. Use “Montar calendário” para continuar.</p>}
     </section>
-    <p className="demo-note">Os dados ficam em memória. Arraste ou redimensione eventos de um dia; use as visualizações Dia e Lista em telas pequenas.</p>
+    <p className="demo-note">Os dados ficam em memória. Arraste ou redimensione o intervalo completo; abra o editor para reagendar por teclado ou no celular.</p>
     <dialog ref={dialogRef} className="demo-editor" aria-labelledby="editor-title" onCancel={closeEditor}>
-      <form onSubmit={event => {
-        const Temporal = getTemporal();
-        event.preventDefault();
-        if (!title.trim()) return;
-        if (!start || !end || end <= start) { setEditorError('O fim precisa ser posterior ao início.'); return; }
-        const time = allDay ? { allDay: true, start: { date: start.slice(0, 10) }, end: { date: end.slice(0, 10) } }
-          : { allDay: false, start: { dateTime: `${start}:00`, timeZone: TZ }, end: { dateTime: `${end}:00`, timeZone: TZ } };
-        const firstDay = Temporal.PlainDate.from(start.slice(0, 10));
-        const lastDay = Temporal.PlainDate.from(end.slice(0, 10));
-        for (let day = firstDay; Temporal.PlainDate.compare(day, lastDay) <= 0; day = day.add({ days: 1 })) {
-          const iso = day.toString();
-          const minuteOf = (value: string) => Number(value.slice(11, 13)) * 60 + Number(value.slice(14, 16));
-          const startMin = iso === firstDay.toString() ? minuteOf(start) : 0;
-          const endMin = iso === lastDay.toString() ? minuteOf(end) : 1440;
-          if (allDay && iso === lastDay.toString() || !allDay && endMin === 0) continue;
-          const constraint = api.evaluateSlot(allDay ? { date: iso } : { date: iso, startMin, endMin });
-          if (!constraint.valid) { setEditorError(`Horário indisponível em ${iso}: ${constraint.reason}.`); return; }
-          for (const resourceId of editorResources) {
-            const evaluation = api.evaluatePlacement({ dateISO: iso,
-              startMin: allDay ? 0 : startMin, endMin: allDay ? 1440 : endMin, resourceId,
-              ...(editing ? { occurrence: editing } : {}) });
-            if (!evaluation.valid) { setEditorError(`Recurso indisponível em ${iso}: ${evaluation.reason}.`); return; }
+      <h2 id="editor-title">{editing ? 'Editar evento' : 'Criar evento'}</h2>
+      {(editing || selection) && <CalendarEventEditor key={editing?.originalStart ?? selection?.date}
+        event={editing?.event ?? {id:'new',calendarId:'agenda',title:'',resourceIds:editorResources,time:allDay ? {allDay:true,start:{date:start},end:{date:end}} : {allDay:false,start:{dateTime:start,timeZone:TZ},end:{dateTime:end,timeZone:TZ}}}}
+        occurrence={editing ?? undefined} resources={resources} timeZone={TZ} onCancel={closeEditor}
+        validate={(draft) => {
+          const T=getTemporal(), time=draft.time;
+          const first=time.allDay ? time.start.date! : time.start.dateTime!.slice(0,10);
+          const last=time.allDay ? time.end.date! : time.end.dateTime!.slice(0,10);
+          const minute=(value:string)=>Number(value.slice(11,13))*60+Number(value.slice(14,16));
+          for(let day=T.PlainDate.from(first); day.toString()<=last; day=day.add({days:1})) {
+            const iso=day.toString();
+            const startMin=time.allDay ? 0 : iso===first ? minute(time.start.dateTime!) : 0;
+            const endMin=time.allDay ? 1440 : iso===last ? minute(time.end.dateTime!) : 1440;
+            if(time.allDay && iso===last || endMin<=startMin)continue;
+            const constraint=api.evaluateSlot(time.allDay ? {date:iso} : {date:iso,startMin,endMin});
+            if(!constraint.valid)return `Horário indisponível em ${iso}: ${constraint.reason}.`;
+            for(const resourceId of draft.resourceIds ?? []) {
+              const evaluation=api.evaluatePlacement({dateISO:iso,startMin,endMin,allDay:time.allDay,resourceId,...(editing?{occurrence:editing}:{})});
+              if(!evaluation.valid)return `Recurso indisponível em ${iso}: ${evaluation.reason}.`;
+            }
           }
-        }
-        if (editing) {
-          setEvents(current => current.map(item => item.id !== editing.masterId ? item : item.recurrence ? {
-            ...item, recurrence: { ...item.recurrence, overrides: { ...item.recurrence.overrides, [editing.originalStart]: { ...item.recurrence.overrides?.[editing.originalStart], title: title.trim(), time, resourceIds: editorResources } } },
-          } : { ...item, title: title.trim(), time, resourceIds: editorResources }));
-        } else if (selection) {
-          setEvents(current => [...current, { id: crypto.randomUUID(), calendarId: 'agenda', title: title.trim(), time, resourceIds: editorResources }]);
-        }
-        setFeedback(editing ? 'Evento atualizado.' : 'Evento criado.'); closeEditor();
-      }}>
-        <h2 id="editor-title">{editing ? 'Editar evento' : 'Criar evento'}</h2>
-        {editorError && <p role="alert">{editorError}</p>}
-        <label>Título<input autoFocus value={title} onChange={event => setTitle(event.target.value)} required /></label>
-        <label><span><input type="checkbox" checked={allDay} onChange={event => {
-          setAllDay(event.target.checked);
-          setStart(event.target.checked ? start.slice(0, 10) : `${start.slice(0, 10)}T09:00`);
-          setEnd(event.target.checked ? getTemporal().PlainDate.from(start.slice(0, 10)).add({ days: 1 }).toString() : `${end.slice(0, 10)}T09:30`);
-        }} /> Dia inteiro</span></label>
-        <label>Início<input type={allDay ? 'date' : 'datetime-local'} value={start} onChange={event => setStart(event.target.value)} required /></label>
-        <label>{allDay ? 'Fim (data exclusiva)' : 'Fim'}<input type={allDay ? 'date' : 'datetime-local'} value={end} onChange={event => setEnd(event.target.value)} required /></label>
-        <fieldset><legend>Recursos</legend>{resources.map(resource => <label key={resource.id}><span>
-          <input type="checkbox" checked={editorResources.includes(resource.id)} onChange={event => setEditorResources(current => event.target.checked ? [...current, resource.id] : current.filter(id => id !== resource.id))} /> {resource.title}
-        </span></label>)}</fieldset>
-        <div className="demo-actions"><button type="button" onClick={closeEditor}>Cancelar</button><button type="submit">Salvar evento</button></div>
-      </form>
+        }}
+        onSave={(draft,context) => {
+          if (editing && context.scope==='following') {
+            const master=events.find(item=>item.id===editing.masterId)!;
+            const split=splitEventSeries(getTemporal(),master,editing.originalStart,crypto.randomUUID(),draft);
+            setEvents(current=>[...current.filter(item=>item.id!==master.id),...(split.before?[split.before]:[]),split.following]);
+            setFeedback('Este evento e os seguintes foram atualizados.');closeEditor();return;
+          }
+          setEvents(current => editing ? current.map(item => item.id!==editing.masterId ? item :
+            context.scope==='occurrence' && item.recurrence ? {...item,recurrence:{...item.recurrence,overrides:{...item.recurrence.overrides,[editing.originalStart]:{title:draft.title,time:draft.time,resourceIds:draft.resourceIds}}}} : {...draft,id:item.id})
+            : [...current,{...draft,id:crypto.randomUUID()}]);
+          setFeedback(editing?'Evento atualizado.':'Evento criado.');closeEditor();
+        }}
+        onDelete={editing ? (_draft,context) => {
+          if(context.scope==='following') {
+            const master=events.find(item=>item.id===editing.masterId)!;
+            const split=splitEventSeries(getTemporal(),master,editing.originalStart,crypto.randomUUID());
+            setEvents(current=>[...current.filter(item=>item.id!==master.id),...(split.before?[split.before]:[])]);
+            setFeedback('Este evento e os seguintes foram excluídos.');closeEditor();return;
+          }
+          setEvents(current=> context.scope==='occurrence' && editing.event.recurrence
+            ? current.map(item=> item.id===editing.masterId ? {...item,recurrence:{...item.recurrence,overrides:{...item.recurrence?.overrides,[editing.originalStart]:{cancelled:true}}}} : item)
+            : current.filter(item=>item.id!==editing.masterId));
+          setFeedback('Evento excluído.');closeEditor();
+        } : undefined}
+      />}
     </dialog>
   </main>;
 }

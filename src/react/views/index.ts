@@ -5,6 +5,8 @@ export type {
   ViewRenderContext,
   EventSlotInfo,
   EventRenderSlot,
+  MonthMoreInfo,
+  MonthMoreRenderSlot,
   ToolbarContext,
   ToolbarRenderSlot,
 } from './viewDef.js';

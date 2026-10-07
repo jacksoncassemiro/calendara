@@ -1,134 +1,58 @@
-# projeto-calendario
+# Meu Calendário
 
-Biblioteca de calendário/agenda própria com prioridade em **React**, motores em TypeScript, bloqueios, horário comercial, recursos e recorrência via Temporal API. O renderer é React nativo; eventos, toolbar e views personalizadas pertencem à árvore React do consumidor e compartilham seus providers.
+Biblioteca React nativa de calendário e agenda. **Um único pacote**, com motores TypeScript internos e CSS personalizável por tokens. Versão 0.0.0 em desenvolvimento; publicação no registry ainda não efetuada.
 
-> **Status:** em desenvolvimento, com auditoria e regressões automatizadas. Views Dia/Semana/Mês/N-dias/Agenda/Recursos/Timeline disponíveis; drag/resize limitado a eventos timed contidos em um dia. Não há paridade completa com concorrentes. Consulte a [revisão de arquitetura e recursos](docs/06-REVISAO-COMPETITIVA.md) e o [estado do projeto](docs/00-STATUS.md).
+## Consumo
 
-## Pacotes
-
-| Pacote | O quê |
-|---|---|
-| `@meucalendario/core` | motores de datas, subconjunto de recorrência RFC 5545, constraints, geometria e ocupação; sem renderer ou dependência de React. |
-| `@meucalendario/react` | `<Calendar/>`, views, controlador `CalendarApp`, `useCalendar`, `createReactView`, `useCompactCalendar`. |
-| `@meucalendario/styles` | tema padrão (tokens `--mc-*` + classes `mc-*`). Ver [`docs/04-ESTILIZACAO.md`](docs/04-ESTILIZACAO.md). |
-
-## Instalação
-
-Os pacotes estão na versão de desenvolvimento `0.0.0`; publicação em registry não foi validada. As instruções abaixo descrevem o consumo após empacotamento/publicação ou em um workspace.
-
-```bash
-yarn add @meucalendario/react @meucalendario/core @meucalendario/styles react react-dom
-# fallback para ambientes sem Temporal (dependência já declarada pelo core):
-yarn add @js-temporal/polyfill
+```sh
+yarn add @meucalendario/calendar react react-dom
 ```
 
-## Uso — React
-
 ```tsx
-import { Calendar, useCalendar } from '@meucalendario/react';
-import '@meucalendario/styles';
-import type { CalendarEvent } from '@meucalendario/core';
+import {Calendar, useCalendar, type CalendarEvent} from '@meucalendario/calendar';
+import '@meucalendario/calendar/styles.css';
 
 const events: CalendarEvent[] = [{
-  id: 'e1', calendarId: 'c1', title: 'Consulta',
-  time: {
-    allDay: false,
-    start: { dateTime: '2026-07-22T09:00:00', timeZone: 'America/Sao_Paulo' },
-    end:   { dateTime: '2026-07-22T10:00:00', timeZone: 'America/Sao_Paulo' },
-  },
+  id:'consulta', calendarId:'agenda', title:'Consulta',
+  time:{allDay:false,
+    start:{dateTime:'2026-10-07T09:00:00',timeZone:'America/Sao_Paulo'},
+    end:{dateTime:'2026-10-07T10:00:00',timeZone:'America/Sao_Paulo'}}
 }];
-
 export function Agenda() {
-  const { ref, api } = useCalendar();
-  return (
-    <>
-      <button onClick={() => api.prev()}>‹</button>
-      <button onClick={() => api.today()}>Hoje</button>
-      <button onClick={() => api.next()}>›</button>
-
-      <Calendar
-        apiRef={ref}
-        view="week"
-        date="2026-07-22"
-        events={events}
-        options={{ timeZone: 'America/Sao_Paulo', startHour: 7, endHour: 20 }}
-        constraints={{
-          businessHours: [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: '08:00', endTime: '18:00' }],
-          blocked: [{ scope: 'time', date: '2026-07-22', startTime: '12:00', endTime: '13:00' }],
-        }}
-        onEventDrop={(change) =>
-          // persista; retorne false / rejeite para REVERTER o movimento otimista.
-          saveNewTime(change.occurrence.masterId, change.startDateTime, change.endDateTime)
-        }
-        onDateSelect={(sel) => openCreateModal(sel.dateISO, sel.startMin, sel.endMin)}
-        onDropBlocked={(info) => toast(`Movimento inválido: ${info.reason}`)}
-      />
-    </>
-  );
+  const {ref,api}=useCalendar();
+  return <><button onClick={()=>api.today()}>Hoje</button>
+    <Calendar apiRef={ref} events={events} date="2026-10-07" view="week"
+      options={{timeZone:'America/Sao_Paulo'}} /></>;
 }
 ```
 
-O controlador acompanha o ciclo de montagem. Mudanças de props são agrupadas; dados equivalentes não geram uma nova derivação. `renderEvent`, `customToolbar` e views de `createReactView` aceitam conteúdo React e herdam o contexto diretamente. Trate eventos e opções como dados imutáveis. `resources` habilita validação de lotação/buffer no drag. O consumidor deve persistir alterações e exceções de recorrência em seu estado.
+Props devem ser imutáveis. Mudanças são agrupadas e dados equivalentes deduplicados. Para persistir movimentos controlados, use onEventDrop/onEventResize e applyEventTimeChange no seu estado; retornar false/rejeitar reverte o commit otimista. A biblioteca não grava no servidor.
 
-## Organização interna
+## Recursos atuais
 
-Os motores TypeScript são independentes do renderer. Os três pacotes atuais ainda são empacotados separadamente; React nativo não exige essa divisão. A recomendação para simplificar o consumo é um único pacote público com módulos internos de motor, componentes e estilos. Essa consolidação ainda não foi implementada. A interface visual atual requer React.
+- Dia, semana, mês, agenda, N dias, recursos e timeline; createReactView para views próprias com hooks/providers React.
+- Drag/resize de eventos timed entre dias e de intervalos all-day na faixa de dias; transferência entre recursos, constraints, capacidade/buffers e rollback concorrente.
+- CalendarEventEditor opcional para criação/edição/reagendamento/exclusão, ocorrência/esta e seguintes/série, recursos e validação assíncrona. Forneça validate/onSave/onDelete; monte com key da ocorrência ao trocar de evento. splitEventSeries divide o mestre em passado e nova série futura; veja examples/react-playground.tsx.
+- Mês compacto com lista do dia, toolbar compacta, useCompactCalendar e rolagem interna. O editor oferece alternativa ao gesto de arrastar.
+- Mês desktop com drag/resize, limite de três eventos por dia e botão “+N mais” que abre a lista completa. Configure `options.monthMaxEvents` com um inteiro (inclusive zero) ou `false` para mostrar todos; no celular a lista permanece completa.
+- Setas e Home/End navegam pelos horários em dia/semana/recursos/timeline e pelos dias do mês. Enter/Espaço selecionam um horário respeitando constraints e capacidade; eventos podem ser ativados pelo teclado.
+- Recorrência com rrule-temporal 2.2.8 integrada a RDATE, EXDATE, cancelamentos e overrides. Contrato público: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST e BYYEARDAY (YEARLY). Não expõe ainda todos os campos/frequências suportados pela dependência.
+- CSS público em styles.css com tokens --mc-*. Não é necessário instalar Tailwind.
 
-## Interação, recorrência, estilização, a11y
+O motor sem interface pode ser importado por **@meucalendario/calendar/core**, entrada do mesmo pacote. iterateCivilDates(model,dtStart,window) permanece como utilitário independente de datas ISO sem Temporal. A expansão dos eventos usa rrule-temporal; a composição de duração/overrides e o restante do calendário ainda usam Temporal, com polyfill carregado sob demanda. A dependência contém também seu fallback interno; esta migração não elimina polyfills nem reduz o bundle. Início de série num gap DST é rejeitado explicitamente.
 
-- **Interação** (views de time-grid): `onEventDrop`/`onEventResize` (retornar `false`/rejeitar ⇒ **revert**), `onDateSelect`, `onDropBlocked`/`onClickBlocked`. Validade = `ConstraintEngine` (horário comercial/bloqueios/allowed) **+** ocupação do recurso (lotação por `capacity`, `bufferBefore`/`bufferAfter`).
-- **Recorrência:** motor próprio sobre Temporal para DAILY/WEEKLY/MONTHLY/YEARLY. Não implementa todo o RFC 5545; confira as limitações na revisão. Polyfill carregado quando Temporal não está disponível. `rrule.js` é usado como oráculo de testes, fora do bundle de produção.
-- **Estilização:** `import '@meucalendario/styles'` e redefina tokens `--mc-*` sob `[data-mc-root]`. Guia: [`docs/04-ESTILIZACAO.md`](docs/04-ESTILIZACAO.md).
-- **Acessibilidade:** toolbar com `role="toolbar"`, `aria-label` nos ícones ‹/›, `aria-pressed` nas views, `aria-live` no título (navegação por teclado no grid fica para depois).
+## Desenvolvimento e validação
 
-## Desenvolvimento
-
-```bash
+```sh
 yarn install
-yarn test          # vitest (node + jsdom)
-yarn typecheck     # tsc estrito por pacote
-yarn build         # ESM + CJS + .d.ts por pacote (core → react → styles)
-yarn verify        # tipos, testes, build, pacotes empacotados e demo de produção
-yarn test:browser  # fluxos React e layout no Edge; gerencia servidor e sessão isolada
-node scripts/bench.mjs 2000 15   # bench (requer core buildado)
+yarn dev                     # /examples/react.html
+yarn verify                  # tipos, testes, builds e consumo do tarball
+yarn test:browser            # fluxos e layouts no Edge
+yarn audit:dependencies
+node scripts/compare-recurrence.mjs
+node scripts/compare-recurrence-events.mjs
 ```
 
-O benchmark usa o polyfill quando Temporal não está disponível. O [experimento de recorrência civil](experiments/civil-recurrence/REPORT.md) compara o motor atual, um protótipo sem Temporal e rrule.js. O protótipo não substitui produção: faltam resolução completa de timezone/DST e validação mais ampla.
+React/React DOM ^18 ou ^19 são peers; a validação atual executou React 19. Compatibilidade física Safari/iOS/Android não foi comprovada. SSR gera o container inicial. Ainda faltam subdiárias, ICS, virtualização, undo/redo, RTL e impressão; não há paridade completa com concorrentes. “Esta e seguintes” exige corte numa ocorrência ativa gerada pela RRULE, mesmo tipo de horário e timezone; mudanças incompatíveis com filtros são rejeitadas.
 
-### Playground (validação visual)
-
-Além dos testes automatizados (jsdom montam o calendário e checam o DOM real), há um playground para ver rodando no navegador:
-
-```bash
-yarn dev
-# abre /examples/react.html
-```
-
-Ele exercita as views, drag & drop / resize / seleção, recorrência, bloqueios e recursos (lotação/buffer), com um log das interações.
-
-### Compatibilidade React
-
-O pacote React declara peers React/React DOM **`^18 || ^19`**. A suíte atual usa React 19.1.0; React 18 não foi executado nesta revisão. StrictMode, remontagem e herança de contexto têm testes de regressão.
-
-## Documentação
-
-| Doc | O que é |
-|---|---|
-| [`docs/00-STATUS.md`](docs/00-STATUS.md) | **Diário/continuidade** entre sessões. **Leia primeiro.** |
-| [`docs/01-ANALISE.md`](docs/01-ANALISE.md) | Análise do uso atual (wsaude-web), das 3 tentativas e requisitos |
-| [`docs/02-PLANO.md`](docs/02-PLANO.md) | Plano de execução faseado + ADRs (decisões) |
-| [`docs/03-ARQUITETURA.md`](docs/03-ARQUITETURA.md) | Desenho técnico alvo (core headless, anti-rerender, views) |
-| [`docs/04-ESTILIZACAO.md`](docs/04-ESTILIZACAO.md) | Tokens, classes e hooks de customização |
-| [`docs/05-API.md`](docs/05-API.md) | **Referência completa**: modelo de dados, opções, callbacks, views (todos os campos) |
-| [`docs/reference/`](docs/reference) | Referências open-source, modelos Google/Outlook/RFC 5545, validação de recorrência |
-
-## Decisões-chave (resumo)
-- **React primeiro**, mas núcleo headless framework-agnostic (extração vanilla é meta).
-- **React nativo**, mantendo motores independentes. Preact, ReactIsland, registro de portals e playground antigo foram removidos.
-- **Recorrência própria via Temporal API** (rrule.js só como oráculo de teste); polyfill para Safari.
-- **Modelo inspirado em RFC 5545**, sem afirmar interoperabilidade completa com Google/Outlook antes de testes de importação/exportação.
-- **Bloqueios e horário comercial** como constraints de 1ª classe (não background-events).
-
-Detalhes e alternativas descartadas nos ADRs de [`docs/02-PLANO.md`](docs/02-PLANO.md).
-
-Validação de 07/10/2026: 258 testes em 21 arquivos, 23 verificações no Edge e 18 combinações de view/largura. A [auditoria de segurança](docs/security_best_practices_report.md) registra correções e limites. `yarn audit:dependencies` não encontrou advisories conhecidos no último scan.
+Leia [estado vigente](docs/00-STATUS.md), [API](docs/05-API.md), [estilização](docs/04-ESTILIZACAO.md), [comparação de concorrentes](docs/06-REVISAO-COMPETITIVA.md), [adoção de recorrência](experiments/civil-recurrence/ADOPTION.md) e [auditoria](docs/security_best_practices_report.md).

@@ -25,6 +25,8 @@ export interface EventVM {
 }
 
 export interface AllDayVM {
+  startDate?: string;
+  endDate?: string;
   editable?: boolean;
   activate?: () => void;
   id: string;

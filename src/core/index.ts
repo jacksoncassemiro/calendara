@@ -32,6 +32,8 @@ export {
 	parseRRule,
 	serializeRRule,
 	iterateCivilDates,
+	splitEventSeries,
+	type SplitSeriesResult,
 	type CivilWindow,
 	type ExpandOptions,
 	type ExpandWindow,

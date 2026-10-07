@@ -1,5 +1,7 @@
 # Experimento de recorrência gregoriana sem Temporal
 
+> Histórico do primeiro experimento. O iterador de datas foi adotado posteriormente, com timezone/DST preservados na camada de composição. Consulte [ADOPTION.md](ADOPTION.md) e comparison.json para a comparação atual. Os números antigos abaixo não descrevem o motor atual.
+
 Execução atualizada em 07/10/2026 às 16:20:48 (America/Sao_Paulo), depois do rebuild do core com validação de RRULE e guarda para fevereiro impossível. Node v24.18.1, Windows, polyfill instalado `@js-temporal/polyfill@0.4.4`. O motor experimental não importa bibliotecas: usa inteiros de dias, `Date` com métodos UTC e `Intl.DateTimeFormat` somente para projetar valores que já possuem offset/UTC na timezone do evento. O motor atual de produção também é próprio; Temporal fornece a representação e a aritmética das datas, não interpreta RRULE.
 
 ## Validação executada

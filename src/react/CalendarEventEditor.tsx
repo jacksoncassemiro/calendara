@@ -2,7 +2,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ensureTemporal, parseRRule, type CalendarEvent, type CalendarResource, type EventOccurrence, type Frequency, type TemporalLike } from '../core/index.js';
 
-export type CalendarEditScope = 'occurrence' | 'series';
+export type CalendarEditScope = 'occurrence' | 'following' | 'series';
 export interface CalendarEditorContext {
   scope: CalendarEditScope;
   occurrence?: EventOccurrence;
@@ -37,7 +37,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
   const [start, setStart] = useState(event.time.start.date ?? event.time.start.dateTime ?? '');
   const [end, setEnd] = useState(event.time.allDay ? previousDate(event.time.end.date!) : event.time.end.dateTime ?? '');
   const [resourceIds, setResourceIds] = useState(event.resourceIds ?? []);
-  const [scope, setScope] = useState<CalendarEditScope>(props.occurrence && !props.occurrence.isMaster ? 'occurrence' : 'series');
+  const [scope, setScope] = useState<CalendarEditScope>(props.occurrence ? 'occurrence' : 'series');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const originalRule = event.recurrence?.rule;
@@ -120,6 +120,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
       {recurring && <><label htmlFor={`${id}-scope`}>Aplicar alterações</label>
         <select id={`${id}-scope`} value={scope} onChange={(e) => setScope(e.target.value as CalendarEditScope)}>
           {props.occurrence && <option value="occurrence">Somente este evento</option>}
+          {props.occurrence && parsedRule && <option value="following">Este e os seguintes</option>}
           <option value="series">Toda a série</option>
         </select></>}
       <label className="mc-editor-check"><input type="checkbox" checked={allDay} onChange={(e) => {
@@ -147,7 +148,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
     </fieldset>
     {error && <p id={`${id}-error`} role="alert">{error}</p>}
     <div className="mc-editor-actions">
-      <button type="submit" disabled={pending || readOnly}>{pending ? 'Salvando…' : 'Salvar alterações'}</button>
+      <button type="submit" disabled={pending || readOnly}>{pending ? 'Salvando…' : 'Salvar evento'}</button>
       <button type="button" disabled={pending} onClick={props.onCancel}>Cancelar</button>
       {props.onDelete && <button type="button" disabled={pending || readOnly} onClick={() => void run(true)}>Excluir evento</button>}
     </div>

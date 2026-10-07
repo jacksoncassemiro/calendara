@@ -3,6 +3,11 @@
  * PlainDate (evita quirks de locale do polyfill Temporal e é estável em teste).
  */
 import type { TemporalLike } from '../../core/index.js';
+import type { CalendarOptions } from '../../core/index.js';
+
+export function timeLabelStep(options: CalendarOptions, horizontal=false): number {
+  return options.timeLabelInterval ?? Math.max(options.slotMinutes, Math.ceil((horizontal?60:24)/options.pxPerMinute/options.slotMinutes)*options.slotMinutes);
+}
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 

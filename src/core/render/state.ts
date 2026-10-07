@@ -30,6 +30,8 @@ export interface CalendarOptions {
   endHour: GridHour;
   /** Granularidade das linhas de horário, em minutos (ex.: 30). Equivale ao `slotDuration` do FullCalendar. */
   slotMinutes: number;
+  /** Axis label interval; independent from drag/selection snapping. Undefined adapts to scale. */
+  timeLabelInterval?: number;
   /** Escala vertical: pixels por minuto. */
   pxPerMinute: number;
   /** Timezone de exibição (IANA). */
@@ -38,6 +40,10 @@ export interface CalendarOptions {
   nowMs: number | null;
   /** Duração mínima visual/de interação de um evento, em minutos (altura mínima + resize). */
   minEventMinutes: number;
+  /** Visible chips per day in Month; false displays all. Defaults to 3. */
+  monthMaxEvents?: number | false;
+  /** Open this registered view on +more instead of the default popover. */
+  monthMoreView?: string;
   /** Recursos visíveis nas views de recurso (undefined = todos). Toggle por recurso/grupo. */
   visibleResourceIds?: readonly string[];
 }
@@ -62,6 +68,7 @@ export const DEFAULT_OPTIONS: CalendarOptions = {
   timeZone: 'America/Sao_Paulo',
   nowMs: null,
   minEventMinutes: 15,
+  monthMaxEvents: 3,
 };
 
 /** Reject unusable grid dimensions before views enter their slot-generation loops. */
@@ -76,8 +83,14 @@ export function validateCalendarOptions(options: CalendarOptions): void {
   if (!validRange) throw new RangeError('[meucalendario] startHour/endHour devem formar um intervalo dentro de 00:00–24:00.');
   const validSlot = Number.isFinite(options.slotMinutes) && options.slotMinutes > 0 && options.slotMinutes <= 1440;
   if (!validSlot) throw new RangeError('[meucalendario] slotMinutes deve ser maior que zero e no máximo 1440.');
+  if(options.timeLabelInterval!==undefined && (!Number.isFinite(options.timeLabelInterval) || options.timeLabelInterval<=0 || options.timeLabelInterval>1440))
+    throw new RangeError('[meucalendario] timeLabelInterval deve ser maior que zero e no máximo 1440.');
   const validScale = Number.isFinite(options.pxPerMinute) && options.pxPerMinute > 0;
   if (!validScale) throw new RangeError('[meucalendario] pxPerMinute deve ser maior que zero.');
   const validMinimum = Number.isFinite(options.minEventMinutes) && options.minEventMinutes > 0 && options.minEventMinutes <= 1440;
   if (!validMinimum) throw new RangeError('[meucalendario] minEventMinutes deve estar entre zero e 1440.');
+  if (options.monthMaxEvents !== undefined && options.monthMaxEvents !== false &&
+    (!Number.isInteger(options.monthMaxEvents) || options.monthMaxEvents < 0)) {
+    throw new RangeError('[meucalendario] monthMaxEvents deve ser um inteiro não negativo ou false.');
+  }
 }

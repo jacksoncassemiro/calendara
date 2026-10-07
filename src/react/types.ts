@@ -59,6 +59,8 @@ export interface CalendarProps {
 	refetchKey?: string | number;
 	/** Conteúdo custom de evento, escrito em React (React nativo). */
 	renderEvent?: (info: EventSlotInfo) => ReactNode;
+	renderMonthMore?: MonthMoreRenderSlot;
+	onMonthMoreClick?: (info: MonthMoreInfo) => void | false;
 	/** Toolbar custom em React (React nativo). Presente ⇒ substitui a toolbar nativa. */
 	customToolbar?: (context: ToolbarContext) => ReactNode;
 	onEventClick?: (occurrence: EventOccurrence) => void;
@@ -74,5 +76,5 @@ export interface CalendarProps {
 	style?: CSSProperties;
 }
 
-import type { CalendarView, ToolbarContext, EventSlotInfo } from './views/viewDef.js';
+import type { CalendarView, ToolbarContext, EventSlotInfo, MonthMoreInfo, MonthMoreRenderSlot } from './views/viewDef.js';
 import type { RangeChange } from './app/calendarApp.js';

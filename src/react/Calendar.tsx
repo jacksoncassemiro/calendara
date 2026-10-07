@@ -31,6 +31,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 
 		const config: CalendarConfig = {
 			onEventClick: (occurrence) => propsRef.current.onEventClick?.(occurrence),
+			onMonthMoreClick: (info) => propsRef.current.onMonthMoreClick?.(info),
 			onDateClick: (dateISO, minuteOfDay) => propsRef.current.onDateClick?.(dateISO, minuteOfDay),
 			onEventDrop: (change) => propsRef.current.onEventDrop?.(change),
 			onEventResize: (change) => propsRef.current.onEventResize?.(change),
@@ -80,6 +81,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 			if (!previous || previous.views !== props.views) app.setViews(props.views ?? []);
 			if (!previous || previous.eventSource !== props.eventSource) app.setEventSource(props.eventSource);
 			if (!previous || previous.renderEvent !== props.renderEvent) app.setRenderEvent(props.renderEvent);
+			if (!previous || previous.renderMonthMore !== props.renderMonthMore) app.setRenderMonthMore(props.renderMonthMore);
 			if (!previous || previous.customToolbar !== props.customToolbar) app.setRenderToolbar(props.customToolbar);
 			if ((!previous || previous.events !== props.events) && props.events !== undefined) app.setEvents(props.events);
 			if (!previous || previous.constraints !== props.constraints) app.setConstraints(props.constraints ?? {});
@@ -92,7 +94,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 		});
 		syncedPropsRef.current = props;
 	}, [props.views, props.eventSource, props.renderEvent, props.customToolbar,
-		props.events, props.constraints, props.options, props.resources,
+		props.events, props.constraints, props.options, props.resources, props.renderMonthMore,
 		props.view, props.date, props.refetchKey]);
 	return (
 		<div

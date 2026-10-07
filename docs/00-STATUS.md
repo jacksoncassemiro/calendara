@@ -1,40 +1,22 @@
-# 00 — STATUS / DIÁRIO DO PROJETO
+# Estado vigente — 07/10/2026
 
-## Estado vigente — revisão de 07/10/2026
+Pacote único **@meucalendario/calendar**, React nativo. Fontes em src/core e src/react; testes em tests/core e tests/react. Workspaces/manifests antigos removidos. Um tarball distribui ESM, CJS, tipos e styles.css. /core é uma entrada opcional do mesmo pacote, sem renderer.
 
-Esta seção substitui os estados e próximos passos das sessões anteriores preservados abaixo. React é o foco; compatibilidade com a API atual não é exigida pelo usuário. Vanilla e outros frameworks são possibilidades futuras.
+- Gestos timed multiday e all-day na faixa semanal/dia preservam o intervalo completo; validação em cada dia, incluindo ocupação fora da view. Overrides recorrentes e rollback permanecem no pipeline. O exemplo usa applyEventTimeChange também em recorrentes.
+- Editor reutilizável CalendarEventEditor: recursos, horários, all-day com último dia inclusivo na interface/fim exclusivo nos dados, ocorrência/esta e seguintes/série, exclusão, validação/persistência assíncrona, rejeição explícita de gap/fold no formulário. O consumidor fornece validate/onSave/onDelete e estado imutável. splitEventSeries preserva COUNT anterior incluindo EXDATE/cancelamentos, particiona exceções/overrides e reatribui o futuro a um novo id; retiming desloca suas chaves e overrides por diferença wall-clock.
+- Mês compacto com contagem e lista do dia, toolbar compacta e rolagem interna; ativação por teclado abre o editor. Layout verificado em 320/375/768px no Edge. Não houve teste físico em iOS/Android/Safari.
+- Navegação por setas/Home/End nas células de horário em dia/semana/N dias/recursos/timeline; Enter/Espaço selecionam com validação de constraints/capacidade. No mês, setas navegam por dia/semana sem criar evento antes da ativação. Listeners são removidos em remount/destroy.
+- rrule-temporal 2.2.8 adotado e fixado como dependência de produção para os inícios de ocorrências. Composição de duração, RDATE/EXDATE e overrides permanece na biblioteca; Temporal/fallback continua necessário. Iterador civil e entrada expandRule permanecem utilitários de datas independentes, com referência para comparação. DTSTART num gap é rejeitado em vez de alterar silenciosamente o horário da série.
+- Validação: **280 testes em 23 arquivos** aprovados (suíte completa de 279 + nova propriedade de divisão validada no arquivo); tipos/build/tarball/consumidor aprovados; **35 verificações no Edge**, 18 combinações de view/largura, sem erros de execução registrados. Audit em 07/10 após promover a dependência: zero advisories conhecidos.
+- Recorrência: **1440 comparações diferenciais**, 50 cenários e 13 integrações do experimento, probes DST que comprovam divergências do protótipo antigo. Benchmark compara rrule 2.8.1, ical.js 2.2.1 e rrule-temporal 2.2.8; mediana/p95 com cache desligado. Ver experiments/civil-recurrence/ADOPTION.md.
 
-- **Implementado nesta revisão:** correções de recorrência e overrides; segmentos multiday com fim exclusivo; projeção de timezone; rollback que preserva atualizações concorrentes; sincronização de props/slots; renderer React nativo com herança direta de contextos; ciclo de montagem/StrictMode; guardas de opções; acessibilidade de ativação; cores legíveis; toolbar compacta; hook de largura do container; demo React com editor; exports ESM/CJS/types e verificação de pacotes com Yarn.
-- **Interações:** mover/redimensionar eventos timed contidos em um dia, inclusive transferência entre datas/recursos. Segmentos de eventos que atravessam dias não permitem esses gestos, pois o modelo antigo truncava o intervalo. Esses eventos podem ser editados pelo formulário do exemplo. All-day drag/resize e gestos multiday completos continuam pendentes.
-- **Mobile:** escolha Dia em container estreito, seletor compacto de views e rolagem interna. Layout verificado em 320/375/768px no Edge. Isso não valida ergonomia touch, iOS/Android ou leitores de tela.
-- **Arquitetura:** manter motores TypeScript testados e separar renderer React nativo. Migração concluída: views e CalendarApp residem em packages/react; core não depende de React/Preact. ReactIsland e registro de portals removidos. Código de produção passou de 53 para 51 arquivos; essa contagem não inclui testes/documentação. Os pacotes npm continuam separados, embora a divisão interna não exija publicações separadas.
-- **Comparação:** [revisão competitiva](06-REVISAO-COMPETITIVA.md), incluindo Mantine, Schedule-X, FullCalendar, React Big Calendar, Bryntum, Syncfusion, KendoReact e ilamy. Ainda não há paridade completa de recursos.
-- **Ferramentas:** habilidades locais de revisão React, arquitetura, design e Playwright; subagentes em escopos separados, testes centralizados no mesmo checkout. O arquivo REFERENCE_REVIEW do seedtrail foi consultado; instalar outra camada de orquestração não foi necessário para estas correções.
-- **Pacotes:** Yarn 1.22.22; lockfile oficial yarn.lock. Publicação no registry não efetuada. Smoke de tarballs testa ESM, CJS, CSS e consumidor TypeScript; dependências externas ainda são resolvidas do workspace.
-- **Validação final desta sessão:** `yarn verify` aprovado, 258 testes em 21 arquivos; `yarn test:browser` aprovado, 23 verificações de fluxo e 18 combinações de view/largura. Console da última sessão de navegador sem erros. Recursos no editor são validados inclusive em datas fora da view visível. Polyfill Temporal: chunk de produção ~196 kB, ~50 kB gzip; métricas da demo não equivalem ao bundle da aplicação consumidora.
+- Integração validada também nos 50 cenários existentes para all-day e timed UTC, além das regressões de DST/overrides/cancelamentos e browser. Mediana de 366 ocorrências na composição de produção adotada: 47,648 ms, frente aos 315,669 ms anteriores. O adapter isolado é menor que a composição real. Main chunk da demo: 135,94 KB gzip, contra 86,67 KB antes; chunk lazy Temporal: 49,57 KB gzip. Ganho de CPU com custo adicional de aproximadamente 49 KB gzip na demo, sem alegar redução de dependências ou tamanho.
 
-- **Auditoria:** sincronização agrupada e deduplicada; refetch sem chamadas redundantes; resultados assíncronos obsoletos descartados; rollback de rejeições concorrentes; recursos/slots atualizados nas views; validação estrita e orçamento RRULE. Vite/Vitest atualizados; último audit: zero advisories conhecidos, 162 dependências contabilizadas. [Relatório](security_best_practices_report.md).
-- **Experimento sem Temporal:** subagente implementou e comparou 50 cenários e 13 integrações; composição de eventos 15,5–20,8× mais rápida nas quatro cargas Node medidas. rrule.js ganhou no caso YEARLY bissexto. Um cenário também passou no Edge com Temporal global ausente. Protótipo não está integrado à produção; ver [limites e métricas](../experiments/civil-recurrence/REPORT.md).
+Limites explícitos: RFC 5545 inteiro, frequências subdiárias/BYHOUR/BYMINUTE/BYSECOND/BYWEEKNO no contrato público, importação/exportação ICS, virtualização medida, undo/redo, RTL, impressão, seleção de intervalos e drag/resize pelo teclado, navegação entre períodos pelo teclado das células ainda não estão implementados. “Esta e seguintes” rejeita corte RDATE-only/cancelado/excluído, conversão all-day↔timed, troca de timezone e novo início incompatível com filtros. Overrides com outro tipo de horário exigem edição separada. Validações de negócio de todo o futuro e persistência são responsabilidade do consumidor; o exemplo valida o evento editado. SSR retorna inicialmente o container. React 18 é peer declarado; execução atual usa React 19. Não afirmar paridade completa ou validação em dispositivos físicos.
 
-### Próximos passos com critérios de aceite
+Próximas técnicas de recorrência: máscaras mensais, rank/count por ciclo gregoriano para seek com COUNT, cache limitado de timezone, testes gerados mais amplos e medições de memória/latência em outros navegadores. A adoção atual não removeu o polyfill da biblioteca inteira.
 
-1. Simplificar distribuição em um único pacote público, mantendo módulos internos. Renderer React nativo concluído e validado com contexto/StrictMode; SSR atualmente produz apenas o container inicial, sem calendário preenchido. Tornar a política de props e transições mais explícita.
-   Performance é outra prioridade: benchmark semanal com 2.000 eventos/polyfill caiu de ~2.240 ms para ~1.384 ms nas amostras locais após reduzir cálculos repetidos. Ainda alto; não declarar pronto para agendas densas.
-2. Transação de intervalo completo para gestos multiday/all-day: preservar duração e instante, validar constraints/ocupação em cada dia, editar exceção recorrente e fazer rollback concorrente.
-3. Mês mobile com indicadores/lista do dia, seletor de recurso, toque sem impedir scroll e alternativa de teclado para reagendamento; validar em dispositivos reais.
-4. Recorrência: ampliar cobertura DST e filtros não suportados, mantendo explícito o subset. RDATE/EXDATE/UNTIL com horário e guarda contra materialização infinita foram corrigidos nesta sessão. Não declarar RFC completo.
-5. Editor opcional reutilizável, edição da série/ocorrência, exclusão; depois views adicionais, virtualização medida, undo/redo, clipboard, drag externo, ICS, impressão e RTL.
-
-### Verificação reproduzível
-
-```bash
-yarn install
-yarn verify
-yarn test:browser
-yarn dev
-```
-
-`verify` inclui tipos, Vitest, build, smoke de pacotes e build de demo. `test:browser` gerencia Vite e uma sessão Edge isolada. Evidências visuais ficam em `output/playwright/`; são geradas, não versionadas.
+Comandos: yarn verify; yarn test:browser; yarn audit:dependencies; node scripts/compare-recurrence.mjs; node scripts/compare-recurrence-events.mjs; node experiments/civil-recurrence/validate.mjs 10. Artefatos gerados em output/; métricas comparativas versionadas no experimento. Não houve publicação, commit ou PR.
 
 ## Histórico anterior (não representa o estado vigente)
 

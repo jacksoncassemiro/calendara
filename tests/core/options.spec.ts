@@ -6,6 +6,7 @@ describe('grid option validation', () => {
     { slotMinutes: 0 }, { slotMinutes: -1 }, { slotMinutes: Infinity }, { pxPerMinute: 0 },
     { pxPerMinute: NaN }, { startHour: 20, endHour: 7 }, { startHour: '08:99' },
     { endHour: 25 }, { startHour: 'invalid' }, { minEventMinutes: -15 },
+    { monthMaxEvents: -1 }, { monthMaxEvents: 1.5 }, { timeLabelInterval: 0 },
   ])('rejects unusable dimensions %j', patch => {
     expect(() => validateCalendarOptions({ ...DEFAULT_OPTIONS, ...patch })).toThrow(RangeError);
   });

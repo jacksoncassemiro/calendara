@@ -3,6 +3,9 @@ import { ensureTemporal, type TemporalLike } from '../../src/core/date/temporal.
 import { createDateUtils } from '../../src/core/date/dateUtils.js';
 import { expandEvent } from '../../src/core/recurrence/recurrenceSet.js';
 import type { CalendarEvent } from '../../src/core/types/index.js';
+import { ALL } from './scenarios.js';
+import { expandRuleAll } from '../../src/core/recurrence/engine.js';
+import { parseRRule } from '../../src/core/recurrence/parser.js';
 
 let T: TemporalLike;
 beforeAll(async () => {
@@ -20,6 +23,20 @@ function allDayEvent(over: Partial<CalendarEvent> = {}): CalendarEvent {
 }
 
 describe('expandEvent — evento simples', () => {
+  it('integrated provider preserves all 50 date scenarios for all-day and UTC timed events', () => {
+    for (const [name, start, rule] of ALL) {
+      const expected = expandRuleAll(T, parseRRule(rule), T.PlainDate.from(start)).map(date => date.toString());
+      const base = allDayEvent({ time: { allDay: true, start: {date:start}, end: {date:T.PlainDate.from(start).add({days:1}).toString()} }, recurrence: {rule} });
+      expect(expandEvent(T, base).map(item => item.originalStart), name).toEqual(expected);
+      const timed = { ...base, time: { allDay: false, start: {dateTime:`${start}T00:00:00`,timeZone:'UTC'}, end: {dateTime:`${start}T01:00:00`,timeZone:'UTC'} } };
+      expect(expandEvent(T,timed).map(item => item.originalStart.slice(0,10)), name).toEqual(expected);
+    }
+  });
+  it('rejects a master DTSTART in a DST gap rather than shifting every subsequent hour', () => {
+    const event = allDayEvent({ time: { allDay:false, start:{dateTime:'2024-03-10T02:30:00',timeZone:'America/New_York'},
+      end:{dateTime:'2024-03-10T03:30:00',timeZone:'America/New_York'} }, recurrence:{rule:'FREQ=DAILY;COUNT=3'} });
+    expect(()=>expandEvent(T,event)).toThrow(/inexistente/);
+  });
   it('rejects unsupported and malformed external rules before producing a different series', () => {
     for (const rule of ['FREQ=HOURLY;COUNT=2', 'FREQ=DAILY;BYHOUR=9', 'FREQ=WEEKLY;BYDAY=oops', 'FREQ=DAILY;COUNT=0', 'FREQ=DAILY;COUNT=2junk', 'FREQ=DAILY;FREQ=WEEKLY',
       { freq: 'DAILY' as const, count: Infinity }, { freq: 'DAILY' as const, interval: NaN }]) {

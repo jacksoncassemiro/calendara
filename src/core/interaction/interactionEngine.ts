@@ -163,9 +163,10 @@ export class InteractionEngine {
 
 		const targetElement = coords.target instanceof Element ? coords.target : null;
 		if (!targetElement) return;
+		if (targetElement.closest('button.mc-month-daynum, button.mc-month-more, .mc-month-detail, .mc-month-popover')) return;
 
 		const allDayCell = targetElement.closest('[data-mc-allday-cell]');
-		const anchor = allDayCell ? this.locateAllDay(coords.clientX) : this.locate(coords.clientX, coords.clientY);
+		const anchor = allDayCell ? this.locateAllDay(coords.clientX, coords.clientY) : this.locate(coords.clientX, coords.clientY);
 		if (!anchor) return;
 
 		const eventNode = targetElement.closest('[data-mc-event]') as HTMLElement | null;
@@ -173,7 +174,7 @@ export class InteractionEngine {
 		// Alvo de SELEÇÃO em área vazia: coluna de data ou, nas views de recurso, a superfície
 		// genérica. Só procura a segunda se a primeira falhou (custo zero no TimeGrid).
 		const dayNode = targetElement.closest('[data-mc-day]') as HTMLElement | null;
-		const emptyAreaNode = allDayCell ?? dayNode ?? (targetElement.closest('[data-mc-slot]') as HTMLElement | null);
+		const emptyAreaNode = allDayCell ?? dayNode ?? targetElement.closest('[data-mc-month-day]') ?? (targetElement.closest('[data-mc-slot]') as HTMLElement | null);
 
 		if (eventNode) {
 			const placement = this.placementFromNode(eventNode);
@@ -375,7 +376,8 @@ export class InteractionEngine {
 			? null
 			: (eventNode.closest('[data-mc-slot]') as HTMLElement | null);
 		const allDayCell = eventNode.closest('[data-mc-allday-cell]') as HTMLElement | null;
-		const dateISO = allDayCell?.dataset.mcAlldayCell ?? dayNode?.dataset.mcDay ?? slotNode?.dataset.mcSlotDate;
+		const monthCell = eventNode.closest<HTMLElement>('[data-mc-month-day]');
+		const dateISO = monthCell?.dataset.mcMonthDay ?? allDayCell?.dataset.mcAlldayCell ?? dayNode?.dataset.mcDay ?? slotNode?.dataset.mcSlotDate;
 		if (!dateISO) return null;
 		const startMin = Number(eventNode.dataset.mcStartMin);
 		const endMin = Number(eventNode.dataset.mcEndMin);
@@ -387,28 +389,49 @@ export class InteractionEngine {
 		const placement: PlacementInfo = { eventId, dateISO, startMin, endMin, occurrence, editable };
 		const span = this.deps.resolveSpan?.(occurrence);
 		if (span) Object.assign(placement, span);
-		const resourceId = slotNode?.dataset.mcSlotResource;
+		const resourceId = slotNode?.dataset.mcSlotResource ?? allDayCell?.dataset.mcSlotResource;
 		if (resourceId) placement.resourceId = resourceId;
 		return placement;
 	}
 
 	private locate(clientX: number, clientY: number): PointerSlot | null {
-		if (this.gesture?.anchor.allDay) return this.locateAllDay(clientX);
+		const month = this.locateMonth(clientX, clientY);
+		if (month) return month;
+		if (this.gesture?.anchor.allDay) return this.locateAllDay(clientX, clientY);
 		if (this.deps.locateSlot) return this.deps.locateSlot(clientX, clientY);
 		// Colunas de data primeiro (caminho legado, inalterado); superfícies de recurso só quando
 		// não há nenhuma — as duas famílias de view nunca coexistem num mesmo render.
 		return this.locateByRects(clientX, clientY) ?? this.locateBySlots(clientX, clientY);
 	}
 
-	private locateAllDay(clientX: number): PointerSlot | null {
-		if (!this.root) return null;
+	private locateMonth(clientX: number, clientY: number): PointerSlot | null {
+		if (this.root?.querySelector('.mc-month-compact')) return null;
 		let best: { dateISO: string; distance: number } | null = null;
+		for (const cell of this.root?.querySelectorAll<HTMLElement>('[data-mc-month-day]') ?? []) {
+			const rect = cell.getBoundingClientRect();
+			const dx = Math.max(rect.left-clientX, 0, clientX-rect.right);
+			const dy = Math.max(rect.top-clientY, 0, clientY-rect.bottom);
+			const distance = dx*dx + dy*dy;
+			if (!best || distance < best.distance) best = { dateISO: cell.dataset.mcMonthDay!, distance };
+		}
+		return best ? { dateISO: best.dateISO, minuteOfDay: 0, dateOnly: true,
+			allDay: this.gesture?.origin ? this.gesture.origin.allDay : true } : null;
+	}
+
+	private locateAllDay(clientX: number, clientY: number): PointerSlot | null {
+		if (!this.root) return null;
+		let best: { cell: HTMLElement; distance: number } | null = null;
 		for (const cell of this.root.querySelectorAll<HTMLElement>('[data-mc-allday-cell]')) {
 			const rect = cell.getBoundingClientRect();
-			const distance = clientX >= rect.left && clientX <= rect.right ? 0 : Math.min(Math.abs(clientX - rect.left), Math.abs(clientX - rect.right));
-			if (!best || distance < best.distance) best = { dateISO: cell.dataset.mcAlldayCell!, distance };
+			const dx = Math.max(rect.left - clientX, 0, clientX - rect.right);
+			const dy = Math.max(rect.top - clientY, 0, clientY - rect.bottom);
+			const distance = dx * dx + dy * dy;
+			if (!best || distance < best.distance) best = { cell, distance };
 		}
-		return best ? { dateISO: best.dateISO, minuteOfDay: 0, allDay: true } : null;
+		if (!best) return null;
+		const slot: PointerSlot = { dateISO: best.cell.dataset.mcAlldayCell!, minuteOfDay: 0, allDay: true };
+		if (best.cell.dataset.mcSlotResource) slot.resourceId = best.cell.dataset.mcSlotResource;
+		return slot;
 	}
 
 	/** Localizador padrão: escolhe a coluna sob (ou mais próxima de) clientX e projeta clientY. */

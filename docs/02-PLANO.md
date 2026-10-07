@@ -1,6 +1,6 @@
 # 02 — Plano de execução
 
-> Estado de 07/10/2026: migração para React nativo concluída. Core contém motores TypeScript; views e CalendarApp estão em packages/react. Preact, ReactIsland e portals removidos. As seções abaixo preservam o plano/arquitetura históricos e não são a referência vigente. Consulte 00-STATUS.md, README e 05-API.md. A separação interna motor/UI não exige pacotes npm separados; a consolidação pública ainda está pendente.
+> Estado atual: pacote único @meucalendario/calendar, React nativo e rrule-temporal 2.2.8 integrado à expansão de eventos; iterador civil permanece utilitário independente. Editor inclui “esta e seguintes”. As seções abaixo são históricas. Consulte README, 00-STATUS.md e experiments/civil-recurrence/ADOPTION.md.
 
 Plano faseado para construir a biblioteca. Cada fase tem **entregável verificável** e **critério de
 pronto (DoD)**. O escopo foi acordado com o Jackson: **esta 1ª sessão entrega apenas Fase 0** (análise +

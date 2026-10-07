@@ -105,7 +105,7 @@ function stubTimelineRects(container: HTMLElement, rowHeight = 100): void {
 /** Localiza o nó de um evento DENTRO de uma coluna/faixa de recurso específica — necessário para
  * eventos multi-recurso, que renderizam um `[data-mc-event]` por coluna. */
 function eventInResource(container: HTMLElement, resourceId: string, eventKey: string): HTMLElement {
-  const slot = container.querySelector(`[data-mc-slot-resource="${resourceId}"]`) as HTMLElement | null;
+  const slot = container.querySelector(`[data-mc-slot][data-mc-slot-resource="${resourceId}"]`) as HTMLElement | null;
   if (!slot) throw new Error(`slot não encontrado para o recurso ${resourceId}`);
   const node = slot.querySelector(`[data-mc-event="${eventKey}"]`) as HTMLElement | null;
   if (!node) throw new Error(`evento ${eventKey} não encontrado no recurso ${resourceId}`);
