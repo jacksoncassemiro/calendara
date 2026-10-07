@@ -21,6 +21,7 @@ try {
   await run(['run-code', '--filename', 'scripts/browser-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-demo-month-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-month-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-interaction-regressions.js']);
   await run(['run-code', '--filename', 'scripts/browser-dense-review.js']);
   await run(['run-code', '--filename', 'scripts/capture-layout-review.js']);
 } finally {

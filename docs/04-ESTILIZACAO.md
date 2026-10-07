@@ -173,3 +173,16 @@ Além das classes de estilo, o core emite atributos `data-mc-*` estáveis, útei
 ## Conteúdo customizado (sem CSS)
 
 Para trocar o **conteúdo** (não só o estilo) de um evento ou da toolbar, use os slots do core (`renderEvent`, `renderToolbar`) ou, no React, `renderEvent`/`customToolbar` do `<Calendar/>` e `createReactView` para uma view inteira.
+
+## Grade estreita
+
+O calendário declara `container: mc-calendar / inline-size`, e adapta o piso das colunas pela largura do próprio container, inclusive num painel desktop. As grades rolam dentro de `data-mc-hscroll`, preservando cabeçalhos alinhados; a página permanece sem overflow horizontal. Em até 640 px, o piso é 104 px por dia e 140 px por recurso. Para colunas maiores:
+
+```css
+.minha-agenda [data-mc-root] {
+  --mc-day-min-width: 160px;
+  --mc-resource-min-width: 180px;
+}
+```
+
+A escala dos horários é configurada pela opção `pxPerMinute`, e a frequência de rótulos por `timeLabelInterval`. O mês compacto usa lista do dia selecionado.

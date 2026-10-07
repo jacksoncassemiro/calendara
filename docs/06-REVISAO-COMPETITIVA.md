@@ -4,11 +4,7 @@ Consulta às fontes primárias em 07/10/2026. Recursos declarados pelos forneced
 
 ## Arquitetura para React
 
-Preact pode renderizar um calendário dentro de um componente React, desde que cada reconciliador seja dono de uma região do DOM. Isso permite reutilizar as views em outras tecnologias. Entretanto, a escolha de Preact não garante estabilidade nem elimina recomputações: props, subscriptions, identidade dos dados, gestão dos gestos e concorrência continuam precisando de testes.
-
-Hoje os motores puros estão separados de views, mas o pacote core também exporta o renderer Preact. A fronteira desejável é um motor independente (datas, recorrência, constraints, ocupação e geometria), um renderer e a integração React. Não precisamos desenvolver novos adapters agora.
-
-O adapter anterior criava uma raiz React por evento/toolbar/view personalizada. Uma raiz independente não herda o contexto do aplicativo. Nesta revisão, as três extensões passaram a usar portals pertencentes à árvore React do consumidor, conforme a [documentação React](https://react.dev/reference/react-dom/createPortal), com teste de atualização de provider. Como a compatibilidade atual pode ser quebrada e React é prioritário, a direção recomendada é renderer React nativo, reaproveitando os motores. Essa migração ainda não foi implementada; não há baseline que prove vantagem de velocidade do Preact neste projeto.
+O renderer atual usa React nativo e um único pacote. Motores puros permanecem organizados internamente em core, com entrada opcional /core no mesmo pacote; não há dependência Preact. Slots, views e toolbar pertencem à árvore React do consumidor e herdam providers. StrictMode e atualização de contexto têm validação local.
 
 A premissa antiga sobre problemas inevitáveis do FullCalendar React deve ser retirada: a [documentação atual de FullCalendar v7](https://fullcalendar.io/docs/react) descreve renderer React próprio, props reativas, StrictMode e views escritas em React. A experiência histórica da aplicação com v6 não demonstra o comportamento de v7.
 
@@ -23,10 +19,10 @@ Referências adicionais: [Mantine Schedule](https://mantine.dev/schedule/schedul
 | Dia, semana, mês e lista | FullCalendar, Schedule-X, React Big Calendar, Bryntum, Syncfusion | Existem. Validar navegação, callbacks e continuidade de eventos em todas as views |
 | N dias / views próprias | [FullCalendar React](https://fullcalendar.io/docs/react), [React Big Calendar](https://github.com/bigcalendar/react-big-calendar) | Factories e createReactView existem; hooks e context React devem funcionar |
 | Recursos e timeline | [FullCalendar](https://fullcalendar.io/docs/react), [Syncfusion](https://ej2.syncfusion.com/react/documentation/schedule/resources), [Bryntum](https://bryntum.com/products/calendar/features/) | Existem; transferência precisa preservar demais resourceIds e validar capacidade, buffer e expediente |
-| Recorrência e exceções | [FullCalendar](https://fullcalendar.io/docs/recurring-events), [Schedule-X](https://schedule-x.dev/docs/calendar/plugins/recurrence) | Motor próprio: DAILY/WEEKLY/MONTHLY/YEARLY. Não chamar de RFC completo: subdiário e demais filtros não cobertos precisam contrato explícito |
+| Recorrência e exceções | [FullCalendar](https://fullcalendar.io/docs/recurring-events), [Schedule-X](https://schedule-x.dev/docs/calendar/plugins/recurrence) | rrule-temporal 2.2.8 adotado, com contrato público DAILY/WEEKLY/MONTHLY/YEARLY e exceções/overrides. O iterador civil próprio permanece experimental. Não chamar de RFC completo: subdiário e demais filtros não cobertos precisam contrato explícito |
 | Drag/resize entre dias | [Schedule-X](https://schedule-x.dev/docs/calendar/plugins/drag-and-drop), Bryntum | Não basta renderizar segmentos: preservar duração integral, validar cada dia, fazer rollback isolado e editar exceção recorrente |
 | Mobile / toque | [FullCalendar](https://fullcalendar.io/docs/touch), [Schedule-X](https://schedule-x.dev/docs/calendar/views), [Syncfusion](https://ej2.syncfusion.com/react/documentation/schedule/resources) | Layout sem overflow foi verificado em 320/375/768px. Rolagem nativa, seleção e edição por toque precisam testes próprios |
-| Editor / exclusão / recorrência | [Bryntum](https://bryntum.com/products/calendar/features/) | Editor React de demonstração pertence ao exemplo. Editor reutilizável opcional ainda precisa implementação e validação |
+| Editor / exclusão / recorrência | [Bryntum](https://bryntum.com/products/calendar/features/) | CalendarEventEditor reutilizável implementado: criação, edição, exclusão, recursos, ocorrência/esta e seguintes/série; validado por testes e browser |
 | Ano / multimestre / semana útil | FullCalendar e Bryntum | Backlog: views adicionais, dias ocultos e número de semana |
 | Filtros / seleção de recursos | Bryntum e Syncfusion | visibleResourceIds existe; filtro de eventos e seletor acessível mobile precisam interface |
 | Teclado / leitor de tela | [FullCalendar](https://fullcalendar.io/docs/accessibility) | Foco, nomes e ativação precisam cobertura. Drag por ponteiro sozinho não oferece alternativa de teclado |
@@ -39,7 +35,7 @@ Referências adicionais: [Mantine Schedule](https://mantine.dev/schedule/schedul
 
 ## Evidências locais desta revisão
 
-`yarn verify`: 250 testes em 21 arquivos, tipos, builds ESM/CJS/declarations, tarballs e consumidor React TypeScript. `yarn test:browser`: 19 verificações de fluxo no Edge, incluindo edição/criação, drag/resize, rejeição/rollback, filtro/conflito de recursos e remontagem StrictMode; 18 combinações de view/largura (320/375/768px).
+`yarn verify`: 283 testes em 23 arquivos, tipos, builds e consumidor externo. A auditoria ampliada no Edge e suas limitações estão em [07-AUDITORIA-LAYOUT.md](07-AUDITORIA-LAYOUT.md).
 
 Benchmark `node scripts/bench.mjs 2000 3`, pipeline headless semanal com polyfill: aproximadamente 2.240 ms antes de cachear limites da janela e evitar conversões para a mesma timezone; aproximadamente 1.384 ms na execução após a mudança. São três amostras locais, sem isolamento de carga, e não uma comparação rigorosa de frameworks. O custo ainda é alto para agendas densas; otimizar projeções/reutilização dos dados e medir diferentes quantidades de eventos/recursos é prioridade antes de afirmar boa performance. Virtualização de DOM sozinha não elimina esse custo do motor.
 
@@ -69,3 +65,11 @@ Usar a largura do container, não apenas a viewport: o calendário pode estar de
 6. Mês compacto deve destacar ocupação e abrir lista do dia; empilhar títulos ilegíveis em células de 40px não resolve a tarefa.
 
 Testes no Edge desktop com viewport pequena comprovam dimensões, não a ergonomia em iOS/Android. Validar em dispositivos e leitores de tela antes de afirmar suporte mobile completo.
+
+## Revisão do mês e dependências de interface
+
+[FullCalendar dayMaxEvents](https://fullcalendar.io/docs/dayMaxEvents) e [Schedule-X configuration](https://schedule-x.dev/docs/calendar/configuration) ajudam a distinguir limite explícito de eventos e ajuste automático pela altura. Aqui monthMaxEvents é explícito; não existe ajuste automático por altura. Barras de vários dias são contínuas e divididas nas semanas. O “mais” oferece popover padrão, renderMonthMore, callback externo ou monthMoreView.
+
+[FullCalendar eventMaxStack](https://fullcalendar.io/docs/eventMaxStack) também limita empilhamento em time-grid/timeline. Esse recurso ainda falta localmente; evitar interseções não garante leitura de dezenas de eventos simultâneos.
+
+[Floating UI React](https://floating-ui.com/docs/react) foi adotado para posição, colisão com bordas, dismiss e foco do popover, com carregamento sob demanda. Não é motor de calendário. React Aria e dnd-kit podem servir a componentes acessíveis ou gestos específicos, mas não substituem regras de recorrência, constraints e geometria; sua adoção exige necessidade e benchmark concreto. O CSS público permanece pré-compilado e com tokens, sem Tailwind obrigatório.

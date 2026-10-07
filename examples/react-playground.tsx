@@ -133,8 +133,8 @@ function App() {
         }}
         onDropBlocked={info => setFeedback(info.reason==='blocked' ? 'Alteração recusada: o intervalo atravessa um bloqueio. Desative “Aplicar restrições de horário” para experimentar livremente.'
           : info.reason==='outside-business-hours' ? 'Alteração recusada: o intervalo ultrapassa o expediente. Desative “Aplicar restrições de horário” para experimentar livremente.'
-          : info.reason==='over-capacity' || info.reason==='buffer-conflict' ? 'Alteração recusada: a sala está ocupada ou o intervalo de preparação está em conflito.' : `Alteração recusada: ${info.reason}.`)}
-        onClickBlocked={info => setFeedback(`Horário indisponível: ${info.reason}.`)}
+          : info.reason==='over-capacity' ? 'Alteração recusada: capacidade da sala excedida (1 evento simultâneo por sala).' : info.reason==='buffer-conflict' ? 'Alteração recusada: conflito com os 15 minutos de preparação da Sala 1.' : `Alteração recusada: ${info.reason}.`)}
+        onClickBlocked={info => setFeedback(info.reason==='outside-business-hours' ? 'Horário indisponível: fora do expediente (segunda a sexta, 08h–20h).' : info.reason==='blocked' ? 'Horário indisponível: intervalo bloqueado.' : info.reason==='over-capacity' ? 'Horário indisponível: capacidade da sala excedida (1 evento simultâneo).' : info.reason==='buffer-conflict' ? 'Horário indisponível: conflito com a preparação de 15 minutos da Sala 1.' : `Horário indisponível: ${info.reason}.`)}
       /> : <p>Calendário desmontado. Use “Montar calendário” para continuar.</p>}
     </section>
     <p className="demo-note">Os dados ficam em memória. Arraste ou redimensione o intervalo completo; abra o editor para reagendar por teclado ou no celular.</p>

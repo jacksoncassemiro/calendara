@@ -203,7 +203,8 @@ function ResourceGrid(props: {
             ))}
           </div>
 
-          {columns.map((column) => {
+
+        {columns.map((column) => {
             const columnDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
             return (
               <ResourceColumn
@@ -483,6 +484,7 @@ function Timeline(props: {
           </div>
         </div>
 
+        <div className="mc-timeline-rows" style={{position:"relative"}}>
         {columns.map((column) => {
           const lanes = assignLanes(
             column.day.timed.filter((placement) => placement.startMin < gridEndMin && placement.endMin > gridStartMin).map((placement) => ({
@@ -596,8 +598,7 @@ function Timeline(props: {
                     </div>
                   );
                 })}
-                {showNow && <div className="mc-now-line mc-timeline-now" data-mc-now
-                  style={{position:'absolute',top:0,bottom:0,left:toPx(minuteToX(nowMinute))}} />}
+
                 {rowDraft && (
                   <div
                     className={draftClass(rowDraft)}
@@ -617,6 +618,9 @@ function Timeline(props: {
             </div>
           );
         })}
+        {showNow && <div className="mc-now-line mc-timeline-now" data-mc-now
+          style={{position:'absolute',top:0,bottom:0,left:toPx(RESOURCE_LABEL_PX+minuteToX(nowMinute)),pointerEvents:'none',zIndex:3}} />}
+        </div>
       </div>
     </div>
   );

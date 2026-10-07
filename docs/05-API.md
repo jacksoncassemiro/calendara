@@ -262,3 +262,22 @@ const {before, following} = splitEventSeries(temporal, master, occurrence.origin
 O corte usa a chave original da ocorrência, não seu horário efetivo após override. COUNT é dividido antes de EXDATE/cancelamentos; RDATE não consome COUNT. Exceções e overrides são particionados pelo início original e os futuros acompanham o deslocamento wall-clock do novo início. O histórico anterior permanece imutável. Um corte sem alterações recompõe a série original nos cenários existentes de frequências/filtros.
 
 O corte precisa ser uma ocorrência ativa gerada pela RRULE. Datas extras RDATE-only, troca de timezone ou all-day↔timed e início incompatível com os filtros são rejeitados. Para filtros explícitos como BYDAY=MO, reagendar o novo início para terça exige alterar a regra em uma operação própria. O helper não grava dados nem verifica constraints de todos os eventos futuros: faça essa validação e a persistência dos dois mestres em uma transação no consumidor; séries infinitas exigem uma política de janela de validação.
+
+## Espaçamento e abertura do mês
+
+`pxPerMinute` define a escala dos horários em todas as grades; `1.5` corresponde a 45 px por meia hora. `timeLabelInterval: 60` mostra rótulos a cada hora, independentemente de `slotMinutes: 30`, usado para seleção e snapping. Sem intervalo explícito, os rótulos adaptam a distância mínima conforme a escala.
+
+`monthMaxEvents` limita as faixas visíveis por semana: padrão 3, zero oculta todas, `false` mostra todas. Barras de vários dias preservam a mesma faixa; por isso um dia pode ter menos eventos visíveis que o limite. O botão informa quantas ocorrências daquele dia estão ocultas.
+
+```tsx
+<Calendar events={events}
+  options={{pxPerMinute:1.5, timeLabelInterval:60, monthMaxEvents:3}}
+  renderMonthMore={({dateISO, occurrences, close, openView}) => (
+    <MinhaLista date={dateISO} events={occurrences}
+      onClose={close} onOpenDay={() => openView('day')} />
+  )} />
+```
+
+Sem `renderMonthMore`, o conteúdo padrão aparece em popover com posicionamento e gestão de foco do Floating UI. `options.monthMoreView: 'day'` abre diretamente a view registrada na data escolhida. Para um componente externo, use `onMonthMoreClick={info => { abrirPainel(info); return false; }}`: retornar false cancela a abertura interna. `MonthMoreInfo` fornece data, todas as ocorrências, ocorrências ocultas, âncora e funções close/openView.
+
+Nas grades de semana/N dias e recursos, cabeçalho, dia inteiro e eventos compartilham uma rolagem horizontal. Containers até 640 px mantêm piso de 104 px por dia e 140 px por recurso. A barra aparece somente quando as colunas não cabem. Os tokens CSS `--mc-day-min-width` e `--mc-resource-min-width` permitem aumentar o piso.

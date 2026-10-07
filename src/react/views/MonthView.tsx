@@ -161,7 +161,11 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
 
       {weeks.map((week) => {
         const segments = packWeek(week.map(day=>day.toString()), chipsByDay);
-        const laneCount = Math.max(0,...segments.map(segment=>segment.lane+1));
+        const draft = props.context.draft;
+        const draftEnd = draft?.endDateISO ?? draft?.dateISO;
+        const draftDates = draft ? week.map(day=>day.toString()).filter(date=>date>=draft.dateISO && (date<draftEnd! || date===draftEnd && !draft.allDay && draft.endMin>0)) : [];
+        const draftLane = Math.max(0,...segments.filter(segment=>segment.dates.some(date=>draftDates.includes(date))).map(segment=>segment.lane+1));
+        const laneCount = Math.max(draftDates.length ? draftLane+1 : 0,...segments.map(segment=>segment.lane+1));
         const visibleLanes = Math.min(laneCount,maxEvents);
         const hasMore = segments.some(segment=>segment.lane>=maxEvents);
         return (
@@ -221,11 +225,13 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                   </div>
                 )}
                 <span className="mc-month-count" aria-hidden="true">{chips.length ? `${chips.length}` : ''}</span>
-                <div className="mc-month-events" style={{position:'relative',height:visibleLanes*22+(hasMore?28:0)}}>
-                  {props.context.draft && dayISO >= props.context.draft.dateISO && dayISO <= (props.context.draft.endDateISO ?? props.context.draft.dateISO)
-                    && (!props.context.draft.allDay || dayISO < props.context.draft.endDateISO!) &&
-                    <div className={`mc-month-event mc-month-draft${props.context.draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`}
-                      data-mc-draft={props.context.draft.kind} aria-hidden="true">{props.context.draft.valid ? 'Novo intervalo' : 'Indisponível'}</div>}
+                <div className="mc-month-events" style={{position:'relative',height:Math.max(visibleLanes*22+(hasMore?28:0),draftDates.length?(draftLane+1)*22:0)}}>
+                  {draft && draftDates[0]===dayISO && <div
+                    className={`mc-month-event mc-month-draft${draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`}
+                    data-mc-draft={draft.kind} data-mc-draft-dates={draftDates.join(' ')} aria-hidden="true"
+                    style={{position:'absolute',top:draftLane*22,left:0,height:20,width:`calc(${draftDates.length*100}% + ${draftDates.length-1}px - 4px)`,zIndex:2}}>
+                    {draft.valid ? (draft.eventId ? occurrences.find(occurrence=>chipKey(occurrence)===draft.eventId)?.event.title ?? 'Novo intervalo' : 'Novo intervalo') : `Indisponível: ${draft.reason}`}
+                    </div>}
                   {visibleSegments.map(({chip,span,lane,dates}) => (
                     <div
                       key={chip.id}

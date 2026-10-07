@@ -22,7 +22,7 @@ async page => {
           const headers=[...scroller.querySelectorAll(selectors[0])],columns=[...scroller.querySelectorAll(selectors[1])];
           const last=columns.at(-1).getBoundingClientRect(),viewport=scroller.getBoundingClientRect();
           const aligned=headers.length===columns.length && columns.every((column,i)=>Math.abs(column.getBoundingClientRect().left-headers[i].getBoundingClientRect().left)<1);
-          const result={scrollable:scroller.scrollWidth>scroller.clientWidth,moved:scroller.scrollLeft>0,aligned,lastVisible:last.right<=viewport.right+1 && last.left>=viewport.left};
+          const needsScroll=columns.length*(selectors[0].includes("day")?104:140)+56>scroller.clientWidth; const result={scrollable:!needsScroll || scroller.scrollWidth>scroller.clientWidth,moved:!needsScroll || scroller.scrollLeft>0,aligned,lastVisible:last.right<=viewport.right+1 && last.left>=viewport.left};
           scroller.scrollLeft=0;return result;
         });
         if(Object.values(scroll).some(value=>!value)) throw new Error(`Rolagem/alinhamento ${views[index]} ${width}: ${JSON.stringify(scroll)}`);

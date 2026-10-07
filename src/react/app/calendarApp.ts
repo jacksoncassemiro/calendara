@@ -554,7 +554,7 @@ export class CalendarApp {
     if (this.onMonthMoreClick) context.onMonthMoreClick = this.onMonthMoreClick;
     context.openDateView = (dateISO,viewName) => this.batchUpdate(() => { this.setDate(dateISO); this.changeView(viewName); });
     if (this.onEventClick) context.onEventClick = this.onEventClick;
-    if (this.onDateClick) context.onDateClick = this.onDateClick;
+    if (this.onDateClick) context.onDateClick = (dateISO, minuteOfDay) => this.clickDate(dateISO, minuteOfDay);
     return context;
   }
 
@@ -656,7 +656,7 @@ export class CalendarApp {
         commitSelect: (selection) => this.onDateSelect?.(selection),
         clickEvent: (placement) => this.onEventClick?.(placement.occurrence),
         clickEmpty: (slot: PointerSlot) =>
-          this.onDateClick?.(slot.dateISO, slot.dateOnly ? undefined : Math.round(slot.minuteOfDay)),
+          this.clickDate(slot.dateISO, slot.dateOnly || slot.allDay ? undefined : Math.floor(slot.minuteOfDay / this.store.getState().options.slotMinutes) * this.store.getState().options.slotMinutes, slot.resourceId),
         blocked: (info: BlockedInfo) => {
           const isSelection = info.kind === 'select';
           if (isSelection) this.onClickBlocked?.(info);
@@ -682,6 +682,16 @@ export class CalendarApp {
     });
   };
 
+  private clickDate(dateISO: string, minuteOfDay?: number, resourceId?: string): void {
+    const startMin = minuteOfDay ?? 0;
+    const endMin = minuteOfDay === undefined ? 1440 : Math.min(1440, startMin + this.store.getState().options.slotMinutes);
+    const input: EvaluationInput = {kind:'select', dateISO, startMin, endMin,
+      ...(minuteOfDay === undefined ? {allDay:true} : {}), ...(resourceId ? {resourceId} : {})};
+    const evaluation = this.evaluateDraft(input);
+    if (!evaluation.valid) { this.onClickBlocked?.({...input, reason:evaluation.reason}); return; }
+    if (resourceId && this.onDateSelect) this.onDateSelect({dateISO,startMin,endMin:minuteOfDay === undefined ? 0 : endMin,resourceId,...(minuteOfDay === undefined ? {allDay:true,endDateISO:this.temporal!.PlainDate.from(dateISO).add({days:1}).toString()} : {})});
+    else this.onDateClick?.(dateISO,minuteOfDay);
+  }
   private evaluateDraft(input: EvaluationInput): DraftEvaluation {
     if (input.endDateISO !== undefined && this.temporal) {
       const start = this.temporal.PlainDate.from(input.dateISO);

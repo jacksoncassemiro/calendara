@@ -56,3 +56,5 @@ node scripts/compare-recurrence-events.mjs
 React/React DOM ^18 ou ^19 são peers; a validação atual executou React 19. Compatibilidade física Safari/iOS/Android não foi comprovada. SSR gera o container inicial. Ainda faltam subdiárias, ICS, virtualização, undo/redo, RTL e impressão; não há paridade completa com concorrentes. “Esta e seguintes” exige corte numa ocorrência ativa gerada pela RRULE, mesmo tipo de horário e timezone; mudanças incompatíveis com filtros são rejeitadas.
 
 Leia [estado vigente](docs/00-STATUS.md), [API](docs/05-API.md), [estilização](docs/04-ESTILIZACAO.md), [comparação de concorrentes](docs/06-REVISAO-COMPETITIVA.md), [adoção de recorrência](experiments/civil-recurrence/ADOPTION.md) e [auditoria](docs/security_best_practices_report.md).
+
+O mês oferece barras contínuas, popover de “mais” customizável por renderMonthMore, callback onMonthMoreClick ou navegação por monthMoreView. Espaçamento é configurado com pxPerMinute; timeLabelInterval controla somente os rótulos. Veja a [auditoria de layout e interação](docs/07-AUDITORIA-LAYOUT.md) e a [API](docs/05-API.md).
