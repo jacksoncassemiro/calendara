@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "baseUrl": ".",
+    "paths": {
+      "@meucalendario/calendar": ["src/index.ts"],
+      "@meucalendario/calendar/core": ["src/core/index.ts"]
+    }
+  },
+  "include": ["examples/**/*.tsx", "src/**/*.ts", "src/**/*.tsx"]
+}

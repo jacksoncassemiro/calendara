@@ -1,0 +1,25 @@
+body { margin: 0; color: #18283c; background: #f5f7fa; font: 15px/1.5 system-ui, sans-serif; }
+* { box-sizing: border-box; }
+main { max-width: 1440px; margin: auto; padding: 24px; }
+.demo-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+h1 { font-size: 26px; letter-spacing: -.5px; margin: 0; }
+.demo-header p { margin: 3px 0 18px; color: #516073; }
+button, input, select { font: inherit; }
+select { max-width: 100%; min-height: 44px; padding: 8px; border: 1px solid #8190a3; border-radius: 4px; background: #fff; color: inherit; }
+button { min-height: 44px; padding: 8px 14px; border: 1px solid #c4ceda; border-radius: 6px; background: #fff; color: inherit; cursor: pointer; }
+button:hover { background: #edf2f8; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.demo-tools { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.demo-tools label { display: flex; gap: 8px; align-items: center; min-height: 44px; }
+.demo-feedback { min-height: 24px; color: #334d70; }
+.demo-calendar { background: #fff; border: 1px solid #d5dce6; border-radius: 8px; overflow: hidden; }
+.demo-note { color: #516073; font-size: 13px; }
+.demo-summary { padding: 20px; }
+.demo-editor::backdrop { background: #14213566; }
+.demo-editor { border: 0; background: #fff; color: inherit; border-radius: 10px; width: min(420px, calc(100% - 32px)); padding: 24px; box-shadow: 0 12px 48px #14213533; }
+.demo-editor h2 { margin-top: 0; font-size: 20px; }
+.demo-editor label { display: grid; gap: 6px; margin-bottom: 12px; }
+.demo-editor input { padding: 10px; border: 1px solid #8190a3; border-radius: 4px; width: 100%; }
+.demo-editor input[type="checkbox"] { width: auto; }
+.demo-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+@media (max-width: 600px) { main { padding: 12px; } .demo-header { align-items: flex-start; } h1 { font-size: 22px; } .demo-tools { gap: 8px; } }

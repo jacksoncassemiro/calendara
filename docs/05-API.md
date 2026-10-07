@@ -24,7 +24,7 @@ const consulta = {
 };
 ```
 
-- **`time.timeZone`**: o horário é "wall-clock" naquela timezone. `'2026-07-22T09:00:00'` + `'America/Sao_Paulo'` = 9h no horário de São Paulo, independentemente da timezone de exibição. Use a tz de origem do evento (ex.: a da clínica).
+- **`time.start.timeZone` / `time.end.timeZone`**: o horário é "wall-clock" naquela timezone. `'2026-07-22T09:00:00'` + `'America/Sao_Paulo'` = 9h no horário de São Paulo, independentemente da timezone de exibição. Use a tz de origem do evento (ex.: a da clínica). Os callbacks de gesto informam `change.timeZone`, a zona dos novos horários.
 - **evento de dia inteiro** (feriado, férias): `allDay: true` e use `date` (não `dateTime`). O `end` é **exclusivo** (convenção Google): um feriado só no dia 22 vai de `22` a `23`.
 
 ```ts
@@ -37,7 +37,9 @@ const feriado = {
 
 ---
 
-## 2. Recorrência (motor próprio, superconjunto RFC 5545)
+## 2. Recorrência (subconjunto de RFC 5545)
+
+Frequências DAILY/WEEKLY/MONTHLY/YEARLY. RDATE datetime preserva horário; EXDATE datetime exclui o início exato, enquanto date-only exclui o dia. UNTIL datetime respeita hora e timezone. Valores com Z/offset são projetados na timezone do mestre, ou UTC quando ela estiver ausente. Ao chamar `expandEvent` diretamente, forneça `window.end` para regras sem COUNT/UNTIL; materialização infinita lança erro. Não há suporte completo a filtros subdiários do RFC.
 
 Coloque `recurrence` no evento. A `start`/`end` do evento definem o **horário** de cada ocorrência; a regra define **em quais dias**.
 
@@ -192,15 +194,15 @@ app.registerView(createResourceDayView(resources));   // Multiagenda (1 dia, N c
 app.registerView(createTimelineView(resources));      // Timeline (recursos em linhas) → 'timeline'
 ```
 
-**View totalmente customizada** (o `render` devolve nós Preact; no React use `createReactView`):
+**View totalmente customizada** (o `render` devolve nós React; para componentes com hooks use `createReactView`):
 ```ts
-import { h } from 'preact';
+import { createElement } from 'react';
 app.registerView({
   name: 'resumo', label: 'Resumo',
   getRange: (date) => ({ days: [date], startDate: date, endDate: date }),
   navigate: (dir, date) => (dir === 'next' ? date.add({ days: 1 }) : date.subtract({ days: 1 })),
   getTitle: (range) => `Resumo de ${range.startDate.toString()}`,
-  render: (ctx) => h('ul', null, ctx.occurrences.map((o) => h('li', { key: o.event.id }, o.event.title))),
+  render: (ctx) => createElement('ul', null, ctx.occurrences.map((o) => createElement('li', { key: o.event.id }, o.event.title))),
 });
 ```
 
@@ -221,7 +223,7 @@ const { ref, api } = useCalendar();
   options={{ timeZone: 'America/Sao_Paulo', startHour: 7, endHour: 20 }}
   refetchKey={filtroAtual}                // muda ⇒ dispara eventSource de novo
   eventSource={({ start, end }) => api.buscarEventos(start, end)}
-  renderEvent={(info) => <MeuEventoReact occ={info.occurrence} />} // conteúdo React (ilha)
+  renderEvent={(info) => <MeuEventoReact occ={info.occurrence} />} // React nativo com contexto do consumidor
   customToolbar={(t) => <MinhaToolbar title={t.title} onNext={t.goNext} />}
   onEventDrop={(c) => salvar(c)}
 />;
@@ -230,6 +232,10 @@ const { ref, api } = useCalendar();
 api.next(); api.changeView('day'); api.getTitle();
 ```
 
-A instância do core é criada **uma vez**; trocar `events`/`view`/`date` entra pela API imperativa (sem re-render da árvore interna). `renderEvent`/`customToolbar` aceitam React de verdade, embutido via ilha (`ReactIsland`).
+A instância acompanha a montagem; trocar `events`/`view`/`date` entra pela API imperativa. As extensões `renderEvent`, `customToolbar` e `createReactView` pertencem à árvore React do consumidor e compartilham seus providers. Props imutáveis equivalentes são deduplicadas; mudanças de dados/view/date são agrupadas. `CalendarApp` e as fábricas de views são exportados por @meucalendario/react. SSR renderiza inicialmente apenas o container.
+
+`evaluateSlot` consulta constraints globais. Para criação/edição com recursos, use `api.evaluatePlacement({ dateISO, startMin, endMin, resourceId, occurrence? })`: considera expediente do recurso, capacidade e buffers. A ocorrência original opcional evita contar a própria reserva durante a edição. Para eventos atravessando dias, avalie cada segmento diário e cada recurso antes de persistir; a biblioteca não grava no servidor.
+
+`useCompactCalendar(640)` retorna `{ containerRef, compact }` e acompanha a largura do container com ResizeObserver. Escolha `view={compact ? 'day' : 'week'}` ou Agenda conforme seu produto. A toolbar troca botões por seletor em containers estreitos. Confira o exemplo React para editor por formulário e filtro de recurso.
 
 > A tipagem formal (todos os campos e defaults) está em `packages/core/src/types` e em `render/state.ts` (`DEFAULT_OPTIONS`).

@@ -1,5 +1,7 @@
 # 03 — Arquitetura alvo
 
+> Estado de 07/10/2026: migração para React nativo concluída. Core contém motores TypeScript; views e CalendarApp estão em packages/react. Preact, ReactIsland e portals removidos. As seções abaixo preservam o plano/arquitetura históricos e não são a referência vigente. Consulte 00-STATUS.md, README e 05-API.md. A separação interna motor/UI não exige pacotes npm separados; a consolidação pública ainda está pendente.
+
 Desenho técnico da biblioteca. Deriva diretamente de `01-ANALISE.md` (requisitos) e
 `reference/referencias-open-source.md` (padrões consolidados). Formaliza como **matamos o rerender**
 e como **criar view nova fica simples**.

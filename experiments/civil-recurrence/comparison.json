@@ -1,0 +1,74 @@
+{
+  "checkedAt": "2026-10-07T20:09:12.804Z",
+  "node": "v24.18.1",
+  "differentialChecks": 240,
+  "iterations": 10,
+  "results": [
+    {
+      "name": "daily distant",
+      "occurrences": 31,
+      "milliseconds": {
+        "temporalReference": 0.892,
+        "civil": 0.109,
+        "production": 0.238,
+        "rrule": 31.06,
+        "ical": 57.968,
+        "rruleTemporal": 0.368
+      }
+    },
+    {
+      "name": "weekly",
+      "occurrences": 24,
+      "milliseconds": {
+        "temporalReference": 1.23,
+        "civil": 0.103,
+        "production": 0.372,
+        "rrule": 0.184,
+        "ical": 0.386,
+        "rruleTemporal": 0.297
+      }
+    },
+    {
+      "name": "monthly ordinals",
+      "occurrences": 24,
+      "milliseconds": {
+        "temporalReference": 10.296,
+        "civil": 0.299,
+        "production": 0.384,
+        "rrule": 0.183,
+        "ical": 4.226,
+        "rruleTemporal": 0.345
+      }
+    },
+    {
+      "name": "yearly leap",
+      "occurrences": 6,
+      "milliseconds": {
+        "temporalReference": 168.986,
+        "civil": 0.112,
+        "production": 0.178,
+        "rrule": 0.647,
+        "ical": {
+          "comparable": false,
+          "expected": [
+            "2024-02-29",
+            "2028-02-29",
+            "2032-02-29",
+            "2036-02-29",
+            "2040-02-29",
+            "2044-02-29"
+          ],
+          "actual": [
+            "2024-02-29",
+            "2025-03-01",
+            "2026-03-01",
+            "2027-03-01",
+            "2028-02-29",
+            "2029-03-01"
+          ]
+        },
+        "rruleTemporal": 0.111
+      }
+    }
+  ]
+}
