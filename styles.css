@@ -521,6 +521,11 @@
   text-overflow: ellipsis;
 }
 [data-mc-root] .mc-month-count { display: none; }
+[data-mc-root] .mc-month-day.mc-unavailable {
+  background-image: repeating-linear-gradient(135deg, transparent 0 7px, rgba(100,116,139,.07) 7px 9px);
+}
+[data-mc-root] .mc-month-availability-legend { margin: 6px 8px; color: var(--mc-color-muted, #64748b); font-size: 12px; }
+[data-mc-root] .mc-month-unavailable-note { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 [data-mc-root] .mc-month-more { display: block; max-width: calc(100% - 4px); height: 26px; min-height: 26px; margin: 0 2px; padding: 3px 6px; border: 0; border-radius: var(--mc-radius); background: transparent; color: var(--mc-color-btn-active-bg); font: inherit; font-size: var(--mc-font-size-sm); cursor: pointer; }
 [data-mc-root] .mc-month-popover { z-index: 100; width: min(360px, calc(100vw - 16px)); max-height: min(480px, 75vh); overflow: auto; background: var(--mc-color-bg); border: 1px solid var(--mc-color-border); border-radius: var(--mc-radius); box-shadow: 0 8px 30px #0002; }
 [data-mc-root] .mc-month-popover-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px; border-bottom: 1px solid var(--mc-color-border); }

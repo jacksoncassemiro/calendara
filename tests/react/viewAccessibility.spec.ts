@@ -92,7 +92,7 @@ function occurrence(time: CalendarEvent['time']): EventOccurrence {
   };
 }
 
-function mount(view: CalendarView, items: EventOccurrence[] = []) {
+function mount(view: CalendarView, items: EventOccurrence[] = [], renderEvent?: ViewRenderContext['renderEvent']) {
   const date = temporal.PlainDate.from('2026-07-22');
   const base = { temporal, dateUtils, options };
   const onEventClick = vi.fn();
@@ -100,6 +100,7 @@ function mount(view: CalendarView, items: EventOccurrence[] = []) {
   const context: ViewRenderContext = {
     ...base, range: view.getRange(date, base), occurrences: items,
     constraints: {}, nowMs: 0, onEventClick, onDateClick,
+    ...(renderEvent ? {renderEvent} : {}),
   };
   const element = document.createElement('div');
   const root = createRoot(element);
@@ -107,6 +108,40 @@ function mount(view: CalendarView, items: EventOccurrence[] = []) {
   flushSync(() => root.render(view.render(context)));
   return { element, onEventClick, onDateClick, context };
 }
+
+describe('custom event controls own keyboard-generated clicks', () => {
+  const resources=[{id:'room',title:'Sala'}];
+  const cases: [CalendarView,boolean,string][] = [
+    [dayView,false,'[data-mc-event]'],[dayView,true,'[data-mc-allday-event]'],
+    [createResourceDayView(resources),false,'[data-mc-event]'],[createResourceDayView(resources),true,'[data-mc-event]'],
+    [createTimelineView(resources),false,'[data-mc-event]'],[createTimelineView(resources),true,'[data-mc-event]'],
+    [monthView,false,'[data-mc-month-event]'],[listView,false,'[data-mc-list-item]'],
+  ];
+  for(const [view,allDay,selector] of cases) {
+    it(`${view.name}/${allDay?'allDay':'timed'}: nested native and ARIA controls do not activate the event`,()=>{
+      const item=occurrence(allDay ? {allDay:true,start:{date:'2026-07-22'},end:{date:'2026-07-23'}}
+        : {allDay:false,start:{dateTime:'2026-07-22T09:00',timeZone:options.timeZone},end:{dateTime:'2026-07-22T10:00',timeZone:options.timeZone}});
+      item.event.resourceIds=['room'];
+      const nested=vi.fn();
+      const {element,onEventClick}=mount(view,[item],()=>createElement('div',{},
+        createElement('button',{type:'button',onClick:nested},createElement('span',{'data-test-control':'native'},'Ação')),
+        createElement('span',{role:'link',tabIndex:0,onClick:nested},createElement('span',{'data-test-control':'aria'},'Link')),
+        createElement('span',{'data-test-plain':true},'Texto do evento'),
+      ));
+      const card=element.querySelector<HTMLElement>(selector)!;
+      expect(card).not.toBeNull();
+      for(const control of card.querySelectorAll('[data-test-control]')) {
+        control.dispatchEvent(new MouseEvent('click',{bubbles:true,detail:0}));
+      }
+      expect(nested).toHaveBeenCalledTimes(2);
+      expect(onEventClick).not.toHaveBeenCalled();
+      card.querySelector('[data-test-plain]')!.dispatchEvent(new MouseEvent('click',{bubbles:true,detail:0}));
+      expect(onEventClick).toHaveBeenCalledTimes(1);
+      expect(onEventClick).toHaveBeenCalledWith(item);
+      unmount(element);
+    });
+  }
+});
 
 describe('Month and agenda interval rendering', () => {
   for (const view of [monthView, listView]) {

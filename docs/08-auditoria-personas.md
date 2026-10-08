@@ -27,7 +27,7 @@ As personas exercitam tarefas, não usuários reais recrutados. Não inferir usa
 
 | Prioridade | Estado | Cenário e critério verificável |
 |---|---|---|
-| Alta | HIPÓTESE | Buffer atravessando meia-noite: reserva termina 23h50, preparo de 20 minutos, candidato às 00h05 seguinte. A avaliação diária pode excluir a reserva anterior porque o evento não cruza o dia, mesmo quando seu buffer cruza. Reproduzir com capacidade 1, incluindo janela de navegação que começa no segundo dia |
+| Alta | CORRIGIDO e validado | Buffer antes/depois da meia-noite: intervalos completos dos dias vizinhos são considerados na capacidade e nas faixas visuais. Testes incluem capacidades 1/2/ilimitada, fronteiras exatas, navegação e plantão multiday |
 | Alta | LACUNA de integração | Duas instâncias tentam a última vaga ao mesmo tempo. O aplicativo precisa persistir e validar capacidade atomicamente no backend, usando versão/conflito/idempotência e callback de recusa. Aceite: só uma gravação confirmada; a outra restaura seu evento e informa o conflito |
 | Alta | LACUNA de evidência | iOS/Safari e Android com toque físico: rolar começando sobre cartão, tocar para editar, cancelar gesto, redimensionar alvo pequeno e mover entre colunas. Aceite: scroll não altera reserva; cancelamento nunca confirma mudança; edição funciona sem drag |
 | Alta | HIPÓTESE de UX | Dia com DST e hora repetida em `America/New_York`: distinguir os dois instantes 01h30 e preservar duração ao mover/estender. Aceite: política de escolha explícita no editor; callback informa instante/fuso sem tratar dois instantes como mesma reserva |
@@ -55,7 +55,7 @@ O pacote atual usa React como peer. Em um aplicativo React, substituir intername
 
 ## Critério para encerrar uma rodada
 
-Registrar o resultado específico, dados/viewport/fuso, comando e artefato visual de cada cenário. Marcar hipóteses como corrigidas somente após reproduzir e verificar a correção. Atualizar este documento quando terminar o administrador e a rodada completa; os estados acima não substituem seus resultados.
+Registrar o resultado específico, dados/viewport/fuso, comando e artefato visual de cada cenário. Marcar hipóteses como corrigidas somente após reproduzir e verificar a correção. A rodada completa e os quatro roteiros de personas passaram; isso não substitui validação com usuários reais.
 
 ## Correções e manutenção desta rodada
 
@@ -67,4 +67,8 @@ O formulário da série ganhou intervalo, dias semanais, dia mensal, mês/dia an
 
 Arquivos auxiliares separados em views/layout, views/models e views/hooks; exports públicos conservados. resourceViews ainda reúne duas views e é candidato a uma divisão posterior. Removido cálculo duplicado de densidade e de limites de resize. Não houve migração para Preact.
 
-Validação de código desta rodada: yarn verify, 310 testes em 26 arquivos, tipos, builds e consumo externo do pacote. A checagem final de navegador está em andamento; resultados finais serão registrados após o encerramento.
+Dias sem nenhum horário disponível na faixa configurada agora recebem indicação no mês, considerando expediente, faixas permitidas e união de bloqueios globais. Dias parcialmente livres não recebem a indicação; eventos existentes continuam acessíveis. O indicador não representa lotação nem indisponibilidade específica de cada recurso. Imagens desktop e mobile inspecionadas em output/layout-review/month-availability-desktop.png e month-availability-mobile.png.
+
+Um cancelamento inesperado de resize após outro gesto foi reproduzido no navegador: o arraste nativo do navegador interrompia o Pointer Event. Durante um gesto do calendário, esse arraste nativo agora é impedido. Botões e outros controles personalizados dentro dos cartões não acionam a edição ou o arraste do cartão pai.
+
+Validação final: yarn verify passou com 320 testes em 27 arquivos, tipos, builds, tarball e consumo externo React TypeScript. yarn test:browser passou com 22 roteiros no Edge, incluindo as quatro personas, editor recorrente, prévias de movimento/resize em cinco views e indisponibilidade mensal em desktop/mobile. Logs em output/verify-final.log e output/browser-review-final.log. A execução isolada de QA desativa HMR para evitar interrupções por alterações paralelas de arquivos.

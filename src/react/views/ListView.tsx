@@ -11,6 +11,7 @@ import type { EventOccurrence } from '../../core/index.js';
 import { occurrenceStart } from '../../core/index.js';
 import { formatDate, formatHourLabel } from './format.js';
 import { occurrenceDays } from './layout/occurrenceDays.js';
+import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
@@ -122,7 +123,7 @@ function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
                 data-mc-list-item={item.id}
                 role={props.context.onEventClick ? 'button' : undefined}
                 tabIndex={props.context.onEventClick ? 0 : undefined}
-                onClick={() => props.context.onEventClick?.(item.occurrence)}
+                onClick={(event) => { if (!isNestedInteractiveTarget(event.target,event.currentTarget)) props.context.onEventClick?.(item.occurrence); }}
                 onKeyDown={(event) => {
                   if (event.target !== event.currentTarget || !props.context.onEventClick) return;
                   if (event.key === 'Enter' || event.key === ' ') {

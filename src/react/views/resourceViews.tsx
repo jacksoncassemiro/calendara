@@ -14,6 +14,7 @@
  * na data, que o ConstraintEngine consome como data de calendário de verdade.
  */
 import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
+import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
 import { applyDenseLayout, type DenseLayoutResult } from './layout/denseLayout.js';
 import { EventOverflow } from './EventOverflow.js';
 import { createElement, type JSX } from 'react';
@@ -76,7 +77,7 @@ function ResourceAllDay({ column, context }: { column: ResourceColumnData; conte
         data-mc-event={`${occurrence.masterId}@${occurrence.originalStart}`} data-mc-start-min="0" data-mc-end-min="0"
         data-mc-editable={editable ? 'true' : 'false'} title={event.title} style={context.draft?.eventId===occurrence.masterId+'@'+occurrence.originalStart ? {visibility:'hidden'} : undefined}
         role={context.onEventClick ? 'button' : undefined} tabIndex={context.onEventClick ? 0 : undefined}
-        onClick={(click) => { if (click.detail === 0) context.onEventClick?.(occurrence); }}
+        onClick={(click) => { if (!isNestedInteractiveTarget(click.target,click.currentTarget) && click.detail === 0) context.onEventClick?.(occurrence); }}
         onKeyDown={(key) => {
           if (key.target === key.currentTarget && (key.key === 'Enter' || key.key === ' ')) {
             key.preventDefault(); context.onEventClick?.(occurrence);
@@ -310,6 +311,7 @@ function ResourceColumn(props: {
             tabIndex={context.onEventClick ? 0 : undefined}
             aria-label={`${timeLabel} ${event.title}`}
             onClick={(clickEvent) => {
+              if (isNestedInteractiveTarget(clickEvent.target,clickEvent.currentTarget)) return;
               // Pointer clicks are dispatched by InteractionEngine; assistive clicks have no pointer.
               if (clickEvent.detail === 0) context.onEventClick?.(placement.occurrence);
             }}
@@ -542,6 +544,7 @@ function Timeline(props: {
                       tabIndex={context.onEventClick ? 0 : undefined}
                       aria-label={`${timeLabel} ${event.title}`}
                       onClick={(clickEvent) => {
+                        if (isNestedInteractiveTarget(clickEvent.target,clickEvent.currentTarget)) return;
                         if (clickEvent.detail === 0) context.onEventClick?.(placement.occurrence);
                       }}
                       onKeyDown={(keyEvent) => {

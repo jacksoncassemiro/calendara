@@ -37,6 +37,7 @@ import type {
 } from './model.js';
 import { minutesToDateTime, calendarDayOffset } from './model.js';
 import { computeMoveDraft, computeResizeDraft, computeSelectDraft } from './gestureGeometry.js';
+import { isNestedInteractiveTarget } from './interactiveTarget.js';
 import type { EventOccurrence } from '../types/event.js';
 
 /** Entrada de avaliação de um candidato (ConstraintEngine + ocupação). */
@@ -132,6 +133,10 @@ export class InteractionEngine {
 	private readonly onPointerMove = (event: Event): void => this.handlePointerMove(event);
 	private readonly onPointerUp = (event: Event): void => this.handlePointerUp(event);
 	private readonly onPointerCancel = (event: Event): void => this.handlePointerCancel(event);
+	/** Native text/image dragging would cancel the active Pointer Events gesture. */
+	private readonly onNativeDragStart = (event: Event): void => {
+		if (this.gesture) event.preventDefault();
+	};
 
 	constructor(deps: InteractionDeps) {
 		this.deps = deps;
@@ -179,8 +184,7 @@ export class InteractionEngine {
 		const eventNode = targetElement.closest('[data-mc-event]') as HTMLElement | null;
 		const resizeHandle = targetElement.closest('[data-mc-resize]');
 		// Controls supplied by renderEvent own their pointer gestures.
-		const nestedControl = targetElement.closest('button, a, input, select, textarea, [contenteditable="true"], [role="button"]');
-		if (eventNode && nestedControl && nestedControl !== eventNode && !resizeHandle) return;
+		if (eventNode && !resizeHandle && isNestedInteractiveTarget(targetElement,eventNode)) return;
 		// Alvo de SELEÇÃO em área vazia: coluna de data ou, nas views de recurso, a superfície
 		// genérica. Só procura a segunda se a primeira falhou (custo zero no TimeGrid).
 		const dayNode = targetElement.closest('[data-mc-day]') as HTMLElement | null;
@@ -539,6 +543,7 @@ export class InteractionEngine {
 			documentRef.addEventListener('pointermove', this.onPointerMove);
 			documentRef.addEventListener('pointerup', this.onPointerUp);
 			documentRef.addEventListener('pointercancel', this.onPointerCancel);
+			documentRef.addEventListener('dragstart', this.onNativeDragStart);
 		}
 		const canCapture = typeof (captureTarget as Element & {
 			setPointerCapture?: (id: number) => void;
@@ -575,6 +580,7 @@ export class InteractionEngine {
 		documentRef.removeEventListener('pointermove', this.onPointerMove);
 		documentRef.removeEventListener('pointerup', this.onPointerUp);
 		documentRef.removeEventListener('pointercancel', this.onPointerCancel);
+		documentRef.removeEventListener('dragstart', this.onNativeDragStart);
 	}
 }
 

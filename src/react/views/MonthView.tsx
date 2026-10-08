@@ -7,7 +7,9 @@ import { createElement, lazy, Suspense, useEffect, useId, useRef, useState, type
 import type { CalendarView, ViewContext, ViewRange, ViewRenderContext, MonthMoreInfo } from './viewDef.js';
 import type { TemporalLike } from '../../core/index.js';
 import type { EventOccurrence } from '../../core/index.js';
-import { occurrenceStart } from '../../core/index.js';
+import { occurrenceStart, resolveHour } from '../../core/index.js';
+import { hasAvailableTime } from '../../core/constraint/constraintEngine.js';
+import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
 import { formatDate, formatHourLabel, formatDraftInterval } from './format.js';
 import { occurrenceDays } from './layout/occurrenceDays.js';
 import { packDateSpans } from './layout/spanLayout.js';
@@ -92,6 +94,15 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
     return () => observer.disconnect();
   }, []);
   const { temporal, options, range, occurrences, nowMs } = props.context;
+  const visibleStartMin = resolveHour(options.startHour) * 60;
+  const visibleEndMin = resolveHour(options.endHour) * 60;
+  const unavailableDays = new Set(
+    range.days
+      .map(day => day.toString())
+      .filter(date => !hasAvailableTime(
+        props.context.constraints, date, visibleStartMin, visibleEndMin,
+      )),
+  );
   const referenceMonth =
     (range.days[Math.floor(range.days.length / 2)] ?? range.startDate).month;
   const todayISO = temporal.Instant.fromEpochMilliseconds(nowMs)
@@ -182,9 +193,11 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                 key={dayISO}
                 className={
                   `mc-month-day${isToday ? ' mc-today' : ''}` +
-                  (outsideMonth ? ' mc-outside-month' : '')
+                  (outsideMonth ? ' mc-outside-month' : '') + (unavailableDays.has(dayISO) ? ' mc-unavailable' : '')
                 }
                 data-mc-month-day={dayISO}
+                data-mc-unavailable={unavailableDays.has(dayISO) ? 'true' : undefined}
+                title={unavailableDays.has(dayISO) ? 'Sem horários disponíveis na faixa exibida (regras gerais do calendário)' : undefined}
                 style={{...props.context.getDayStyle?.({dateISO:dayISO,viewName:'month'}), flex: '1 1 0' }}
               >
                 {compact || props.context.onDateClick ? (
@@ -209,7 +222,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                         target.focus(); target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
                       }
                     }}
-                    aria-label={`${formatDate(day, options.locale, { dateStyle: 'full' })}${compact ? `, ${chips.length} eventos` : ''}`}
+                    aria-label={`${formatDate(day, options.locale, { dateStyle: 'full' })}${compact ? `, ${chips.length} eventos` : ''}${unavailableDays.has(dayISO) ? ', sem horários disponíveis na faixa exibida' : ''}`}
                     aria-pressed={compact ? dayISO === selectedDay.toString() : undefined}
                     aria-controls={compact ? detailId : undefined}
                     aria-current={isToday ? 'date' : undefined}
@@ -222,6 +235,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                 ) : (
                   <div className="mc-month-daynum" aria-current={isToday ? 'date' : undefined}>
                     {formatDate(day, options.locale, { day: 'numeric' })}
+                    {unavailableDays.has(dayISO) && <span className="mc-month-unavailable-note">: sem horários disponíveis na faixa exibida</span>}
                   </div>
                 )}
                 <span className="mc-month-count" aria-hidden="true">{chips.length ? `${chips.length}` : ''}</span>
@@ -246,7 +260,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                       data-mc-editable={chip.occurrence.event.editable === false ? 'false' : 'true'}
                       role={props.context.onEventClick ? 'button' : undefined}
                       tabIndex={props.context.onEventClick ? 0 : undefined}
-                      onClick={(event) => { if (event.detail === 0) props.context.onEventClick?.(chip.occurrence); }}
+                      onClick={(event) => { if (!isNestedInteractiveTarget(event.target,event.currentTarget) && event.detail === 0) props.context.onEventClick?.(chip.occurrence); }}
                       onKeyDown={(event) => {
                         if (event.target !== event.currentTarget || !props.context.onEventClick) return;
                         if (event.key === 'Enter' || event.key === ' ') {
@@ -293,6 +307,12 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
           })}
         </div>
       );})}
+      {unavailableDays.size > 0 && (
+        <p className="mc-month-availability-legend" data-mc-availability-legend>
+          Dias hachurados: sem horários disponíveis na faixa exibida, pelas regras gerais do calendário.
+          {' '}A disponibilidade de cada recurso pode variar.
+        </p>
+      )}
       {showDetail && (compact ? (
         <section id={detailId} className="mc-month-detail" aria-label="Eventos do dia selecionado"
           onKeyDown={(event) => { if (!compact && event.key === 'Escape') { event.preventDefault(); closeDetail(); } }}>
@@ -303,7 +323,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
               data-mc-month-detail-event={chip.id}
               role={props.context.onEventClick ? 'button' : undefined}
               tabIndex={props.context.onEventClick ? 0 : undefined}
-              onClick={() => props.context.onEventClick?.(chip.occurrence)}
+              onClick={(event) => { if (!isNestedInteractiveTarget(event.target,event.currentTarget)) props.context.onEventClick?.(chip.occurrence); }}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget || !props.context.onEventClick) return;
                 if (event.key === 'Enter' || event.key === ' ') {
@@ -324,7 +344,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
         {props.context.renderMonthMore ? props.context.renderMonthMore({...moreInfo,occurrences:selectedChips.map(chip=>chip.occurrence),hiddenOccurrences:selectedChips.filter(chip=>moreInfo.hiddenOccurrences.some(occurrence=>chipKey(occurrence)===chip.id)).map(chip=>chip.occurrence)}) : <div className="mc-month-detail">
           {selectedChips.map(chip=><div role="button" tabIndex={0} key={chip.id} className="mc-month-popover-event"
             style={props.context.draft?.eventId===chip.id ? {visibility:"hidden"} : undefined} data-mc-month-detail-event={chip.id} data-mc-event-date={selectedDay.toString()} data-mc-event={chip.id} data-mc-start-min={chip.startMin} data-mc-end-min="0" data-mc-editable={chip.occurrence.event.editable===false ? "false" : "true"}
-            onClick={event=>{if ((event.target as Element).closest("button, a, input, select, textarea, [contenteditable=true]") && event.target!==event.currentTarget) return;closeDetail();if(event.detail===0)props.context.onEventClick?.(chip.occurrence);}}
+            onClick={event=>{if (isNestedInteractiveTarget(event.target,event.currentTarget)) return;closeDetail();if(event.detail===0)props.context.onEventClick?.(chip.occurrence);}}
             onKeyDown={event=>{if(event.target===event.currentTarget && ["Enter"," "].includes(event.key)){event.preventDefault();closeDetail();props.context.onEventClick?.(chip.occurrence);}}}>
             {props.context.renderEvent ? props.context.renderEvent({occurrence:chip.occurrence,event:chip.occurrence.event,timeLabel:chip.timeLabel,isAllDay:chip.isAllDay})
               : <><span>{chip.isAllDay?'dia inteiro':chip.timeLabel}</span><span>{chip.occurrence.event.title}</span></>}

@@ -19,10 +19,11 @@ async (page) => {
         await page.evaluate(view => { window.draftApp.setEvents([window.draftOriginal]); window.draftApp.changeView(view); window.scrollTo(0, 0); }, view);
         const event = root.locator('[data-mc-event^="feedback@"]').first(), handle = event.locator('[data-mc-resize="end"]');
         await handle.scrollIntoViewIfNeeded();
-        const from = await handle.boundingBox();
+        let from = await handle.boundingBox();
         const target = view === 'month' ? root.locator('[data-mc-month-day="2026-10-08"]') : view === 'week' ? root.locator('[data-mc-day="2026-10-07"] [data-mc-cell-start="660"]') : root.locator('[data-mc-cell-start="660"]');
         await target.scrollIntoViewIfNeeded();
         const to = await target.boundingBox();
+        from = await handle.boundingBox();
         await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
         await page.mouse.down();
         await page.mouse.move(view === 'timeline' ? to.x + 1 : to.x + to.width / 2, view === 'month' ? to.y + 60 : view === 'timeline' ? to.y + to.height / 2 : to.y + 1, { steps: 10 });
@@ -37,7 +38,21 @@ async (page) => {
         await page.screenshot({ path: 'output/layout-review/draft-feedback-' + view + '.png', fullPage: true });
         await page.mouse.up();
         await page.waitForFunction(expected => window.draftApp.getState().events[0].time.end.dateTime === expected, view === 'month' ? '2026-10-08T10:00:00' : '2026-10-07T11:00:00');
-        results.push(view + ': intervalo da prévia muda antes do commit');
+        await page.evaluate(() => window.draftApp.setEvents([window.draftOriginal]));
+        const moving = root.locator('[data-mc-event^="feedback@"]').first();
+        const original = await moving.boundingBox();
+        const destination = await target.boundingBox();
+        await page.mouse.move(original.x + Math.min(20, original.width / 2), original.y + Math.min(10, original.height / 2));
+        await page.mouse.down();
+        await page.mouse.move(view === 'timeline' ? destination.x + 1 : destination.x + destination.width / 2, view === 'month' ? destination.y + 60 : view === 'timeline' ? destination.y + destination.height / 2 : destination.y + 1, { steps: 10 });
+        await preview.waitFor();
+        const movingLabel = await preview.locator('.mc-draft-time').innerText();
+        const expectedMoveLabel = view === 'month' ? '09:00–10:00' : '11:00–12:00';
+        if (movingLabel !== expectedMoveLabel)
+            throw new Error(view + ': horário do movimento incorreto ' + movingLabel);
+        await page.mouse.up();
+        await page.waitForFunction(expected => window.draftApp.getState().events[0].time.start.dateTime === expected, view === 'month' ? '2026-10-08T09:00:00' : '2026-10-07T11:00:00');
+        results.push(view + ': movimento e resize mostram o intervalo candidato e confirmam ao soltar');
     }
     return results;
-};
+}

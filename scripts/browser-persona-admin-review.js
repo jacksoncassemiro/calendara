@@ -108,11 +108,13 @@ async (page) => {
     await root.locator('[data-mc-month-day="2026-10-07"] .mc-month-more').click();
     await root.locator('.mc-month-popover').waitFor();
     await root.locator('.mc-month-popover button[type=button]').filter({ hasText: /^Ação admin0$/ }).click();
+    await root.locator('.mc-month-popover button[type=button]').filter({ hasText: /^Ação admin0$/ }).focus();
+    await page.keyboard.press('Enter');
     const custom = await page.evaluate(() => ({ actions: window.adminCustomClicks, editors: window.adminEditorClicks }));
-    if (custom.actions !== 1 || custom.editors !== 0 || !await root.locator('.mc-month-popover').isVisible())
+    if (custom.actions !== 2 || custom.editors !== 0 || !await root.locator('.mc-month-popover').isVisible())
         throw new Error('Botão customizado no popover do mês abriu editor ou fechou lista indevidamente: ' + JSON.stringify(custom));
     if (errors.length)
         throw new Error(errors.join('; '));
     results.push('Botão customizado no popover do mês executa sua ação sem abrir editor');
     return results;
-};
+}

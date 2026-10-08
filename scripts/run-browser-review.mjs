@@ -8,7 +8,9 @@ const cli = fileURLToPath(new URL('../node_modules/@playwright/cli/playwright-cl
 mkdirSync(new URL('../output/playwright/', import.meta.url), { recursive: true });
 mkdirSync(new URL('../output/layout-review/', import.meta.url), { recursive: true });
 const server = await createServer({ root, server: { host: '127.0.0.1', port: 5180, strictPort: true, hmr: false } });
+const selectedScripts = process.argv.slice(2);
 function run(args, required = true) {
+  if (args[0] === "run-code" && selectedScripts.length && !selectedScripts.includes(args[2])) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, '-s=calendar-review', ...args], { cwd: root, stdio: 'inherit' });
     child.on('error', reject);
@@ -39,6 +41,7 @@ try {
   await run(['run-code', '--filename', 'scripts/browser-persona-admin-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-recurrence-editor-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-draft-feedback-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-month-availability-review.js']);
 } finally {
   await run(['close'], false);
   await server.close();

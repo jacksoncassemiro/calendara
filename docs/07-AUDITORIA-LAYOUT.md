@@ -19,7 +19,7 @@ No navegador, movimentos aceitos sobreviveram à troca de opções, troca de vie
 
 ## Validação
 
-`yarn verify`: 306 testes em 25 arquivos, tipos, builds, tarball ESM/CJS/CSS e consumidor React TypeScript externo. `yarn test:browser`: fluxos reais no Edge, incluindo edição controlada, drag/resize, recusas, recursos, recorrência, mês/popover/customização, densidade e rolagem; screenshots em output/layout-review. Foram inspecionadas imagens de mês, semana, recursos e timeline em desktop e telas estreitas.
+`yarn verify`: 320 testes em 27 arquivos, tipos, builds, tarball ESM/CJS/CSS e consumidor React TypeScript externo. `yarn test:browser`: fluxos reais no Edge, incluindo edição controlada, drag/resize, recusas, recursos, recorrência, mês/popover/customização, densidade e rolagem; screenshots em output/layout-review. Foram inspecionadas imagens de mês, semana, recursos e timeline em desktop e telas estreitas.
 
 `yarn audit:dependencies`: zero alertas reportados em 07/10/2026. Isso não demonstra ausência de vulnerabilidades desconhecidas.
 
@@ -46,7 +46,7 @@ O exemplo configura uma reserva simultânea por sala e preparação de 15 minuto
 A execução paralela de edições acionou HMR e interrompeu uma rodada de QA; a validação final deve ocorrer com arquivos estáveis. Não é evidência de falha do motor. Scripts de regressão agora distinguem alças start/end e incluem densidade, popover, capacidade herdada/individual e decoração visual.
 
 
-Validação final desta rodada: `yarn verify` passou com 306 testes em 25 arquivos; `yarn test:browser` passou integralmente no Edge. Inclui arraste a partir dos popovers, resize pelo início/fim, capacidade herdada/individual/ilimitada, decoração sem bloqueio, conversão de tipo opt-in, cabeçalho no scroll da página, densidade e responsividade. Na timeline, compacto mediu 840 px e amplo 1680 px para a mesma janela de 14 horas, sem colisão entre os rótulos. Imagens inspecionadas: timeline-spacing-1.png, timeline-spacing-2.png e features-month-popover-drag.png.
+Validação final desta rodada: `yarn verify` passou com 320 testes em 27 arquivos; `yarn test:browser` passou integralmente no Edge. Inclui arraste a partir dos popovers, resize pelo início/fim, capacidade herdada/individual/ilimitada, decoração sem bloqueio, conversão de tipo opt-in, cabeçalho no scroll da página, densidade e responsividade. Na timeline, compacto mediu 840 px e amplo 1680 px para a mesma janela de 14 horas, sem colisão entre os rótulos. Imagens inspecionadas: timeline-spacing-1.png, timeline-spacing-2.png e features-month-popover-drag.png.
 
 
 Correção do eixo vertical: rótulos 2px abaixo das linhas, sem label de slot no limite exclusivo. Browser-axis-review mede os limites dos textos e confirma altura igual do último intervalo em Dia/Semana/Recursos. O servidor5173 foi inspecionado via fetch para confirmar a regra de timeLabelInterval explícito.

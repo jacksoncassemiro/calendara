@@ -8,6 +8,7 @@ import {
 	type JSX,
 } from "react";
 import { occurrenceKey, occurrenceStart } from "../../core/index.js";
+import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
 import { formatDate, formatHourLabel } from "./format.js";
 import type { DenseOverflowGroup } from "./layout/denseLayout.js";
 import type { MonthMoreInfo, ViewRenderContext } from "./viewDef.js";
@@ -141,12 +142,7 @@ export function EventOverflow({
 												occurrence.event.editable === false ? "false" : "true"
 											}
 											onClick={(event) => {
-												if (
-													(event.target as Element).closest(
-														"button, a, input, select, textarea, [contenteditable=true]",
-													) &&
-													event.target !== event.currentTarget
-												)
+												if (isNestedInteractiveTarget(event.target,event.currentTarget))
 													return;
 												close();
 												if (event.detail === 0)

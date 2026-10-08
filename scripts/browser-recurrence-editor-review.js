@@ -45,4 +45,4 @@ async (page) => {
         throw new Error('Regra inválida alterou série aceita');
     await editor.getByRole('button', { name: 'Cancelar', exact: true }).click();
     return ['Editor semanal gera quatro datas em segunda/quarta', 'Campos anuais e término por data disponíveis', 'Regra inválida rejeitada preserva série'];
-};
+}

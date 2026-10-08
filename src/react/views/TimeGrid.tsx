@@ -12,6 +12,7 @@ import { GUTTER_PX, toPx, segmentStyle , timedEventWidth } from './layout/geomet
 import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
 import { EventOverflow } from './EventOverflow.js';
 import { formatDraftInterval } from './format.js';
+import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
 import { SlotCells } from './SlotCells.js';
 import { packDateSpans } from './layout/spanLayout.js';
 import { calendarDayOffset } from '../../core/interaction/model.js';
@@ -81,7 +82,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
                   data-mc-end-min="0"
                   role={allDayEvent.activate ? 'button' : undefined}
                   tabIndex={allDayEvent.activate ? 0 : undefined}
-                  onClick={(event) => { if (event.detail === 0) allDayEvent.activate?.(); }}
+                  onClick={(event) => { if (!isNestedInteractiveTarget(event.target,event.currentTarget) && event.detail === 0) allDayEvent.activate?.(); }}
                   onKeyDown={(event) => {
                     if (event.target !== event.currentTarget || !allDayEvent.activate) return;
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -223,6 +224,7 @@ function DayColumn(props: {
           tabIndex={eventItem.activate ? 0 : undefined}
           aria-label={`${eventItem.timeLabel} ${eventItem.title}`}
           onClick={(clickEvent) => {
+            if (isNestedInteractiveTarget(clickEvent.target,clickEvent.currentTarget)) return;
             if (clickEvent.detail === 0) eventItem.activate?.();
           }}
           onKeyDown={(event) => {
