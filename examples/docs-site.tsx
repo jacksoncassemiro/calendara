@@ -413,7 +413,11 @@ function DocumentationSite() {
           </button>
           <label className="site-theme-control">
             <span>{text.theme}</span>
-            <select aria-label={text.theme} value={theme} onChange={(event) => setTheme(event.target.value as Theme)}>
+            <select
+              aria-label={text.theme}
+              value={theme}
+              onChange={(event) => setTheme(event.target.value as Theme)}
+            >
               {(['system', 'light', 'dark'] as const).map((value, index) => (
                 <option key={value} value={value}>
                   {text.themeOptions[index]}
