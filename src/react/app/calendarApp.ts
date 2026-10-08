@@ -143,17 +143,17 @@ function validateResources(resources: readonly CalendarResource[] | undefined): 
   const ids = new Set<string>();
   for (const resource of resources ?? []) {
     if (typeof resource.id !== 'string' || resource.id.length === 0 || ids.has(resource.id))
-      throw new RangeError('[meucalendario] id de recurso vazio ou duplicado');
+      throw new RangeError('[calendara] id de recurso vazio ou duplicado');
     ids.add(resource.id);
     if (
       resource.capacity !== undefined &&
       resource.capacity !== false &&
       (!Number.isSafeInteger(resource.capacity) || resource.capacity <= 0)
     )
-      throw new RangeError('[meucalendario] capacity deve ser inteiro positivo');
+      throw new RangeError('[calendara] capacity deve ser inteiro positivo');
     for (const buffer of [resource.bufferBefore, resource.bufferAfter]) {
       if (buffer !== undefined && (!Number.isFinite(buffer) || buffer < 0))
-        throw new RangeError('[meucalendario] buffer deve ser finito e não negativo');
+        throw new RangeError('[calendara] buffer deve ser finito e não negativo');
     }
   }
 }
@@ -285,7 +285,7 @@ export class CalendarApp {
     this.store = createStore(initialState);
     for (const [name, view] of viewRegistry) this.views.set(name, view);
     if (!this.views.has(initialState.viewName)) {
-      throw new Error(`[meucalendario] view não registrada: ${initialState.viewName}`);
+      throw new Error(`[calendara] view não registrada: ${initialState.viewName}`);
     }
     this.engine = new ConstraintEngine(initialState.constraints);
 
@@ -330,7 +330,7 @@ export class CalendarApp {
 
   /** Monta o calendário no container. Renderiza assim que Temporal + fetch inicial estiverem prontos. */
   mount(container: HTMLElement, options: { external?: boolean } = {}): void {
-    if (this.destroyed) throw new Error('[meucalendario] calendário destruído');
+    if (this.destroyed) throw new Error('[calendara] calendário destruído');
     if (this.container === container) return;
     this.container?.removeEventListener('keydown', this.onGridKeyDown);
     if (this.root) flushSync(() => this.root!.unmount());
@@ -468,7 +468,7 @@ export class CalendarApp {
 
   changeView(viewName: string): void {
     if (!this.views.has(viewName)) {
-      throw new Error(`[meucalendario] view não registrada: ${viewName}`);
+      throw new Error(`[calendara] view não registrada: ${viewName}`);
     }
     if (this.store.getState().viewName === viewName) return;
     this.store.setState({ viewName });
@@ -611,7 +611,7 @@ export class CalendarApp {
   /** Validate an editor candidate against the same constraints and occupancy as gestures. */
   evaluateEvent(event: CalendarEvent, occurrence?: EventOccurrence): DraftEvaluation {
     if (!this.temporal) {
-      throw new Error('[meucalendario] evaluateEvent requer o calendário pronto; aguarde ready().');
+      throw new Error('[calendara] evaluateEvent requer o calendário pronto; aguarde ready().');
     }
     const candidateOccurrence: EventOccurrence = occurrence
       ? { ...occurrence, event }
@@ -764,6 +764,7 @@ export class CalendarApp {
     const tree = createElement(CalendarShell, {
       toolbar,
       body,
+      locale: this.store.getState().options.locale,
       ...(this.renderToolbar ? { renderToolbar: this.renderToolbar } : {}),
     });
     this.snapshot = tree;

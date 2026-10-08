@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useId, useRef, useState, type JSX } from 're
 import { occurrenceKey, occurrenceStart } from '../../../core/index.js';
 import { isNestedInteractiveTarget } from '../../../core/interaction/interactiveTarget.js';
 import { formatDate, formatHourLabel } from '../formatting/timeLabels.js';
+import { getViewLabels } from '../formatting/viewLabels.js';
 import type { DenseOverflowGroup } from '../layout/denseLayout.js';
 import type { MonthMoreInfo, ViewRenderContext } from '../../viewTypes.js';
 const Popover = lazy(() =>
@@ -23,6 +24,7 @@ export function EventOverflow({
   horizontalHeight?: number;
 }): JSX.Element {
   const id = useId();
+  const labels = getViewLabels(context.options.locale);
   const anchor = useRef<HTMLButtonElement>(null);
   const [info, setInfo] = useState<MonthMoreInfo>();
   const close = () => setInfo(undefined);
@@ -57,7 +59,7 @@ export function EventOverflow({
                 zIndex: 1000,
               }
         }
-        aria-label={`Mais ${occurrences.length} eventos em ${dateISO}`}
+        aria-label={`${labels.moreEvents} ${occurrences.length} ${labels.events} ${labels.onDate} ${dateISO}`}
         aria-expanded={!!info}
         onClick={() => {
           const next: MonthMoreInfo = {
@@ -79,7 +81,7 @@ export function EventOverflow({
           setInfo(next);
         }}
       >
-        +{occurrences.length} mais
+        +{occurrences.length} {labels.more}
       </button>
       {currentInfo && occurrences.length > 0 && anchor.current && root && (
         <Suspense fallback={null}>
@@ -91,6 +93,7 @@ export function EventOverflow({
               dateStyle: 'full',
             })}
             onClose={close}
+            locale={context.options.locale}
           >
             {context.renderEventMore ? (
               context.renderEventMore(currentInfo)
@@ -103,7 +106,7 @@ export function EventOverflow({
                     context.options.timeZone,
                   );
                   const label = start.isAllDay
-                    ? 'dia inteiro'
+                    ? labels.allDay
                     : formatHourLabel(start.minuteOfDay, context.options.locale);
                   return (
                     <div

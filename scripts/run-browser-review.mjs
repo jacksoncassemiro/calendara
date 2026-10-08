@@ -79,6 +79,7 @@ try {
   await run(['run-code', '--filename', 'scripts/browser-default-theme-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-auto-scroll-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-docs-site-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-playground-polish-review.js']);
 } finally {
   await run(['close'], false);
   if (productionPreview)

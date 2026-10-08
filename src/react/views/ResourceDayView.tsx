@@ -2,6 +2,7 @@
 /** Single-day resource columns. */
 import { occurrenceKey } from '../../core/render/derive.js';
 import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
+import { getViewLabels } from './formatting/viewLabels.js';
 import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
 import { applyDenseLayout, type DenseLayoutResult } from './layout/denseLayout.js';
 import { EventOverflow } from './components/EventOverflow.js';
@@ -427,7 +428,7 @@ function ResourceColumn(props: {
             {context.draft?.title ??
               context.occurrences.find((occurrence) => occurrenceKey(occurrence) === draft.eventId)
                 ?.event.title ??
-              'Novo intervalo'}
+              getViewLabels(context.options.locale).newInterval}
           </span>
         </div>
       )}

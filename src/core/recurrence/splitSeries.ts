@@ -24,9 +24,9 @@ export function splitEventSeries(
   changes: Partial<Omit<CalendarEvent, 'id' | 'recurrence'>> = {},
 ): SplitSeriesResult {
   if (!newId || newId === event.id)
-    throw new RangeError('[meucalendario] nova série exige um id diferente');
+    throw new RangeError('[calendara] nova série exige um id diferente');
   const recurrence = event.recurrence;
-  if (!recurrence?.rule) throw new RangeError('[meucalendario] esta e seguintes exige uma RRULE');
+  if (!recurrence?.rule) throw new RangeError('[calendara] esta e seguintes exige uma RRULE');
   const model = typeof recurrence.rule === 'string' ? parseRRule(recurrence.rule) : recurrence.rule;
   const allDay = event.time.allDay;
   const zone = event.time.start.timeZone ?? 'UTC';
@@ -46,7 +46,7 @@ export function splitEventSeries(
       (item) => item.originalStart === cut,
     )
   ) {
-    throw new RangeError('[meucalendario] corte deve pertencer a uma ocorrência ativa da RRULE');
+    throw new RangeError('[calendara] corte deve pertencer a uma ocorrência ativa da RRULE');
   }
   const cutPlain = temporal.PlainDate.from(cutDate);
   const sourceStart = allDay ? event.time.start.date! : event.time.start.dateTime!;
@@ -79,10 +79,10 @@ export function splitEventSeries(
   const nextTime = changes.time ?? cutTime;
   if (nextTime.allDay !== allDay)
     throw new RangeError(
-      '[meucalendario] esta e seguintes não converte a série entre dia inteiro e horário',
+      '[calendara] esta e seguintes não converte a série entre dia inteiro e horário',
     );
   if (!allDay && (nextTime.start.timeZone ?? 'UTC') !== zone)
-    throw new RangeError('[meucalendario] esta e seguintes preserva a timezone da série');
+    throw new RangeError('[calendara] esta e seguintes preserva a timezone da série');
   const nextStart = allDay ? nextTime.start.date! : nextTime.start.dateTime!;
   const delta = allDay
     ? temporal.PlainDate.from(nextStart).since(cutPlain)
@@ -95,9 +95,7 @@ export function splitEventSeries(
   };
   const shiftTime = (time: CalendarEvent['time']): CalendarEvent['time'] => {
     if (time.allDay !== allDay)
-      throw new RangeError(
-        '[meucalendario] override com outro tipo de horário exige edição separada',
-      );
+      throw new RangeError('[calendara] override com outro tipo de horário exige edição separada');
     return time.allDay
       ? {
           ...time,
@@ -161,9 +159,7 @@ export function splitEventSeries(
       window: { start: nextKey.slice(0, 10), end: nextKey.slice(0, 10) },
     }).includes(nextKey)
   ) {
-    throw new RangeError(
-      '[meucalendario] novo início não combina com os filtros ou limite da regra',
-    );
+    throw new RangeError('[calendara] novo início não combina com os filtros ou limite da regra');
   }
   const previousRecurrence: Recurrence = {
     rDates: partition(recurrence.rDates, true),

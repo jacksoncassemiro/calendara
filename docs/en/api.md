@@ -6,7 +6,11 @@
 
 ```tsx
 import {
-  Calendar, dayView, monthView, createResourceDayView, createTimelineView,
+  Calendar,
+  dayView,
+  monthView,
+  createResourceDayView,
+  createTimelineView,
   useCalendar,
 } from '@jacksoncassemiro/calendara';
 
@@ -14,11 +18,18 @@ const views = [dayView, monthView, createResourceDayView(), createTimelineView()
 
 function Agenda() {
   const { ref, api } = useCalendar();
-  return <>
-    <button onClick={() => api.today()}>Today</button>
-    <Calendar apiRef={ref} views={views} initialView="resources"
-      initialDate="2026-10-08" options={{ timeZone: 'America/Sao_Paulo' }} />
-  </>;
+  return (
+    <>
+      <button onClick={() => api.today()}>Today</button>
+      <Calendar
+        apiRef={ref}
+        views={views}
+        initialView="resources"
+        initialDate="2026-10-08"
+        options={{ timeZone: 'America/Sao_Paulo' }}
+      />
+    </>
+  );
 }
 ```
 
@@ -39,10 +50,10 @@ function Agenda() {
 
   async function commit(change: EventChange) {
     await persistChange(change);
-    setEvents(current => applyEventTimeChange(current, change));
+    setEvents((current) => applyEventTimeChange(current, change));
   }
 
-  return <Calendar events={events} onEventDrop={commit} onEventResize={commit} />;
+  return <Calendar views={views} events={events} onEventDrop={commit} onEventResize={commit} />;
 }
 ```
 
@@ -51,11 +62,16 @@ function Agenda() {
 For remote data, use a stable source:
 
 ```tsx
-<Calendar eventSource={async ({ start, end }, { signal }) => {
-  const response = await fetch(`/api/events?start=${start}&end=${end}`, { signal });
-  if (!response.ok) throw new Error('Event fetch failed');
-  return response.json();
-}} onError={handleError} onLoadingChange={setLoading} />
+<Calendar
+  views={views}
+  eventSource={async ({ start, end }, { signal }) => {
+    const response = await fetch(`/api/events?start=${start}&end=${end}`, { signal });
+    if (!response.ok) throw new Error('Event fetch failed');
+    return response.json();
+  }}
+  onError={handleError}
+  onLoadingChange={setLoading}
+/>
 ```
 
 The visible range endpoints are inclusive. Navigation/source changes/unmount cancel stale requests; pass `signal` to your HTTP client. Stale results are discarded even if the source ignores it. Prefer either React `events` or `eventSource` as the authority: source results replace loaded events. After a remote edit, persist and call `api.refetch()`. Handle loading/error in your application.
@@ -75,8 +91,12 @@ const constraints: ConstraintSet = {
   blocked: [{ scope: 'day', date: '2026-10-12', description: 'Closed' }],
 };
 
-<Calendar views={views} resources={resources} constraints={constraints}
-  options={{ defaultResourceCapacity: 3 }} />;
+<Calendar
+  views={views}
+  resources={resources}
+  constraints={constraints}
+  options={{ defaultResourceCapacity: 3 }}
+/>;
 ```
 
 Assign `event.resourceIds` to reserve rooms/equipment/professionals together. Missing resource capacity inherits the global default (1 if omitted); `false` means unlimited. Numeric local capacity overrides the default. Buffers are minutes before/after occupancy. Resource `constraints` add local rules: availability intersects global availability, blocks are combined. Legacy resource `businessHours` also participates in this composition. All assigned resources are evaluated. Server transactions must enforce final capacity during concurrent writes.
@@ -85,22 +105,25 @@ Assign `event.resourceIds` to reserve rooms/equipment/professionals together. Mi
 
 `Calendar` does not mount or open `CalendarEventEditor`. Open your own modal/drawer/route through `onEventClick`, `onDateSelect`, or your application. Validate with `api.evaluateEvent(draft, originalOccurrence?)`; pass the original occurrence on edits to exclude its reservation. Validation checks the candidate's whole interval/resources, not all future repetitions, and throws before the engine is ready. Persist, update state, then close your form.
 
-The optional editor accepts `event`, `occurrence`, `resources`, `timeZone`, `validate`, `onSave`, `onDelete` and `onCancel`. Set `key={occurrenceKey(occurrence)}` when switching edited occurrences. Callbacks choose persistence and recurrence scope. Its current built-in interface is Portuguese; a custom form provides other languages.
+The optional editor accepts `event`, `occurrence`, `resources`, `timeZone`, `locale`, `validate`, `onSave`, `onDelete` and `onCancel`. Set `key={occurrenceKey(occurrence)}` when switching edited occurrences. Callbacks choose persistence and recurrence scope. Set `locale="en-US"` or `locale="pt-BR"` for the built-in editor; its default is Portuguese. Custom forms own their translations.
 
 `renderEvent={info => <YourEvent {...info} />}` replaces card content while preserving its geometry. Hooks belong inside `YourEvent`, not directly in the render callback. `customToolbar` replaces navigation content. `renderMonthMore`/`renderEventMore` customize overflow; corresponding click callbacks can return `false` to open your own component. `monthMoreView`/`eventMoreView` can target another registered view.
 
 ## Interaction and layout
 
 ```tsx
-<Calendar options={{
-  slotMinutes: 30,
-  pxPerMinute: 2,
-  timeLabelInterval: 60,
-  timedEventOverflow: 'more',
-  eventMaxStack: 3,
-  slotEventOverlap: false,
-  monthMaxEvents: 3,
-}} />
+<Calendar
+  views={views}
+  options={{
+    slotMinutes: 30,
+    pxPerMinute: 2,
+    timeLabelInterval: 60,
+    timedEventOverflow: 'more',
+    eventMaxStack: 3,
+    slotEventOverlap: false,
+    monthMaxEvents: 3,
+  }}
+/>
 ```
 
 `slotMinutes` controls cells and snapping; `pxPerMinute` controls the time scale; `timeLabelInterval` only controls labels. An explicit interval is preserved even at dense scales. Automatic labels adapt when omitted. Timed overflow accepts `shrink`, `scroll` or `more`; horizontal timeline stacks rows. `slotEventOverlap` enables partial overlap in vertical grids. `allowEventTypeChange` optionally converts timed/all-day events across their strips. Check typed `CalendarOptions` for all defaults.

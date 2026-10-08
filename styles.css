@@ -216,8 +216,9 @@
   z-index: 2;
   background: var(--mc-color-bg);
 }
-[data-mc-root] .mc-page-sticky-allday {
+[data-mc-root] .mc-hscroll > .mc-page-sticky-allday {
   position: fixed;
+  min-width: 0;
   z-index: 29;
   background: var(--mc-color-bg);
 }
@@ -293,6 +294,7 @@
   left: 0;
   z-index: 2;
   background: var(--mc-color-bg);
+  border-right: 1px solid var(--mc-color-border);
 }
 
 /* ---------------------------------------------------------------------------
@@ -463,6 +465,10 @@
  * Lista / Agenda
  * ------------------------------------------------------------------------- */
 [data-mc-root] .mc-list-day-header {
+  position: sticky;
+  top: var(--mc-sticky-top);
+  z-index: 3;
+  background: var(--mc-color-bg);
   font-weight: 600;
   padding: 10px 8px;
   border-bottom: 1px solid var(--mc-color-border);
@@ -566,6 +572,11 @@
  * ------------------------------------------------------------------------- */
 [data-mc-root] .mc-month-weekdays {
   display: flex;
+  position: sticky;
+  top: var(--mc-sticky-top);
+  z-index: 3;
+  background: var(--mc-color-bg);
+  border-bottom: 1px solid var(--mc-color-border);
 }
 [data-mc-root] .mc-month-weekday {
   min-width: 0;

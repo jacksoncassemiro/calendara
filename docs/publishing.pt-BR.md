@@ -14,6 +14,12 @@ A Calendara será distribuída como `.tgz` compilado em uma GitHub Release, sem 
 
 Usar SemVer e uma seção por versão no changelog, como `## [0.1.0] - 2026-10-08`, com mudanças em português e inglês. Explicitar mudanças incompatíveis. A CI não altera versões automaticamente a partir das mensagens dos commits.
 
+## Configuração remota conferida em 8 de outubro de 2026
+
+O repositório é público. Main/develop exigem PR, CI `Verify package` atualizada e conversas resolvidas; administradores também seguem as regras. Force push/exclusão são bloqueados, e tags de versão não podem ser alteradas/excluídas. O ambiente `release` aceita apenas `main` e exige revisão do proprietário. A autoaprovação é permitida para o mantenedor único; bypass de administrador está desabilitado. É um checkpoint manual, não uma revisão independente. Adicionar outro revisor quando houver segundo mantenedor.
+
+GitHub Pages está publicado pelo artefato de Actions construído em `main`. HTTPS está obrigatório (`https_enforced: true`), e o site publicado responde por HTTPS. O ambiente `github-pages` aceita apenas `main`. Publicar o site não cria nem publica uma release do pacote.
+
 ## Preparar a release
 
 1. Antes de executar a Action, configurar rulesets e o environment `release`: revisão obrigatória, impedir autoaprovação quando disponível e restringir a `main`. A disponibilidade depende do plano e da visibilidade do repositório.
@@ -23,7 +29,13 @@ Usar SemVer e uma seção por versão no changelog, como `## [0.1.0] - 2026-10-0
 5. O fluxo valida a origem da tag, versão, changelog, tipos, testes, build e pacote consumidor. Após o gate do environment, cria um rascunho com `calendara-0.1.0.tgz` e `SHA256SUMS`.
 6. Revisar o rascunho, baixar o pacote, comparar seu hash e instalar em um consumidor. Publicar manualmente. Nunca substituir uma tag ou pacote publicado; criar outra versão.
 
-Os arquivos de workflow não configuram as proteções remotas. O GitHub cria um environment inexistente sem proteção; configurar os revisores é uma atividade separada do mantenedor.
+Os arquivos de workflow não configuram as proteções remotas. O GitHub cria um environment inexistente sem proteção; a configuração atual está registrada acima e deve ser reconferida antes de uma release, sobretudo após mudanças de plano ou visibilidade.
+
+## Releases e GitHub Packages
+
+O uso de GitHub Packages público é gratuito, mas o registry npm do GitHub exige autenticação até para instalar pacotes públicos. A Calendara escolhe assets de GitHub Releases públicas para instalar a URL fixa do `.tgz` sem configurar esse registry. Site de documentação publicado não equivale a release publicada da biblioteca. Um rascunho de release só permite instalação pública depois de publicado.
+
+Fontes: [cobrança de Packages](https://docs.github.com/en/billing/concepts/product-billing/github-packages), [autenticação no registry npm](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry).
 
 ## Instalar sem publicação no npm
 
@@ -40,7 +52,7 @@ Windows: `Get-FileHash ./calendara-0.1.0.tgz -Algorithm SHA256`. Linux/macOS: `s
 
 ## Começar com histórico novo
 
-É possível, mas não é requisito para publicar. Criar **outro repositório com um snapshot revisado dos arquivos versionados** permite iniciar com um commit e preservar o antigo para recuperação. Exportar apenas arquivos rastreados, iniciar Git em outra pasta e revisar antes de criar o remoto. Preservar licença, copyright e créditos de terceiros.
+É possível, mas não é requisito para publicar. Criar **outro repositório com um snapshot revisado dos arquivos versionados e fontes não ignoradas** permite iniciar com um commit e preservar o antigo para recuperação. Exportar apenas os arquivos aprovados para o snapshot, iniciar Git em outra pasta e revisar antes de criar o remoto. Preservar licença, copyright e créditos de terceiros.
 
 Reescrever o repositório atual com branch órfã e force push afeta colaboradores, tags, referências de PRs e releases. Clones antigos podem manter o histórico. Isso exige escolher o destino, fazer backup verificado e coordenar colaboradores. Não foi aplicado nesta preparação. Se houve segredo exposto, rotacioná-lo; apagar histórico não substitui essa medida.
 
