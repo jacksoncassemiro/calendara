@@ -86,7 +86,7 @@
   ],
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
-    "@js-temporal/polyfill": "0.4.4",
+    "@js-temporal/polyfill": "0.5.1",
     "rrule-temporal": "2.2.8"
   },
   "peerDependencies": {
