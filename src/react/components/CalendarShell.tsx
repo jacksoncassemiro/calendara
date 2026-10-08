@@ -42,7 +42,12 @@ function DefaultToolbar(props: { toolbar: ToolbarContext }): JSX.Element {
         >
           ‹
         </button>
-        <button type="button" className="mc-nav-today" data-mc-nav-today onClick={() => toolbar.goToday()}>
+        <button
+          type="button"
+          className="mc-nav-today"
+          data-mc-nav-today
+          onClick={() => toolbar.goToday()}
+        >
           Hoje
         </button>
         <button
@@ -77,9 +82,17 @@ function DefaultToolbar(props: { toolbar: ToolbarContext }): JSX.Element {
           );
         })}
       </div>
-      <select className="mc-view-select" aria-label="Visualização" value={toolbar.viewName}
-        onChange={(event) => toolbar.changeView(event.currentTarget.value)}>
-        {toolbar.views.map(view => <option key={view.name} value={view.name}>{view.label}</option>)}
+      <select
+        className="mc-view-select"
+        aria-label="Visualização"
+        value={toolbar.viewName}
+        onChange={(event) => toolbar.changeView(event.currentTarget.value)}
+      >
+        {toolbar.views.map((view) => (
+          <option key={view.name} value={view.name}>
+            {view.label}
+          </option>
+        ))}
       </select>
     </div>
   );

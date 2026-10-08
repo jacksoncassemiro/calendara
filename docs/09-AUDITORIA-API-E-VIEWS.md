@@ -12,7 +12,7 @@ A [pesquisa adicional de críticas de API](../specs/calendar-remediation/api-fee
 
 Havia acoplamento na seleção: CalendarApp sempre registrava quatro views internas, mesmo recebendo uma lista explícita. A propriedade views significava apenas views extras; remover uma view ativa forçava Semana. Agora views define o conjunto completo, sua ordem e a view inicial quando view está ausente. A substituição preserva a seleção existente se ainda disponível; caso contrário, escolhe a primeira disponível. Lista vazia, nomes duplicados e view inicial não registrada são recusados antes da alteração do registro. registerView continua uma operação imperativa aditiva.
 
-views permanece opcional: omitir a propriedade usa BUILTIN_VIEWS. A regra de lista não vazia aplica-se quando a lista é informada. O tipo readonly CalendarView[] ainda aceita [] estaticamente; a validação ocorre em execução. Um tipo de tupla não vazia melhora a detecção estática, mas exige estreitamento de arrays construídos dinamicamente; não foi introduzido nesta rodada.
+views é obrigatória no React e no controller; BUILTIN_VIEWS é apenas um atalho explícito. A lista precisa conter pelo menos uma definição. O tipo readonly CalendarView[] ainda aceita [] estaticamente; a validação ocorre em execução. Um tipo de tupla não vazia melhora a detecção estática, mas exige estreitamento de arrays construídos dinamicamente; não foi introduzido nesta rodada.
 
 Isso corrige seleção, não carregamento do bundle: o controlador ainda importa o conjunto padrão. Não afirmar que escolher só Dia elimina automaticamente código de Mês. Um ponto de entrada sem defaults ou carregamento sob demanda é uma otimização separada, que precisa medição.
 
@@ -24,8 +24,8 @@ Componentes compartilhados saíram da raiz de views. ResourceDayView e TimelineV
 import {
   Calendar, dayView, monthView, createResourceDayView,
   type CalendarEvent, type CalendarResource,
-} from '@meucalendario/calendar';
-import '@meucalendario/calendar/styles.css';
+} from '@jacksoncassemiro/calendara';
+import '@jacksoncassemiro/calendara/styles.css';
 
 const views = [dayView, monthView, createResourceDayView()];
 const resources: CalendarResource[] = [

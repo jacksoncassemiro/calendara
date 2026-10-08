@@ -34,16 +34,23 @@ describe('conversões de weekday', () => {
 describe('startOfWeek', () => {
   it('semana começando na segunda (default)', () => {
     // 2024-01-10 é uma quarta
-    expect(dateUtils.startOfWeek(temporal.PlainDate.from('2024-01-10')).toString()).toBe('2024-01-08');
+    expect(dateUtils.startOfWeek(temporal.PlainDate.from('2024-01-10')).toString()).toBe(
+      '2024-01-08',
+    );
   });
   it('semana começando no domingo', () => {
-    expect(dateUtils.startOfWeek(temporal.PlainDate.from('2024-01-10'), 'SU').toString()).toBe('2024-01-07');
+    expect(dateUtils.startOfWeek(temporal.PlainDate.from('2024-01-10'), 'SU').toString()).toBe(
+      '2024-01-07',
+    );
   });
 });
 
 describe('eachDayOfRange', () => {
   it('lista [start,end)', () => {
-    const days = dateUtils.eachDayOfRange(temporal.PlainDate.from('2024-01-01'), temporal.PlainDate.from('2024-01-04'));
+    const days = dateUtils.eachDayOfRange(
+      temporal.PlainDate.from('2024-01-01'),
+      temporal.PlainDate.from('2024-01-04'),
+    );
     expect(days.map((date) => date.toString())).toEqual(['2024-01-01', '2024-01-02', '2024-01-03']);
   });
 });

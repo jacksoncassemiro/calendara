@@ -49,7 +49,11 @@ function makeApp(view: string) {
     view,
     events,
     temporal: Temporal as unknown as never,
-    views: [...BUILTIN_VIEWS,createResourceDayView(resources, 'resources'), createTimelineView(resources, 'timeline')],
+    views: [
+      ...BUILTIN_VIEWS,
+      createResourceDayView(resources, 'resources'),
+      createTimelineView(resources, 'timeline'),
+    ],
     options: {
       timeZone: TZ,
       startHour: 6,

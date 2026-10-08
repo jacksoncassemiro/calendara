@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
+import { BUILTIN_VIEWS } from '../../src/react/views/registry/defaultViews.js';
 import { describe, it, expect } from 'vitest';
 import { Temporal } from '@js-temporal/polyfill';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import { InteractionEngine, type InteractionDeps } from '../../src/core/index.js';
-import type { PointerSlot, EventChange, SelectionChange, BlockedInfo, PlacementInfo } from '../../src/core/index.js';
+import type {
+  PointerSlot,
+  EventChange,
+  SelectionChange,
+  BlockedInfo,
+  PlacementInfo,
+} from '../../src/core/index.js';
 import type { CalendarEvent, EventOccurrence } from '../../src/core/index.js';
 import type { ConstraintSet } from '../../src/core/index.js';
 import type { CalendarResource } from '../../src/core/index.js';
@@ -38,7 +45,12 @@ function firePointerId(
 // ---------------------------------------------------------------------------
 
 describe('InteractionEngine — máquina de gesto (localizador injetado)', () => {
-  function buildDom(): { container: HTMLElement; eventNode: HTMLElement; handle: HTMLElement; column: HTMLElement } {
+  function buildDom(): {
+    container: HTMLElement;
+    eventNode: HTMLElement;
+    handle: HTMLElement;
+    column: HTMLElement;
+  } {
     const container = document.createElement('div');
     const column = document.createElement('div');
     column.setAttribute('data-mc-day', REF);
@@ -86,7 +98,10 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
       getSlotMinutes: () => 30,
       getMinDurationMin: () => 15,
       // localizador injetado: minuto == clientY (linear e previsível).
-      locateSlot: (clientX: number, clientY: number): PointerSlot => ({ dateISO: REF, minuteOfDay: clientY }),
+      locateSlot: (clientX: number, clientY: number): PointerSlot => ({
+        dateISO: REF,
+        minuteOfDay: clientY,
+      }),
       evaluate: (input) => {
         const blockedZone = input.startMin >= 720; // ≥12:00 é inválido neste stub
         return blockedZone ? { valid: false, reason: 'blocked' } : { valid: true, reason: 'ok' };
@@ -225,7 +240,17 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
 function stubColumnRects(container: HTMLElement, heightMin: number): void {
   for (const column of Array.from(container.querySelectorAll('[data-mc-day]'))) {
     (column as HTMLElement).getBoundingClientRect = () =>
-      ({ left: 0, right: 100, top: 0, bottom: heightMin, width: 100, height: heightMin, x: 0, y: 0, toJSON() {} }) as DOMRect;
+      ({
+        left: 0,
+        right: 100,
+        top: 0,
+        bottom: heightMin,
+        width: 100,
+        height: heightMin,
+        x: 0,
+        y: 0,
+        toJSON() {},
+      }) as DOMRect;
   }
 }
 
@@ -254,22 +279,71 @@ const eventE1: CalendarEvent = {
 
 describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
   it('validates every day of a full interval including capacity outside the visible day', async () => {
-    const app = new CalendarApp({ temporal: Temporal as never, date: REF, view: 'day', resources: [{id:'r1',title:'Sala'}],
-      events: [{ id:'busy',calendarId:'c1',resourceIds:['r1'],time:{allDay:true,start:{date:'2026-07-23'},end:{date:'2026-07-24'}} }],
-      constraints: {blocked:[{scope:'date',date:'2026-07-24'}]} });
+    const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
+      temporal: Temporal as never,
+      date: REF,
+      view: 'day',
+      resources: [{ id: 'r1', title: 'Sala' }],
+      events: [
+        {
+          id: 'busy',
+          calendarId: 'c1',
+          resourceIds: ['r1'],
+          time: { allDay: true, start: { date: '2026-07-23' }, end: { date: '2026-07-24' } },
+        },
+      ],
+      constraints: { blocked: [{ scope: 'date', date: '2026-07-24' }] },
+    });
     await app.ready();
-    expect(app.evaluatePlacement({kind:'move',dateISO:REF,startMin:1380,endDateISO:'2026-07-23',endMin:60,resourceId:'r1'}).reason).toBe('over-capacity');
-    expect(app.evaluatePlacement({kind:'move',dateISO:REF,startMin:0,endDateISO:'2026-07-25',endMin:0,allDay:true}).valid).toBe(false);
-    expect(app.evaluatePlacement({kind:'move',dateISO:REF,startMin:0,endDateISO:'2026-07-23',endMin:0,allDay:true}).valid).toBe(true);
+    expect(
+      app.evaluatePlacement({
+        kind: 'move',
+        dateISO: REF,
+        startMin: 1380,
+        endDateISO: '2026-07-23',
+        endMin: 60,
+        resourceId: 'r1',
+      }).reason,
+    ).toBe('over-capacity');
+    expect(
+      app.evaluatePlacement({
+        kind: 'move',
+        dateISO: REF,
+        startMin: 0,
+        endDateISO: '2026-07-25',
+        endMin: 0,
+        allDay: true,
+      }).valid,
+    ).toBe(false);
+    expect(
+      app.evaluatePlacement({
+        kind: 'move',
+        dateISO: REF,
+        startMin: 0,
+        endDateISO: '2026-07-23',
+        endMin: 0,
+        allDay: true,
+      }).valid,
+    ).toBe(true);
     app.destroy();
   });
   it('restores the original event when two overlapping saves both reject', async () => {
     const resolvers: ((result: boolean) => void)[] = [];
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const app = new CalendarApp({ date: REF, view: 'day', events: [eventE1],
-      temporal: Temporal as never, options: baseOptions,
-      onEventDrop: () => new Promise<boolean>((resolve) => { resolvers.push(resolve); }) });
+    const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
+      date: REF,
+      view: 'day',
+      events: [eventE1],
+      temporal: Temporal as never,
+      options: baseOptions,
+      onEventDrop: () =>
+        new Promise<boolean>((resolve) => {
+          resolvers.push(resolve);
+        }),
+    });
     app.mount(container);
     await app.ready();
     stubColumnRects(container, 840);
@@ -289,29 +363,74 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     app.destroy();
   });
   it('validates new reservations against capacity and resource hours outside the visible range', async () => {
-    const occupied: CalendarEvent = { ...eventE1, resourceIds: ['r1'], time: { allDay: false,
-      start: { dateTime: '2026-08-10T09:00:00', timeZone: TZ },
-      end: { dateTime: '2026-08-10T10:00:00', timeZone: TZ } } };
-    const app = new CalendarApp({ date: REF, view: 'day', events: [occupied], temporal: Temporal as never,
-      resources: [{ id: 'r1', title: 'Sala', capacity: 1, businessHours: [{ daysOfWeek: [1], startTime: '08:00', endTime: '18:00' }] }],
-      options: baseOptions });
+    const occupied: CalendarEvent = {
+      ...eventE1,
+      resourceIds: ['r1'],
+      time: {
+        allDay: false,
+        start: { dateTime: '2026-08-10T09:00:00', timeZone: TZ },
+        end: { dateTime: '2026-08-10T10:00:00', timeZone: TZ },
+      },
+    };
+    const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
+      date: REF,
+      view: 'day',
+      events: [occupied],
+      temporal: Temporal as never,
+      resources: [
+        {
+          id: 'r1',
+          title: 'Sala',
+          capacity: 1,
+          businessHours: [{ daysOfWeek: [1], startTime: '08:00', endTime: '18:00' }],
+        },
+      ],
+      options: baseOptions,
+    });
     await app.ready();
-    const candidate = { kind: 'select' as const, dateISO: '2026-08-10', startMin: 570, endMin: 600, resourceId: 'r1' };
+    const candidate = {
+      kind: 'select' as const,
+      dateISO: '2026-08-10',
+      startMin: 570,
+      endMin: 600,
+      resourceId: 'r1',
+    };
     expect(app.evaluatePlacement(candidate)).toEqual({ valid: false, reason: 'over-capacity' });
-    expect(app.evaluatePlacement({ ...candidate, startMin: 660, endMin: 690 })).toEqual({ valid: true, reason: 'ok' });
-    expect(app.evaluatePlacement({ ...candidate, startMin: 1140, endMin: 1170 })).toEqual({ valid: false, reason: 'outside-business-hours' });
+    expect(app.evaluatePlacement({ ...candidate, startMin: 660, endMin: 690 })).toEqual({
+      valid: true,
+      reason: 'ok',
+    });
+    expect(app.evaluatePlacement({ ...candidate, startMin: 1140, endMin: 1170 })).toEqual({
+      valid: false,
+      reason: 'outside-business-hours',
+    });
     app.destroy();
   });
 
   it('commits display wall-clock time with the display timezone instead of the source timezone', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const source: CalendarEvent = { ...eventE1, time: { allDay: false,
-      start: { dateTime: '2026-07-22T12:00:00', timeZone: 'UTC' },
-      end: { dateTime: '2026-07-22T13:00:00', timeZone: 'UTC' } } };
+    const source: CalendarEvent = {
+      ...eventE1,
+      time: {
+        allDay: false,
+        start: { dateTime: '2026-07-22T12:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2026-07-22T13:00:00', timeZone: 'UTC' },
+      },
+    };
     const drops: EventChange[] = [];
-    const app = new CalendarApp({ date: REF, view: 'day', events: [source],
-      temporal: Temporal as never, options: baseOptions, onEventDrop: change => { drops.push(change); } });
+    const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
+      date: REF,
+      view: 'day',
+      events: [source],
+      temporal: Temporal as never,
+      options: baseOptions,
+      onEventDrop: (change) => {
+        drops.push(change);
+      },
+    });
     app.mount(container);
     await app.ready();
     stubColumnRects(container, 840);
@@ -320,7 +439,10 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     firePointer(document, 'pointermove', 5, 300);
     firePointer(document, 'pointerup', 5, 300);
     expect(drops[0]?.timeZone).toBe(TZ);
-    expect(app.getState().events[0]?.time.start).toEqual({ dateTime: '2026-07-22T11:00:00', timeZone: TZ });
+    expect(app.getState().events[0]?.time.start).toEqual({
+      dateTime: '2026-07-22T11:00:00',
+      timeZone: TZ,
+    });
     app.destroy();
   });
 
@@ -328,11 +450,24 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const blocked: BlockedInfo[] = [];
-    const reservation: CalendarEvent = { id: 'reservation', calendarId: 'c1', resourceIds: ['r1'],
-      time: { allDay: true, start: { date: REF }, end: { date: '2026-07-23' } } };
-    const app = new CalendarApp({ date: REF, view: 'day',
-      events: [{ ...eventE1, resourceIds: ['r1'] }, reservation], resources: [{ id: 'r1', title: 'Sala' }],
-      temporal: Temporal as never, options: baseOptions, onDropBlocked: info => { blocked.push(info); } });
+    const reservation: CalendarEvent = {
+      id: 'reservation',
+      calendarId: 'c1',
+      resourceIds: ['r1'],
+      time: { allDay: true, start: { date: REF }, end: { date: '2026-07-23' } },
+    };
+    const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
+      date: REF,
+      view: 'day',
+      events: [{ ...eventE1, resourceIds: ['r1'] }, reservation],
+      resources: [{ id: 'r1', title: 'Sala' }],
+      temporal: Temporal as never,
+      options: baseOptions,
+      onDropBlocked: (info) => {
+        blocked.push(info);
+      },
+    });
     app.mount(container);
     await app.ready();
     stubColumnRects(container, 840);
@@ -350,9 +485,18 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const other = { ...eventE1, id: 'other', title: 'Other' };
-    const app = new CalendarApp({ date: REF, view: 'day', events: [eventE1, other],
-      temporal: Temporal as never, options: baseOptions,
-      onEventDrop: () => new Promise<boolean>((resolve) => { rejectDrop = resolve; }) });
+    const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
+      date: REF,
+      view: 'day',
+      events: [eventE1, other],
+      temporal: Temporal as never,
+      options: baseOptions,
+      onEventDrop: () =>
+        new Promise<boolean>((resolve) => {
+          rejectDrop = resolve;
+        }),
+    });
     app.mount(container);
     await app.ready();
     stubColumnRects(container, 840);
@@ -372,9 +516,17 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
   it('reverts callbacks that throw synchronously and clears the draft', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const app = new CalendarApp({ date: REF, view: 'day', events: [eventE1],
-      temporal: Temporal as never, options: baseOptions,
-      onEventDrop: () => { throw new Error('save failed'); } });
+    const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
+      date: REF,
+      view: 'day',
+      events: [eventE1],
+      temporal: Temporal as never,
+      options: baseOptions,
+      onEventDrop: () => {
+        throw new Error('save failed');
+      },
+    });
     app.mount(container);
     await app.ready();
     stubColumnRects(container, 840);
@@ -391,8 +543,13 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     document.body.appendChild(container);
     const failure = new Error('offline');
     const errors: unknown[] = [];
-    const app = new CalendarApp({ date: REF, temporal: Temporal as never,
-      events: [eventE1], eventSource: () => Promise.reject(failure) });
+    const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
+      date: REF,
+      temporal: Temporal as never,
+      events: [eventE1],
+      eventSource: () => Promise.reject(failure),
+    });
     app.on('error', (error) => errors.push(error));
     app.mount(container);
     await app.ready();
@@ -406,6 +563,7 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     document.body.appendChild(container);
     const drops: EventChange[] = [];
     const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
       date: REF,
       view: 'day',
       events: [eventE1],
@@ -441,6 +599,7 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
       blocked: [{ scope: 'time', date: REF, startTime: '12:00', endTime: '13:00' }],
     };
     const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
       date: REF,
       view: 'day',
       events: [eventE1],
@@ -471,6 +630,7 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     document.body.appendChild(container);
     const selections: SelectionChange[] = [];
     const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
       date: REF,
       view: 'day',
       events: [],
@@ -513,6 +673,7 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
       },
     ];
     const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
       date: REF,
       view: 'day',
       events,
@@ -526,7 +687,9 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     stubColumnRects(container, (20 - 6) * 60);
 
     // e1 (09:00, topo 180) movido para 11:00 (clientY 300) — colide com e2 no mesmo recurso.
-    const e1Node = container.querySelector('[data-mc-event="e1@2026-07-22T09:00:00"]') as HTMLElement;
+    const e1Node = container.querySelector(
+      '[data-mc-event="e1@2026-07-22T09:00:00"]',
+    ) as HTMLElement;
     expect(e1Node).toBeTruthy();
     firePointer(e1Node, 'pointerdown', 5, 180);
     firePointer(document, 'pointermove', 5, 300);
@@ -546,6 +709,7 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     document.body.appendChild(container);
     const drops: EventChange[] = [];
     const app = new CalendarApp({
+      views: BUILTIN_VIEWS,
       date: REF,
       view: 'day',
       events: [eventE1],

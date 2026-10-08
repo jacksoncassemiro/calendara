@@ -1,9 +1,5 @@
-/**
- * Memoização por identidade das dependências (estilo `reselect`/`memoize-one`).
- *
- * Usada para as derivações caras do render (expansão de recorrência, geometria): enquanto os
- * argumentos forem os MESMOS por referência, devolve o resultado em cache. É o que torna o
- * "diff granular" barato — trocar constraints não recomputa ocorrências, e vice-versa.
+/** Reuse the last result while each argument retains its identity.
+ * @remarks Português: Reutiliza o último resultado enquanto os argumentos mantêm sua identidade.
  */
 export function memoize<Args extends readonly unknown[], Result>(
   compute: (...args: Args) => Result,

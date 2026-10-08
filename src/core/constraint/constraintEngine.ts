@@ -139,7 +139,12 @@ export class ConstraintEngine {
 }
 
 /** Whether any positive interval is available in the displayed window (not an all-day booking). */
-export function hasAvailableTime(constraints: ConstraintSet, date: string, startMin: number, endMin: number): boolean {
+export function hasAvailableTime(
+  constraints: ConstraintSet,
+  date: string,
+  startMin: number,
+  endMin: number,
+): boolean {
   const engine = new ConstraintEngine(constraints);
   const boundaries = new Set([startMin, endMin]);
   const add = (value: string | undefined): void => {
@@ -160,6 +165,10 @@ export function hasAvailableTime(constraints: ConstraintSet, date: string, start
     add(rule.endTime);
   }
   const minutes = [...boundaries].sort((a, b) => a - b);
-  return minutes.slice(1).some((end, index) => end > minutes[index]!
-    && engine.isValid({ date, startMin: minutes[index]!, endMin: end }));
+  return minutes
+    .slice(1)
+    .some(
+      (end, index) =>
+        end > minutes[index]! && engine.isValid({ date, startMin: minutes[index]!, endMin: end }),
+    );
 }

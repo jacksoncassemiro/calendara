@@ -13,7 +13,11 @@ function occurrence(id: string, resourceIds: string[]): EventOccurrence {
       id,
       calendarId: 'c1',
       title: id,
-      time: { allDay: false, start: { dateTime: `2026-07-22T09:00:00` }, end: { dateTime: `2026-07-22T10:00:00` } },
+      time: {
+        allDay: false,
+        start: { dateTime: `2026-07-22T09:00:00` },
+        end: { dateTime: `2026-07-22T10:00:00` },
+      },
       resourceIds,
     },
     masterId: id,
@@ -24,9 +28,19 @@ function occurrence(id: string, resourceIds: string[]): EventOccurrence {
 
 describe('occurrencesForResource', () => {
   it('filtra por resourceIds (inclui multi-recurso)', () => {
-    const occurrences = [occurrence('a', ['r1']), occurrence('b', ['r2']), occurrence('m', ['r1', 'r2'])];
-    expect(occurrencesForResource(occurrences, 'r1').map((occ) => occ.event.id)).toEqual(['a', 'm']);
-    expect(occurrencesForResource(occurrences, 'r2').map((occ) => occ.event.id)).toEqual(['b', 'm']);
+    const occurrences = [
+      occurrence('a', ['r1']),
+      occurrence('b', ['r2']),
+      occurrence('m', ['r1', 'r2']),
+    ];
+    expect(occurrencesForResource(occurrences, 'r1').map((occ) => occ.event.id)).toEqual([
+      'a',
+      'm',
+    ]);
+    expect(occurrencesForResource(occurrences, 'r2').map((occ) => occ.event.id)).toEqual([
+      'b',
+      'm',
+    ]);
   });
 
   it('ignora ocorrências sem resourceIds', () => {

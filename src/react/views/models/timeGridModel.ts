@@ -8,7 +8,7 @@ import { buildDays, occurrenceKey } from '../../../core/index.js';
 import { layoutDay, type GeoGrid } from '../../../core/index.js';
 import { resolveHour } from '../../../core/index.js';
 import { formatDate, formatHourLabel, timeLabelStep } from '../formatting/timeLabels.js';
-import { occurrenceEditableForDay,occurrenceEdges } from '../layout/occurrenceDays.js';
+import { occurrenceEditableForDay, occurrenceEdges } from '../layout/occurrenceDays.js';
 import type { ViewRenderContext } from '../../viewTypes.js';
 import type { GridVM, DayColumnVM, EventVM, AllDayVM, DraftVM } from './timeGridViewModel.js';
 
@@ -44,7 +44,13 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
 
   const columns: DayColumnVM[] = days.map((day) => {
     const placementById = new Map(day.timed.map((placement) => [placement.id, placement]));
-    const density=applyDenseLayout(layoutDay(day.timed, geometryGrid),options.timedEventOverflow,options.eventMaxStack,options.minEventWidth,options.slotEventOverlap);
+    const density = applyDenseLayout(
+      layoutDay(day.timed, geometryGrid),
+      options.timedEventOverflow,
+      options.eventMaxStack,
+      options.minEventWidth,
+      options.slotEventOverlap,
+    );
     const blocks = density.blocks;
 
     const events: EventVM[] = blocks.map((block) => {
@@ -61,11 +67,12 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
         startMin: placement.startMin,
         endMin: placement.endMin,
         editable: isEditable,
-        resizeStart:resizeEdges.start,
-        resizeEnd:resizeEdges.end,
+        resizeStart: resizeEdges.start,
+        resizeEnd: resizeEdges.end,
       };
       if (event.color !== undefined) eventVM.color = event.color;
-      if (context.onEventClick) eventVM.activate = () => context.onEventClick?.(placement.occurrence);
+      if (context.onEventClick)
+        eventVM.activate = () => context.onEventClick?.(placement.occurrence);
       if (renderEvent) {
         eventVM.content = renderEvent({
           occurrence: placement.occurrence,
@@ -79,8 +86,13 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
 
     const allDay: AllDayVM[] = day.allDay.map((occurrence) => {
       const event = occurrence.event;
-      const allDayVM: AllDayVM = { id: occurrenceKey(occurrence), title: event.title, editable: event.editable !== false,
-        startDate:event.time.start.date!,endDate:event.time.end.date! };
+      const allDayVM: AllDayVM = {
+        id: occurrenceKey(occurrence),
+        title: event.title,
+        editable: event.editable !== false,
+        startDate: event.time.start.date!,
+        endDate: event.time.end.date!,
+      };
       if (event.color !== undefined) allDayVM.color = event.color;
       if (context.onEventClick) allDayVM.activate = () => context.onEventClick?.(occurrence);
       if (renderEvent) {
@@ -93,8 +105,9 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
     const nowWithinGrid = nowMinuteOfDay >= gridTopMin && nowMinuteOfDay <= gridBottomMin;
     const showNowLine = isToday && nowWithinGrid;
     return {
-      dayStyle:context.getDayStyle?.({dateISO:day.dateISO,viewName}),
-      minWidth:density.minWidth,overflowGroups:density.groups,
+      dayStyle: context.getDayStyle?.({ dateISO: day.dateISO, viewName }),
+      minWidth: density.minWidth,
+      overflowGroups: density.groups,
       dateISO: day.dateISO,
       weekdayLabel: formatDate(day.date, options.locale, { weekday: 'short' }),
       dayLabel: formatDate(day.date, options.locale, { day: 'numeric' }),
@@ -112,8 +125,10 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
     hourLabels.push({ min: minute, label: formatHourLabel(minute, options.locale) });
   }
 
-  const uniformMinWidth=Math.max(0,...columns.map(column=>column.minWidth ?? 0));
-  columns.forEach(column=>{column.minWidth=uniformMinWidth;});
+  const uniformMinWidth = Math.max(0, ...columns.map((column) => column.minWidth ?? 0));
+  columns.forEach((column) => {
+    column.minWidth = uniformMinWidth;
+  });
   const gridVM: GridVM = {
     context,
     viewName,
@@ -127,7 +142,10 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
 
   const draft = context.draft;
   if (draft) {
-    const draftDayVisible = columns.some((column) => column.dateISO >= draft.dateISO && column.dateISO <= (draft.endDateISO ?? draft.dateISO));
+    const draftDayVisible = columns.some(
+      (column) =>
+        column.dateISO >= draft.dateISO && column.dateISO <= (draft.endDateISO ?? draft.dateISO),
+    );
     if (draftDayVisible) {
       const draftVM: DraftVM = {
         endDateISO: draft.endDateISO,
@@ -136,8 +154,14 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
         startMin: draft.startMin,
         endMin: draft.endMin,
         eventId: draft.eventId,
-        title: draft.title ?? occurrences.find(occurrence=>occurrenceKey(occurrence)===draft.eventId)?.event.title,
-        color: draft.color ?? occurrences.find(occurrence=>occurrenceKey(occurrence)===draft.eventId)?.event.color,
+        title:
+          draft.title ??
+          occurrences.find((occurrence) => occurrenceKey(occurrence) === draft.eventId)?.event
+            .title,
+        color:
+          draft.color ??
+          occurrences.find((occurrence) => occurrenceKey(occurrence) === draft.eventId)?.event
+            .color,
         kind: draft.kind,
         valid: draft.valid,
       };

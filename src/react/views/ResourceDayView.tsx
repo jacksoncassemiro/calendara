@@ -1,23 +1,39 @@
 /** @jsxImportSource react */
 /** Single-day resource columns. */
 import { occurrenceKey } from '../../core/render/derive.js';
-import { usePageStickyHeaders } from "./hooks/usePageStickyHeaders.js";
-import { isNestedInteractiveTarget } from "../../core/interaction/interactiveTarget.js";
-import { applyDenseLayout, type DenseLayoutResult } from "./layout/denseLayout.js";
-import { EventOverflow } from "./components/EventOverflow.js";
-import { createElement, type JSX } from "react";
-import type { CalendarView, ViewRange, ViewRenderContext } from "../viewTypes.js";
-import type { TemporalLike } from "../../core/index.js";
-import type { CalendarResource } from "../../core/index.js";
-import type { InteractionDraft } from "../../core/index.js";
-import { buildResourceColumns, type ResourceColumnData } from "../../core/index.js";
-import { layoutDay } from "../../core/index.js";
-import { formatDate, formatHourLabel, timeLabelStep, formatDraftInterval } from "./formatting/timeLabels.js";
-import { occurrenceEditableForDay, occurrenceEdges } from "./layout/occurrenceDays.js";
-import { GUTTER_PX, toPx, segmentStyle, timedEventWidth } from "./layout/geometryStyles.js";
-import { resolveHour } from "../../core/index.js";
-import { SlotCells } from "./components/SlotCells.js";
-import { getResourceDraftSegment, getDraftClassName, createResourceGeometryGrid, ResourceAllDay } from './components/ResourcePresentation.js';
+import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
+import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
+import { applyDenseLayout, type DenseLayoutResult } from './layout/denseLayout.js';
+import { EventOverflow } from './components/EventOverflow.js';
+import { createElement, type JSX } from 'react';
+import type { CalendarView, ViewRange, ViewRenderContext } from '../viewTypes.js';
+import type { TemporalLike } from '../../core/index.js';
+import type { CalendarResource } from '../../core/index.js';
+import type { InteractionDraft } from '../../core/index.js';
+import { buildResourceColumns, type ResourceColumnData } from '../../core/index.js';
+import { layoutDay } from '../../core/index.js';
+import {
+  formatDate,
+  formatHourLabel,
+  timeLabelStep,
+  formatDraftInterval,
+} from './formatting/timeLabels.js';
+import { occurrenceEditableForDay, occurrenceEdges } from './layout/occurrenceDays.js';
+import {
+  GUTTER_PX,
+  toPx,
+  segmentStyle,
+  timedEventWidth,
+  eventAccentStyle,
+} from './layout/geometryStyles.js';
+import { resolveHour } from '../../core/index.js';
+import { SlotCells } from './components/SlotCells.js';
+import {
+  getResourceDraftSegment,
+  getDraftClassName,
+  createResourceGeometryGrid,
+  ResourceAllDay,
+} from './components/ResourcePresentation.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
@@ -57,7 +73,7 @@ function ResourceGrid(props: {
   context: ViewRenderContext;
   resources: readonly CalendarResource[];
 }): JSX.Element {
-  const scrollRef=usePageStickyHeaders();
+  const scrollRef = usePageStickyHeaders();
   const { context, resources } = props;
   const { options, range } = context;
   const day = range.startDate;
@@ -66,7 +82,8 @@ function ResourceGrid(props: {
   const gridTopMin = startHour * 60;
   const gridBottomMin = endHour * 60;
   const bodyHeight = (gridBottomMin - gridTopMin) * options.pxPerMinute;
-  const minuteToY = (minuteOfDay: number): number => (minuteOfDay - gridTopMin) * options.pxPerMinute;
+  const minuteToY = (minuteOfDay: number): number =>
+    (minuteOfDay - gridTopMin) * options.pxPerMinute;
 
   const columns = buildResourceColumns(
     context.temporal,
@@ -80,7 +97,15 @@ function ResourceGrid(props: {
     options.defaultResourceCapacity,
   );
 
-  const densities=columns.map(column=>applyDenseLayout(layoutDay(column.day.timed,createResourceGeometryGrid(context)), options.timedEventOverflow,options.eventMaxStack,options.minEventWidth,options.slotEventOverlap));
+  const densities = columns.map((column) =>
+    applyDenseLayout(
+      layoutDay(column.day.timed, createResourceGeometryGrid(context)),
+      options.timedEventOverflow,
+      options.eventMaxStack,
+      options.minEventWidth,
+      options.slotEventOverlap,
+    ),
+  );
   const nowZoned = context.temporal.Instant.fromEpochMilliseconds(context.nowMs).toZonedDateTimeISO(
     options.timeZone,
   );
@@ -107,7 +132,11 @@ function ResourceGrid(props: {
               key={column.resource.id}
               className={`mc-resource-header${column.overCapacity ? ' mc-over-capacity' : ''}`}
               data-mc-resource-header={column.resource.id}
-              style={{ flex: '1 1 0', textAlign: 'center',minWidth:densities[columnIndex]?.minWidth || undefined }}
+              style={{
+                flex: '1 1 0',
+                textAlign: 'center',
+                minWidth: densities[columnIndex]?.minWidth || undefined,
+              }}
             >
               <span className="mc-resource-title">{column.resource.title}</span>
               {column.overCapacity && (
@@ -119,31 +148,50 @@ function ResourceGrid(props: {
           ))}
         </div>
 
-        {columns.some((column) => column.day.allDay.length > 0) && <div className="mc-resource-allday-row" style={{ display: 'flex' }}>
-          <div style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}>Dia inteiro</div>
-          {columns.map((column, columnIndex) => <div key={column.resource.id} style={{ flex: '1 1 0', minWidth:densities[columnIndex]?.minWidth || undefined }}>
-            <ResourceAllDay column={column} context={context} />
-          </div>)}
-        </div>}
+        {columns.some((column) => column.day.allDay.length > 0) && (
+          <div className="mc-resource-allday-row" style={{ display: 'flex' }}>
+            <div style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}>Dia inteiro</div>
+            {columns.map((column, columnIndex) => (
+              <div
+                key={column.resource.id}
+                style={{ flex: '1 1 0', minWidth: densities[columnIndex]?.minWidth || undefined }}
+              >
+                <ResourceAllDay column={column} context={context} />
+              </div>
+            ))}
+          </div>
+        )}
         <div className="mc-body" style={{ display: 'flex', position: 'relative' }}>
           <div
             className="mc-time-axis"
-            style={{ width: toPx(GUTTER_PX), flex: '0 0 auto', position: 'relative', height: toPx(bodyHeight) }}
+            style={{
+              width: toPx(GUTTER_PX),
+              flex: '0 0 auto',
+              position: 'relative',
+              height: toPx(bodyHeight),
+            }}
           >
             {hourLabels.map((hourLabel) => (
               <div
                 key={hourLabel.minute}
                 className="mc-hour-label"
-                style={{ position: 'absolute', top: toPx(minuteToY(hourLabel.minute)), right: '4px' }}
+                style={{
+                  position: 'absolute',
+                  top: toPx(minuteToY(hourLabel.minute)),
+                  right: '4px',
+                }}
               >
                 {hourLabel.label}
               </div>
             ))}
           </div>
 
-
-        {columns.map((column, columnIndex) => {
-            const columnDraft = getResourceDraftSegment(context.draft, column.resource.id, column.day.dateISO);
+          {columns.map((column, columnIndex) => {
+            const columnDraft = getResourceDraftSegment(
+              context.draft,
+              column.resource.id,
+              column.day.dateISO,
+            );
             return (
               <ResourceColumn
                 key={column.resource.id}
@@ -178,9 +226,19 @@ function ResourceColumn(props: {
   nowMinutes: number | null;
   draft?: InteractionDraft;
 }): JSX.Element {
-  const { column, context, bodyHeight, hourMinutes, minuteToY, pxPerMinute, nowMinutes, draft, density } = props;
+  const {
+    column,
+    context,
+    bodyHeight,
+    hourMinutes,
+    minuteToY,
+    pxPerMinute,
+    nowMinutes,
+    draft,
+    density,
+  } = props;
   const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
-  const blocks=density.blocks;
+  const blocks = density.blocks;
 
   return (
     <div
@@ -189,11 +247,29 @@ function ResourceColumn(props: {
       data-mc-slot="y"
       data-mc-slot-date={column.day.dateISO}
       data-mc-slot-resource={column.resource.id}
-      style={{...context.getDayStyle?.({dateISO:column.day.dateISO,viewName:context.viewName ?? 'resources',resourceId:column.resource.id}), flex: '1 1 0', minWidth:density.minWidth || undefined,position: 'relative', height: toPx(bodyHeight), touchAction: 'pan-x pan-y' }}
+      style={{
+        ...context.getDayStyle?.({
+          dateISO: column.day.dateISO,
+          viewName: context.viewName ?? 'resources',
+          resourceId: column.resource.id,
+        }),
+        flex: '1 1 0',
+        minWidth: density.minWidth || undefined,
+        position: 'relative',
+        height: toPx(bodyHeight),
+        touchAction: 'pan-x pan-y',
+      }}
     >
-      <SlotCells dateISO={column.day.dateISO} resourceId={column.resource.id} first={props.first}
-        startMin={resolveHour(context.options.startHour) * 60} endMin={resolveHour(context.options.endHour) * 60}
-        slotMinutes={context.options.slotMinutes} pxPerMinute={pxPerMinute} locale={context.options.locale} />
+      <SlotCells
+        dateISO={column.day.dateISO}
+        resourceId={column.resource.id}
+        first={props.first}
+        startMin={resolveHour(context.options.startHour) * 60}
+        endMin={resolveHour(context.options.endHour) * 60}
+        slotMinutes={context.options.slotMinutes}
+        pxPerMinute={pxPerMinute}
+        locale={context.options.locale}
+      />
       {column.day.nonBusiness.map((segment, index) => (
         <div
           key={`nonbusiness-${index}`}
@@ -229,7 +305,11 @@ function ResourceColumn(props: {
         const placement = placementById.get(block.id)!;
         const event = placement.occurrence.event;
         const timeLabel = formatHourLabel(placement.startMin, context.options.locale);
-        const editable = occurrenceEditableForDay(placement.occurrence, column.day.dateISO, context);
+        const editable = occurrenceEditableForDay(
+          placement.occurrence,
+          column.day.dateISO,
+          context,
+        );
         return (
           <div
             key={block.id}
@@ -239,7 +319,7 @@ function ResourceColumn(props: {
             tabIndex={context.onEventClick ? 0 : undefined}
             aria-label={`${timeLabel} ${event.title}`}
             onClick={(clickEvent) => {
-              if (isNestedInteractiveTarget(clickEvent.target,clickEvent.currentTarget)) return;
+              if (isNestedInteractiveTarget(clickEvent.target, clickEvent.currentTarget)) return;
               // Pointer clicks are dispatched by InteractionEngine; assistive clicks have no pointer.
               if (clickEvent.detail === 0) context.onEventClick?.(placement.occurrence);
             }}
@@ -262,15 +342,41 @@ function ResourceColumn(props: {
               width: timedEventWidth(block, context.options.slotEventOverlap),
               zIndex: block.column + 1,
               ...(editable ? { touchAction: 'none' } : {}),
-              ...(context.draft?.eventId===block.id ? {visibility:'hidden' as const} : {}),
-              ...(event.color ? { boxShadow: `inset 3px 0 0 ${event.color}, inset 0 0 0 1px var(--mc-color-event-border)` } : {}),
+              ...(context.draft?.eventId === block.id ? { visibility: 'hidden' as const } : {}),
+              ...eventAccentStyle(event.color),
             }}
           >
-            <div className="mc-event-content">{context.renderEvent
-              ? context.renderEvent({ occurrence: placement.occurrence, event, timeLabel, isAllDay: false })
-              : createElement('span', { className: 'mc-event-title' }, `${timeLabel} ${event.title}`)}</div>
-            {editable && occurrenceEdges(placement.occurrence,column.day.dateISO,context).start && <div className="mc-resize-handle mc-resize-start" data-mc-resize="start" style={{position:"absolute",top:0,left:0,right:0,height:6,cursor:"ns-resize",touchAction:"none"}} />}
-            {editable && occurrenceEdges(placement.occurrence,column.day.dateISO,context).end && (
+            <div className="mc-event-content">
+              {context.renderEvent
+                ? context.renderEvent({
+                    occurrence: placement.occurrence,
+                    event,
+                    timeLabel,
+                    isAllDay: false,
+                  })
+                : createElement(
+                    'span',
+                    { className: 'mc-event-title' },
+                    `${timeLabel} ${event.title}`,
+                  )}
+            </div>
+            {editable &&
+              occurrenceEdges(placement.occurrence, column.day.dateISO, context).start && (
+                <div
+                  className="mc-resize-handle mc-resize-start"
+                  data-mc-resize="start"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 6,
+                    cursor: 'ns-resize',
+                    touchAction: 'none',
+                  }}
+                />
+              )}
+            {editable && occurrenceEdges(placement.occurrence, column.day.dateISO, context).end && (
               <div
                 className="mc-resize-handle"
                 data-mc-resize="end"
@@ -288,7 +394,15 @@ function ResourceColumn(props: {
           </div>
         );
       })}
-      {density.groups.map((group,index)=><EventOverflow key={index} group={group} dateISO={column.day.dateISO} resourceId={column.resource.id} context={context} />)}
+      {density.groups.map((group, index) => (
+        <EventOverflow
+          key={index}
+          group={group}
+          dateISO={column.day.dateISO}
+          resourceId={column.resource.id}
+          context={context}
+        />
+      ))}
       {draft && (
         <div
           className={getDraftClassName(draft)}
@@ -301,15 +415,34 @@ function ResourceColumn(props: {
             right: 0,
             top: toPx(minuteToY(draft.startMin)),
             height: toPx((draft.endMin - draft.startMin) * pxPerMinute),
-            pointerEvents: 'none',zIndex:10000,
+            pointerEvents: 'none',
+            zIndex: 10000,
           }}
-        ><span className="mc-draft-time">{formatDraftInterval(context.draft ?? draft,context.options.locale)}</span>{' · '}<span className="mc-draft-title">{context.draft?.title ?? context.occurrences.find(occurrence=>occurrenceKey(occurrence)===draft.eventId)?.event.title ?? 'Novo intervalo'}</span></div>
+        >
+          <span className="mc-draft-time">
+            {formatDraftInterval(context.draft ?? draft, context.options.locale)}
+          </span>
+          {' · '}
+          <span className="mc-draft-title">
+            {context.draft?.title ??
+              context.occurrences.find((occurrence) => occurrenceKey(occurrence) === draft.eventId)
+                ?.event.title ??
+              'Novo intervalo'}
+          </span>
+        </div>
       )}
       {nowMinutes !== null && (
         <div
           className="mc-now-line"
           data-mc-now
-          style={{ position: 'absolute', left: 0, right: 0, top: toPx(minuteToY(nowMinutes)),zIndex:10001,pointerEvents:'none' }}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: toPx(minuteToY(nowMinutes)),
+            zIndex: 10001,
+            pointerEvents: 'none',
+          }}
         />
       )}
     </div>

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { BUILTIN_VIEWS } from '../../src/react/views/registry/defaultViews.js';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Temporal } from '@js-temporal/polyfill';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
@@ -8,7 +9,7 @@ import type { ConstraintSet } from '../../src/core/index.js';
 const TZ = 'America/Sao_Paulo';
 
 it('rejects invalid option updates without corrupting state', async () => {
-  const app = new CalendarApp({ temporal: Temporal });
+  const app = new CalendarApp({ views: BUILTIN_VIEWS, temporal: Temporal });
   await app.ready();
   expect(() => app.setOptions({ slotMinutes: 0 })).toThrow(RangeError);
   expect(app.getState().options.slotMinutes).toBe(30);
@@ -56,6 +57,7 @@ function makeApp(view = 'week') {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const app = new CalendarApp({
+    views: BUILTIN_VIEWS,
     date: REF,
     view,
     events,
@@ -92,7 +94,7 @@ describe('CalendarApp — render Week/Day (jsdom)', () => {
     expect(e1.style.top).toBe('180px');
     expect(e1.style.height).toBe('60px');
     // Concurrent events occupy distinct lanes; real widths are verified in the browser.
-    expect(new Set([...evs].map(node => (node as HTMLElement).style.left)).size).toBe(2)
+    expect(new Set([...evs].map((node) => (node as HTMLElement).style.left)).size).toBe(2);
     app.destroy();
   });
 

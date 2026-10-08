@@ -1,38 +1,33 @@
-# 03 — Arquitetura atual
+# Arquitetura
 
-A biblioteca é um único pacote, @meucalendario/calendar, com renderização React nativa. React e React DOM são peer dependencies (18/19); o build não inclui uma cópia própria desses runtimes. Não há renderer Preact nem monorepo de adapters.
+Calendara é uma biblioteca React em um único pacote. [API atual](pt-BR/api.md) · [Guia de uso](pt-BR/getting-started.md).
 
 ## Responsabilidades
 
-- src/core/types: contratos de eventos, recursos, recorrência e constraints.
-- src/core/date, recurrence, geometry, constraint e render: projeção temporal, expansão, disposição e disponibilidade. O nome render neste núcleo designa derivação de dados; não componentes React.
-- src/core/interaction: Pointer Events, seleção, movimento, redimensionamento e validação dos rascunhos.
-- src/react/app/calendarApp.ts: coordenação de estado, views, expansão, commits e integração do motor de interação com React.
-- src/react/Calendar.tsx e hooks: API declarativa para aplicações React.
-- src/react/CalendarEventEditor.tsx: formulário opcional; persistência e validação são callbacks do consumidor.
-- src/react/views: componentes e definições das views.
-- src/react/viewTypes.ts: contrato público das views e slots, sem renderer específico.
-- src/react/components: moldura do calendário; src/react/views/components: componentes compartilhados entre views.
-- src/react/views/formatting e registry: formatação e configuração/validação das views disponíveis.
-- src/react/views/layout: geometria de apresentação, segmentos multiday e políticas de densidade.
-- src/react/views/models: modelo de apresentação do time-grid e sua construção.
-- src/react/views/hooks: comportamento compartilhado de cabeçalhos e conteúdo durante rolagem.
-- styles.css: estilos isolados por classes mc-* e tokens CSS.
+| Diretório | Responsabilidade |
+|---|---|
+| `src/core/date` | Datas, horários e resolução de Temporal |
+| `src/core/recurrence` | Parsing, expansão de datas, ocorrências e divisão de séries |
+| `src/core/constraint` | Avaliação de disponibilidade e bloqueios |
+| `src/core/geometry` | Posicionamento e sobreposição visual |
+| `src/core/interaction` | Gestos, ocupação e mudanças propostas |
+| `src/core/render` | Estado, projeções e composição de regras por recurso |
+| `src/core/store` | Assinaturas e memoização por identidade |
+| `src/react/app` | Coordenação do calendário e de fontes de eventos |
+| `src/react/views` | Views, componentes compartilhados, modelos, layout e registro |
+| `src/react/components` | Moldura e controles comuns |
 
-A separação entre core e react é de responsabilidades internas, não de pacotes. A entrada ./core permite consumir utilitários de dados sem importar as views. Layout/models/hooks não são novos pontos de entrada públicos.
+Os componentes de view ficam separados dos utilitários em `components`, `layout`, `models`, `formatting`, `hooks` e `registry`. Compartilhar uma implementação visual não obriga a registrar todas as views.
 
-## Atualização e interação
+## Contratos
 
-O estado controlado pertence ao aplicativo consumidor. Alterações aceitas são aplicadas de forma otimista; callbacks podem recusá-las. O rollback conserva alterações posteriores que já não pertencem à operação recusada. Isso não substitui validação transacional de capacidade no servidor.
+- O consumidor mantém eventos e decide persistência. Alterações propostas podem ser recusadas.
+- Eventos têm intervalos com fim exclusivo; recursos são identificadores genéricos.
+- `initialView` e `initialDate` configuram a montagem. Pedidos posteriores e callbacks estão descritos no guia de API.
+- Opções declarativas substituem os valores declarados; a API imperativa permite patches.
+- O editor é opcional. Formulários próprios podem usar `evaluateEvent` antes de atualizar seus dados.
+- Conteúdo de eventos pode retornar componentes React; hooks pertencem ao componente, não ao callback de renderização.
 
-Movimento e resize usam rascunhos separados dos eventos salvos. A renderização oculta a origem durante a prévia e usa a ocorrência completa, mesmo quando o segmento visível está recortado por dia, semana ou janela de horários. Capacidade, buffers e constraints são avaliados antes do commit.
+O iterador civil de recorrência usa campos gregorianos. A composição de eventos preserva fusos e DST, com fallback Temporal quando necessário. Consulte a [decisão de recorrência](../experiments/civil-recurrence/ADOPTION.md).
 
-A recorrência de produção usa rrule-temporal 2.2.8. Temporal é carregado pelo mecanismo existente; os experimentos do iterador civil permanecem separados. Editor e motor não são a mesma responsabilidade: a UI apresenta campos comuns e conserva cláusulas avançadas que não foram editadas.
-
-## Extensibilidade e manutenção
-
-Views implementam CalendarView: nome, label, range, navegação, título e renderização React. Slots de eventos, toolbar e popovers recebem contexto e podem retornar conteúdo React. Recursos e capacidades permanecem dados configuráveis, sem regras específicas de clínicas embutidas no pacote.
-
-Mantenha helpers junto à responsabilidade que atendem. Uma extração deve remover repetição ou esclarecer limites, não criar um arquivo por expressão. Evite abreviações ambíguas em novas funções públicas; preservam-se os nomes públicos já documentados. ResourceGrid reutiliza a densidade calculada no componente pai, e o modelo do time-grid calcula os limites de resize uma vez por evento.
-
-ResourceDayView.tsx e TimelineView.tsx são arquivos distintos; auxiliares realmente compartilhados ficam em components/ResourcePresentation.tsx. A propriedade views seleciona o conjunto completo: omitida usa BUILTIN_VIEWS; informada precisa conter ao menos uma view. Sem view inicial explícita, usa a primeira da lista. Seleção de views não equivale a carregar apenas seus módulos no bundle. Consulte 09-AUDITORIA-API-E-VIEWS.md para decisões, comparações e lacunas; quantidade de testes não prova ausência de rerenders ou de bugs.
+O CSS distribuído define o tema padrão. O CSS de `examples` pertence apenas ao playground. Autorização, validação do servidor e atomicidade de reservas continuam na aplicação consumidora.

@@ -1,6 +1,8 @@
+> Registro histórico dos protótipos de recorrência. Falhas e contagens abaixo pertencem aos experimentos descritos; a [decisão adotada](../../experiments/civil-recurrence/ADOPTION.md) e as [evidências atuais](../../specs/calendar-remediation/tasks.md) registram a implementação vigente.
+
 # Referência — Validação do motor de recorrência (Temporal API vs rrule.js)
 
-Objetivo: decidir com evidência se o **motor próprio via Temporal API** (protótipo do Jackson) é
+Objetivo: decidir com evidência se o **motor próprio via Temporal API** (protótipo do experimento inicial) é
 correto o suficiente para adotarmos, usando **rrule.js como oráculo**. Também define os testes que a
 implementação real (`packages/core/recurrence`) precisa passar.
 
@@ -13,7 +15,7 @@ node harness.mjs     # 28 cenários base
 node harness2.mjs    # 16 cenários difíceis (edge cases)
 ```
 
-`temporal-rrule.mjs` = protótipo do Jackson extraído (classe `TemporalRRule`). O harness compara a
+`temporal-rrule.mjs` = protótipo do experimento inicial extraído (classe `TemporalRRule`). O harness compara a
 saída dela com a da `rrule.js` para o mesmo `DTSTART` + `RRULE`, em datas (all-day).
 
 ## Resultado (sessão 1 — 2026-07-21)

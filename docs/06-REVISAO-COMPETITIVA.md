@@ -1,3 +1,5 @@
+> Referência histórica de comparação. Recursos e resultados locais refletem a rodada registrada, não o status atual. Consulte a [comparação pública](pt-BR/comparison.md) e as [tarefas verificadas](../specs/calendar-remediation/tasks.md).
+
 # Revisão de arquitetura, recursos e experiência
 
 Consulta às fontes primárias em 07/10/2026. Recursos declarados pelos fornecedores não foram testados nos seus produtos. Este documento distingue recursos existentes, validações locais e propostas.

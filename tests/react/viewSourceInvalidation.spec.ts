@@ -7,8 +7,13 @@ import type { TemporalLike } from '../../src/core/index.js';
 describe('view registration and event-source invalidation', () => {
   it('does not refetch for inactive replacements or order changes; refetches changed active ranges', async () => {
     const source = vi.fn(() => []);
-    const app = new CalendarApp({ temporal: Temporal as unknown as TemporalLike,
-      initialDate: '2026-10-07', initialView: 'day', views: [dayView, monthView], eventSource: source });
+    const app = new CalendarApp({
+      temporal: Temporal as unknown as TemporalLike,
+      initialDate: '2026-10-07',
+      initialView: 'day',
+      views: [dayView, monthView],
+      eventSource: source,
+    });
     const ranges = vi.fn();
     app.on('rangeChange', ranges);
     await app.ready();
@@ -19,7 +24,10 @@ describe('view registration and event-source invalidation', () => {
       app.registerView({ ...renamedMonth, label: 'Mês atualizado' });
       expect(source).toHaveBeenCalledTimes(1);
       expect(ranges).toHaveBeenCalledTimes(1);
-      app.registerView({ ...dayView, getRange: (date, context) => monthView.getRange(date, context) });
+      app.registerView({
+        ...dayView,
+        getRange: (date, context) => monthView.getRange(date, context),
+      });
       await vi.waitFor(() => expect(source).toHaveBeenCalledTimes(2));
       expect(ranges).toHaveBeenCalledTimes(2);
       app.setViews([renamedMonth]);
@@ -29,6 +37,8 @@ describe('view registration and event-source invalidation', () => {
       expect(app.getState().viewName).toBe('day');
       await vi.waitFor(() => expect(source).toHaveBeenCalledTimes(3));
       expect(() => app.registerView({ ...dayView, name: '' })).toThrow();
-    } finally { app.destroy(); }
+    } finally {
+      app.destroy();
+    }
   });
 });

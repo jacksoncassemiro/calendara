@@ -29,7 +29,7 @@ rerender do calendário inteiro. **É exatamente o desenho que vamos adotar** (v
   é plugável — não está no coração. Vamos embutir a nossa (Temporal) como parte do core, mas mantendo-a
   isolável.
 - `google-calendar` é um plugin de **event source** (fetch por período) — confirma o padrão de
-  `EventsSourceConfig.fetch({start,end})` que o Jackson já gosta.
+  `EventsSourceConfig.fetch({start,end})` como contrato de busca por período.
 - Licença MIT (standard). Premium (timeline/resource) é comercial — não usar como base de código.
 
 ## 2. Schedule-X (`schedule-x/schedule-x`)
@@ -81,7 +81,7 @@ Next). Bom para inspirar o visual das views (month/week/day/agenda/year) e o DnD
 Fonte: documentação/blog oficial (código fechado). Serve como **checklist de paridade de features**:
 - Views: day, week, work-week, month, **agenda**, e **timeline** (day/week/work-week/month/year).
 - **Resources/grouping**: agrupar eventos por recurso (sala, profissional, equipamento) em linhas —
-  relevante para o wsaude (agenda por profissional). Marcar como **fase posterior** (timeline/resource).
+  relevante para o aplicação consumidora (agenda por profissional). Marcar como **fase posterior** (timeline/resource).
 - Recorrência com exceções por ocorrência; timezone; drag & resize (módulo `resize`, `allowResizing`).
 - Integração com Google/Outlook; **load on demand** (fetch por período) para performance.
 - Há um "Pure React Scheduler" novo (2026), 100% hooks — indica a direção de mercado de schedulers
@@ -131,7 +131,7 @@ Fontes: [dayMinWidth](https://fullcalendar.io/docs/dayMinWidth) · [dayNarrowWid
 3. **Motor de recorrência próprio com iterador-por-FREQ + recurrence-set + parser + specs por freq**
    (padrão Schedule-X), porém sobre **Temporal** (nossa decisão) e validado contra rrule.js.
 4. **Event source por período** (padrão FullCalendar/Syncfusion/`testes-nextjs`) como primeira classe.
-5. **Resource/Timeline views** = **Agenda Desvinculada** (requisito real do wsaude: agenda de exames e
+5. **Resource/Timeline views** = **Agenda Desvinculada** (requisito real do aplicação consumidora: agenda de exames e
    equipamentos). Promovido de backlog para **Fase 3B**; o núcleo nasce resource-aware na Fase 1.
    Detalhamento em `agenda-desvinculada.md`.
 6. **Responsivo = piso de rolagem no core + troca de view recomendada ao app.** Pegamos o

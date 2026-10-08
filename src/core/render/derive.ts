@@ -59,13 +59,23 @@ export function expandRange(
   const exclusiveRangeEnd = rangeEndDate.add({ days: 1 }).toString();
   const timedWindowEnd = rangeEndDate.add({ days: 2 }).toString();
   const lookbackWindows = new Map<number, string>();
-  const zonedRanges = new Map<string, { start: InstanceType<TemporalLike['ZonedDateTime']>; end: InstanceType<TemporalLike['ZonedDateTime']> }>();
+  const zonedRanges = new Map<
+    string,
+    {
+      start: InstanceType<TemporalLike['ZonedDateTime']>;
+      end: InstanceType<TemporalLike['ZonedDateTime']>;
+    }
+  >();
   for (const event of events) {
     // Include starts before the visible range when their duration overlaps it. Timed
     // events can also shift to the preceding/following date in the display timezone.
-    const startDate = temporal.PlainDate.from((event.time.start.date ?? event.time.start.dateTime!).slice(0, 10));
+    const startDate = temporal.PlainDate.from(
+      (event.time.start.date ?? event.time.start.dateTime!).slice(0, 10),
+    );
     const endValue = event.time.end.date ?? event.time.end.dateTime;
-    const endDate = endValue ? temporal.PlainDate.from(endValue.slice(0, 10)) : startDate.add({ days: 1 });
+    const endDate = endValue
+      ? temporal.PlainDate.from(endValue.slice(0, 10))
+      : startDate.add({ days: 1 });
     const lookbackDays = Math.max(0, endDate.since(startDate).days) + (event.time.allDay ? 0 : 2);
     let windowStart = lookbackWindows.get(lookbackDays);
     if (windowStart === undefined) {
@@ -82,12 +92,17 @@ export function expandRange(
         const timeZone = displayTimeZone ?? time.start.timeZone ?? 'UTC';
         let zonedRange = zonedRanges.get(timeZone);
         if (!zonedRange) {
-          zonedRange = { start: rangeStartDate.toZonedDateTime(timeZone), end: temporal.PlainDate.from(exclusiveRangeEnd).toZonedDateTime(timeZone) };
+          zonedRange = {
+            start: rangeStartDate.toZonedDateTime(timeZone),
+            end: temporal.PlainDate.from(exclusiveRangeEnd).toZonedDateTime(timeZone),
+          };
           zonedRanges.set(timeZone, zonedRange);
         }
         const start = toDisplayZoned(temporal, time.start, timeZone);
         const end = toDisplayZoned(temporal, time.end, timeZone);
-        const overlapsRange = temporal.ZonedDateTime.compare(start, zonedRange.end) < 0 && temporal.ZonedDateTime.compare(end, zonedRange.start) > 0;
+        const overlapsRange =
+          temporal.ZonedDateTime.compare(start, zonedRange.end) < 0 &&
+          temporal.ZonedDateTime.compare(end, zonedRange.start) > 0;
         if (overlapsRange) results.push(occurrence);
       }
     }
@@ -116,7 +131,12 @@ export function occurrenceStart(
   if (time.allDay) {
     const dayISO = (time.start.date ?? '').slice(0, 10);
     const startOfDay = temporal.PlainDate.from(dayISO).toZonedDateTime(displayTimeZone);
-    return { dayISO, epochMs: Number(startOfDay.epochMilliseconds), minuteOfDay: 0, isAllDay: true };
+    return {
+      dayISO,
+      epochMs: Number(startOfDay.epochMilliseconds),
+      minuteOfDay: 0,
+      isAllDay: true,
+    };
   }
   const startZoned = toDisplayZoned(temporal, time.start, displayTimeZone);
   return {
@@ -146,16 +166,18 @@ export function resourceBusyIntervals(
   occurrences: readonly EventOccurrence[],
   displayTimeZone: string,
 ): Segment[] {
-  return occurrences.map(occurrence => {
+  return occurrences.map((occurrence) => {
     const time = occurrence.event.time;
-    if (time.allDay) return {
-      startMin: temporal.PlainDate.from(time.start.date!).since(day).days * MINUTES_PER_DAY,
-      endMin: temporal.PlainDate.from(time.end.date!).since(day).days * MINUTES_PER_DAY,
-    };
+    if (time.allDay)
+      return {
+        startMin: temporal.PlainDate.from(time.start.date!).since(day).days * MINUTES_PER_DAY,
+        endMin: temporal.PlainDate.from(time.end.date!).since(day).days * MINUTES_PER_DAY,
+      };
     const start = toDisplayZoned(temporal, time.start, displayTimeZone);
     const end = toDisplayZoned(temporal, time.end, displayTimeZone);
     return {
-      startMin: start.toPlainDate().since(day).days * MINUTES_PER_DAY + start.hour * 60 + start.minute,
+      startMin:
+        start.toPlainDate().since(day).days * MINUTES_PER_DAY + start.hour * 60 + start.minute,
       endMin: end.toPlainDate().since(day).days * MINUTES_PER_DAY + end.hour * 60 + end.minute,
     };
   });
@@ -208,7 +230,8 @@ export function buildDays(
       const outsideEvent = column.dateISO < startISO || column.dateISO > endISO;
       if (outsideEvent) continue;
       const startMin = column.dateISO === startISO ? startZoned.hour * 60 + startZoned.minute : 0;
-      const endMin = column.dateISO === endISO ? endZoned.hour * 60 + endZoned.minute : MINUTES_PER_DAY;
+      const endMin =
+        column.dateISO === endISO ? endZoned.hour * 60 + endZoned.minute : MINUTES_PER_DAY;
       const hasDuration = endMin > startMin;
       if (!hasDuration) continue;
       column.timed.push({ id: occurrenceKey(occurrence), startMin, endMin, occurrence });
@@ -257,8 +280,14 @@ function deriveBlocked(
     if (!appliesToThisDay) continue;
     const blocksWholeDay = blocking.scope === 'day';
     if (blocksWholeDay) return [{ startMin: gridStartMin, endMin: gridEndMin }];
-    const start = Math.max(blocking.startTime ? hhmmToMinutes(blocking.startTime) : gridStartMin, gridStartMin);
-    const end = Math.min(blocking.endTime ? hhmmToMinutes(blocking.endTime) : gridEndMin, gridEndMin);
+    const start = Math.max(
+      blocking.startTime ? hhmmToMinutes(blocking.startTime) : gridStartMin,
+      gridStartMin,
+    );
+    const end = Math.min(
+      blocking.endTime ? hhmmToMinutes(blocking.endTime) : gridEndMin,
+      gridEndMin,
+    );
     const hasSpan = end > start;
     if (hasSpan) segments.push({ startMin: start, endMin: end });
   }

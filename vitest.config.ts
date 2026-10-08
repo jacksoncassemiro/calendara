@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url';
 export default defineConfig({
   resolve: {
     alias: {
-      '@meucalendario/calendar/core': fileURLToPath(new URL('./src/core/index.ts', import.meta.url)),
+      '@meucalendario/calendar/core': fileURLToPath(
+        new URL('./src/core/index.ts', import.meta.url),
+      ),
       '@meucalendario/calendar': fileURLToPath(new URL('./src/index.ts', import.meta.url)),
     },
   },
