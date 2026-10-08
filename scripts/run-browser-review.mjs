@@ -38,6 +38,7 @@ try {
   await run(['run-code', '--filename', 'scripts/browser-persona-personal-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-persona-admin-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-recurrence-editor-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-draft-feedback-review.js']);
 } finally {
   await run(['close'], false);
   await server.close();

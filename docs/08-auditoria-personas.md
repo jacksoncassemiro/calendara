@@ -1,6 +1,6 @@
 # Auditoria por personas, recursos e limites
 
-Revisão em 07/10/2026. Fontes oficiais consultadas nesta data; produtos concorrentes não foram executados. Este documento não declara paridade nem validação integral.
+Revisão em 07/10/2026. Fontes oficiais consultadas nesta data; houve inspeção visual das demos do FullCalendar, sem executar uma suíte de testes nos concorrentes. Este documento não declara paridade nem validação integral.
 
 **VALIDADO** significa cenário específico executado pelo agente principal no Edge. **HIPÓTESE** exige reprodução antes de classificar como bug. **LACUNA** indica funcionalidade ou evidência de suporte ausente, não necessariamente defeito.
 
@@ -11,7 +11,7 @@ Revisão em 07/10/2026. Fontes oficiais consultadas nesta data; produtos concorr
 | Recepcionista | VALIDADO pelo agente principal | `browser-persona-reception-review.js`: criação na sala escolhida; capacidade própria ilimitada prevalece sobre padrão global; memória após troca de views; edição recusada preserva evento; reagendamento válido; preparo com capacidade 1 e início exatamente no fim do buffer |
 | Profissional de saúde | VALIDADO pelo agente principal | `browser-persona-clinician-review.js`: inserir/remover faixa de dia inteiro durante scroll; transferir fragmento visível de plantão 19h–09h preservando intervalo completo; continuidade no mês; título visível após rolagem horizontal |
 | Agenda pessoal | VALIDADO pelo agente principal | `browser-persona-personal-review.js`: foco ao abrir/fechar popover e editor por teclado; edição isolada de ocorrência recorrente; preservar horários ao mudar slots/rótulos; seleção do mês compacto mantida ao voltar ao desktop |
-| Administrador de salas | Em execução pelo agente principal | `browser-persona-admin-review.js`: oito reservas simultâneas e uma isolada; lado a lado/sobreposição/+mais; ocultos na timeline e arraste pelo popover; botão React personalizado dentro do popover. Atualizar o estado após resultado real |
+| Administrador de salas | VALIDADO pelo agente principal | `browser-persona-admin-review.js`: oito reservas simultâneas e uma isolada; lado a lado/sobreposição/+mais; ocultos na timeline e arraste pelo popover; botão React personalizado dentro do popover. |
 
 As personas exercitam tarefas, não usuários reais recrutados. Não inferir usabilidade clínica, conformidade de acessibilidade ou desempenho de toda a biblioteca a partir desses roteiros.
 
@@ -56,3 +56,15 @@ O pacote atual usa React como peer. Em um aplicativo React, substituir intername
 ## Critério para encerrar uma rodada
 
 Registrar o resultado específico, dados/viewport/fuso, comando e artefato visual de cada cenário. Marcar hipóteses como corrigidas somente após reproduzir e verificar a correção. Atualizar este documento quando terminar o administrador e a rodada completa; os estados acima não substituem seus resultados.
+
+## Correções e manutenção desta rodada
+
+A preparação antes/depois da meia-noite foi reproduzida em testes e corrigida: a validação considera intervalos completos de dias vizinhos. Resources e Timeline desenham as bandas desses intervalos sem renderizar a reserva fora do período visível e sem inventar buffers nas continuações de um plantão. Fontes remotas precisam fornecer eventos vizinhos: expandir recorrências locais não recupera dados que o backend não entregou.
+
+A margem clicável do modo lado a lado fica na borda externa; não ocupa uma faixa larga entre cada cartão. Sobreposição, +mais e capacidade continuam opções independentes. As prévias de movimento/resize mostram título e intervalo proposto; o estado salvo só muda ao confirmar o gesto.
+
+O formulário da série ganhou intervalo, dias semanais, dia mensal, mês/dia anual e fim por quantidade/data. Há testes de preservação de regras avançadas e validação, além de criação semanal no navegador. A UI não representa todo o RFC: cláusulas que não têm controles são conservadas. A demonstração valida o intervalo editado; conferir conflitos de todas as ocorrências futuras de uma série exige uma janela e uma política definidas pelo aplicativo.
+
+Arquivos auxiliares separados em views/layout, views/models e views/hooks; exports públicos conservados. resourceViews ainda reúne duas views e é candidato a uma divisão posterior. Removido cálculo duplicado de densidade e de limites de resize. Não houve migração para Preact.
+
+Validação de código desta rodada: yarn verify, 310 testes em 26 arquivos, tipos, builds e consumo externo do pacote. A checagem final de navegador está em andamento; resultados finais serão registrados após o encerramento.

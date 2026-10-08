@@ -347,3 +347,15 @@ Aqui, slotMinutes é o intervalo das células (e atualmente também o snapping),
 ### Playground: controles independentes
 
 Duração do slot configura slotMinutes (15/30/60 min); Tamanho do slot configura30/45/60px por divisão. A escala passada ao calendário é tamanhoEmPixels/slotMinutes. Intervalo dos rótulos configura timeLabelInterval (15/30/60min ou automático). Os valores efetivos aparecem abaixo dos controles. Mudar a duração mantém o tamanho visual escolhido por divisão; não altera o intervalo explícito dos textos.
+
+### Formulário de recorrência
+
+CalendarEventEditor expõe campos da frequência escolhida ao editar a série: intervalo, dias da semana, dia do mês (incluindo -1 para o último), mês anual e fim por quantidade ou data. Nos escopos ocorrência/seguintes, esses controles não alteram a regra da série. Editar apenas título conserva a RRULE original; campos avançados não editados são preservados. O formulário valida formato e limites; avaliar disponibilidade de todas as ocorrências futuras e persistir a série são responsabilidades do aplicativo.
+
+### Prévia do gesto
+
+O cartão do rascunho exibe o intervalo candidato atualizado e o título. Em eventos que atravessam dias, inclui as datas do intervalo completo; em dia inteiro, mostra as datas ocupadas com o fim exclusivo convertido para o último dia visível. Essa apresentação não confirma a alteração antes do fim do gesto.
+
+### Rótulos em escalas horizontais compactas
+
+Um intervalo explícito de rótulos é preservado mesmo quando a distância é curta. A timeline distribui textos em linhas alternadas para evitar colisões: 60 minutos em 30 px com rótulos a cada 30 minutos usa quatro linhas; 30 minutos em 30 px com rótulos a cada 30 minutos usa duas. O modo automático pode reduzir a frequência. Isso não modifica duração dos slots nem horários dos eventos.
