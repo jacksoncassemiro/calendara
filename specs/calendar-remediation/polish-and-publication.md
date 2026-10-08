@@ -22,7 +22,7 @@ Scope: issues reported after the first Pages deployment. This slice does not pro
 - [x] PUB-01: repository is public; remote Pages `https_enforced: true` and HTTPS site response confirmed by the coordinating agent on 2026-10-08. `github-pages` accepts `main` only.
 - [x] PUB-02: release environment reviewer is the owner, self-review allowed, administrator bypass disabled, `main` only. Record the sole-maintainer limitation in `docs/publishing-security.md`.
 - [ ] PUB-03: after integration checks, prepare a version-consistent draft `.tgz` and checksum. Confirm draft contents/consumer install before deciding manual publication. No registry publishing is authorized by this slice.
-- [ ] QA-01: coordinating agent records final type/unit/package/browser checks and screenshots after all concurrent edits finish.
+- [x] QA-01: coordinating agent records final type/unit/package/browser checks and screenshots after all concurrent edits finish.
 
 Public bundle comparison remains in `docs/en/bundle-comparison.md` and its Portuguese counterpart: preserve one package; explore optional loading/subpath boundaries only when consumer measurements justify them. Grouped resources and multi-day resource timelines are candidates for future operational scenarios; year/print views need their own scope.
 
@@ -32,4 +32,4 @@ Public bundle comparison remains in `docs/en/bundle-comparison.md` and its Portu
 - Sticky geometry: zero column/event/all-day displacement in desktop and narrow horizontal scrolling; month and agenda sticky headers checked.
 - Production site under /calendara/: documentation and playground scenarios passed in Edge, including themes, English/Portuguese, feature links and transfer rejection.
 - Screenshots inspected: dark English documentation and playground; narrow 320/375px layouts. Physical mobile/Safari and screen-reader validation are not claimed.
-- Full browser rerun and remote CI/deployment remain pending below; release draft requires the configured release-environment approval.
+- Full browser rerun passed: all 28 scripts in Edge, with no runtime errors. Remote CI/deployment remain pending; release draft requires the configured release-environment approval.
