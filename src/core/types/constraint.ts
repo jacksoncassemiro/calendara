@@ -1,76 +1,117 @@
-/**
- * Bloqueios e horário comercial NÃO são "eventos" — são constraints/camadas próprias (ADR-005).
- * Renderizados como camada de fundo e consultados pelo ConstraintEngine nas interações.
- *
- * CONVENÇÃO DE NOMES (uniforme em todo o módulo, para evitar ambiguidade):
- *   • `start` / `end`         → DATAS  'YYYY-MM-DD'
- *   • `startTime` / `endTime` → HORAS  'HH:mm'
- *   • `date`                  → UM dia 'YYYY-MM-DD'
- * Blocos reutilizáveis: `DateRangeBounds` (faixa de datas) e `TimeOfDayRange` (faixa de horário).
+/** Inclusive ISO date range.
+ * @remarks Português: Faixa de datas ISO com extremos inclusivos.
  */
-
-/** Faixa de datas [start, end] — 'YYYY-MM-DD', inclusive. */
 export interface DateRangeBounds {
+  /** Inclusive first date in YYYY-MM-DD format.
+   * @remarks Português: Primeira data inclusiva em YYYY-MM-DD.
+   */
   start: string;
+  /** Inclusive last date in YYYY-MM-DD format.
+   * @remarks Português: Última data inclusiva em YYYY-MM-DD.
+   */
   end: string;
 }
 
-/** Faixa de horário do dia [startTime, endTime] — 'HH:mm'. */
+/** Local-time interval with an exclusive end.
+ * @remarks Português: Faixa de horário local com fim exclusivo.
+ */
 export interface TimeOfDayRange {
+  /** Inclusive start in HH:mm format.
+   * @remarks Português: Início inclusivo em HH:mm.
+   */
   startTime: string;
+  /** Exclusive end in HH:mm format; 24:00 ends the day.
+   * @remarks Português: Fim exclusivo em HH:mm; 24:00 encerra o dia.
+   */
   endTime: string;
 }
 
-/**
- * Horário comercial: uma janela de horário (`TimeOfDayRange`) que vale em certos dias da semana,
- * com validade opcional por data (útil p/ expediente sazonal). `daysOfWeek` usa 0=domingo..6=sábado
- * (convenção JS/FullCalendar).
+/** Weekly business hours with optional date validity.
+ * @remarks Português: Expediente semanal com validade opcional por data.
  */
 export interface BusinessHours extends TimeOfDayRange {
+  /** Applicable weekdays: 0 is Sunday and 6 is Saturday.
+   * @remarks Português: Dias aplicáveis: 0 é domingo e 6 é sábado.
+   */
   daysOfWeek: number[];
-  /** Validade da regra (datas 'YYYY-MM-DD'): início inclusive. Ausente = sem limite inferior. */
+  /** Inclusive first valid date; omitted has no lower bound.
+   * @remarks Português: Primeira data válida, inclusiva; ausente não limita o início.
+   */
   start?: string;
-  /** Validade: fim inclusive. Ausente = sem limite superior. */
+  /** Inclusive last valid date; omitted has no upper bound.
+   * @remarks Português: Última data válida, inclusiva; ausente não limita o fim.
+   */
   end?: string;
 }
 
-/**
- * Faixa de datas permitida (allowedRanges): datas obrigatórias (`DateRangeBounds`) + uma janela
- * intradiária OPCIONAL. Se `allowedRanges` existe, só slots dentro dela são válidos.
+/** Allowed dates with optional time-of-day bounds.
+ * @remarks Português: Datas permitidas com limites opcionais de horário.
  */
 export interface DateRange extends DateRangeBounds {
-  /** 'HH:mm' — limita também o horário dentro da faixa (opcional). */
+  /** Optional inclusive time bound in HH:mm format.
+   * @remarks Português: Limite de horário inicial inclusivo em HH:mm.
+   */
   startTime?: string;
-  /** 'HH:mm'. */
+  /** Optional exclusive time bound in HH:mm format.
+   * @remarks Português: Limite de horário final exclusivo em HH:mm.
+   */
   endTime?: string;
 }
 
-/**
- * Bloqueio pontual: um dia inteiro (`scope: 'day'`) ou uma faixa de horário num dia
- * (`scope: 'time'`, usando `startTime`/`endTime`). Tem precedência sobre tudo.
+/** Day or time block, taking precedence over availability.
+ * @remarks Português: Bloqueio de dia ou horário com precedência sobre a disponibilidade.
  */
 export interface Blocking {
+  /** Block a whole day or a time interval.
+   * @remarks Português: Bloqueia o dia inteiro ou uma faixa de horário.
+   */
   scope: 'day' | 'time';
-  /** 'YYYY-MM-DD'. */
+  /** Blocked date in YYYY-MM-DD format.
+   * @remarks Português: Data bloqueada em YYYY-MM-DD.
+   */
   date: string;
-  /** 'HH:mm' — início da faixa bloqueada (scope 'time'). Ausente = começo do dia. */
+  /** Time-block start in HH:mm format; omitted means 00:00.
+   * @remarks Português: Início do bloqueio de horário em HH:mm; ausente usa 00:00.
+   */
   startTime?: string;
-  /** 'HH:mm' — fim da faixa (exclusivo). Ausente = fim do dia. */
+  /** Exclusive time-block end; omitted means 24:00.
+   * @remarks Português: Fim exclusivo do bloqueio de horário; ausente usa 24:00.
+   */
   endTime?: string;
+  /** Optional label for consumer presentation.
+   * @remarks Português: Rótulo opcional para apresentação pelo consumidor.
+   */
   description?: string;
 }
 
-/** Conjunto de constraints aplicáveis a um calendário/recurso. */
+/** Availability rules for a calendar or resource.
+ * @remarks Português: Regras de disponibilidade de calendário ou recurso.
+ */
 export interface ConstraintSet {
+  /** Permitted weekly hours; absent or empty adds no hour restriction.
+   * @remarks Português: Expediente permitido; ausente ou vazio não restringe horários.
+   */
   businessHours?: BusinessHours[];
-  /** Se presente, só slots dentro destes ranges são válidos. */
+  /** Allowed date/time ranges; absent or empty adds no range restriction.
+   * @remarks Português: Faixas permitidas; ausente ou vazio não restringe o período.
+   */
   allowedRanges?: DateRange[];
-  /** Slots que caem aqui são inválidos (tem precedência sobre tudo). */
+  /** Forbidden intervals, taking precedence over allowed hours.
+   * @remarks Português: Intervalos proibidos, com precedência sobre horários permitidos.
+   */
   blocked?: Blocking[];
 }
 
-/** Resposta da avaliação de um slot. */
+/** Result of evaluating slot availability.
+ * @remarks Português: Resultado da avaliação de disponibilidade do slot.
+ */
 export interface SlotEvaluation {
+  /** Whether the slot satisfies the applicable constraints.
+   * @remarks Português: Indica se o slot atende às regras aplicáveis.
+   */
   valid: boolean;
+  /** Constraint evaluation reason.
+   * @remarks Português: Motivo da aprovação ou recusa pelas regras.
+   */
   reason?: 'blocked' | 'outside-business-hours' | 'outside-allowed' | 'ok';
 }

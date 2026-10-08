@@ -34,6 +34,7 @@ import type {
 	SelectionChange,
 	DraftGeometry,
 	ResizeEdge,
+	OutsideDropTarget,
 } from './model.js';
 import { minutesToDateTime, calendarDayOffset } from './model.js';
 import { computeMoveDraft, computeResizeDraft, computeSelectDraft } from './gestureGeometry.js';
@@ -75,6 +76,8 @@ export interface InteractionCallbacks {
 	clickEvent(placement: PlacementInfo): void;
 	clickEmpty(slot: PointerSlot): void;
 	blocked(info: BlockedInfo): void;
+	commitExternal?(change: EventChange): void;
+	dropOutside?(placement: PlacementInfo, destination: OutsideDropTarget): void;
 }
 
 /** Dependências injetadas (dados vivos do CalendarApp + política de avaliação). */
@@ -84,6 +87,7 @@ export interface InteractionDeps {
 	getMinDurationMin(): number;
 	/** Opt-in conversion when moving between real timed and all-day surfaces. */
 	allowEventTypeChange?: () => boolean;
+	allowOutsideDrop?: () => boolean;
 	evaluate(input: EvaluationInput): DraftEvaluation;
 	resolveOccurrence(eventId: string): EventOccurrence | null;
 	resolveSpan?: (occurrence: EventOccurrence) => Pick<PlacementInfo, 'dateISO' | 'startMin' | 'endDateISO' | 'endMin' | 'allDay' | 'durationMinutes'>;
@@ -133,6 +137,13 @@ export class InteractionEngine {
 	private readonly onPointerMove = (event: Event): void => this.handlePointerMove(event);
 	private readonly onPointerUp = (event: Event): void => this.handlePointerUp(event);
 	private readonly onPointerCancel = (event: Event): void => this.handlePointerCancel(event);
+	private readonly onKeyDown = (event: KeyboardEvent): void => {
+		if (event.key !== 'Escape' || !this.gesture) return;
+		this.finishDrag(this.gesture);
+		this.gesture = null;
+		this.deps.callbacks.onDraftChange(null);
+		event.preventDefault();
+	};
 	/** Native text/image dragging would cancel the active Pointer Events gesture. */
 	private readonly onNativeDragStart = (event: Event): void => {
 		if (this.gesture) event.preventDefault();
@@ -154,9 +165,41 @@ export class InteractionEngine {
 		if (this.root) {
 			this.root.removeEventListener('pointerdown', this.onPointerDown);
 		}
-		this.teardownDragListeners();
+		if (this.gesture) {
+			this.finishDrag(this.gesture);
+			this.deps.callbacks.onDraftChange(null);
+		} else this.teardownDragListeners();
 		this.root = null;
 		this.gesture = null;
+	}
+
+	/** Start a pointer gesture from an application-owned card outside the calendar. */
+	startExternalDrag(origin: PlacementInfo, event: PointerEvent): boolean {
+		if (!this.root || this.gesture || !origin.editable || (event.button !== 0 && !(event.buttons & 1))) return false;
+		const captureTarget = event.target instanceof Element ? event.target : this.root;
+		const externalOrigin = { ...origin, external: true };
+		this.gesture = {
+			kind: 'move', pointerId: event.pointerId ?? 0,
+			anchor: { dateISO: origin.dateISO, minuteOfDay: origin.startMin, allDay: origin.allDay },
+			origin: externalOrigin, grabOffsetMin: 0, editable: true, movedEnough: true,
+			lastDraft: null, captureTarget,
+		};
+		this.beginDrag(captureTarget, event.pointerId ?? 0);
+		return true;
+	}
+
+	/** Abort a gesture when its external source unmounts or the consumer cancels it. */
+	cancelDrag(): void {
+		if (!this.gesture) return;
+		this.finishDrag(this.gesture);
+		this.gesture = null;
+		this.deps.callbacks.onDraftChange(null);
+	}
+
+	/** A real surface under the pointer; unlike internal movement this does not clamp outside. */
+	locatePointerSlot(clientX: number, clientY: number): PointerSlot | null {
+		if (!this.isCalendarSurface(clientX, clientY)) return null;
+		return this.locate(clientX, clientY);
 	}
 
 	// ---- ciclo do gesto --------------------------------------------------------
@@ -234,8 +277,20 @@ export class InteractionEngine {
 		if (!gesture) return;
 		const coords = readCoords(event);
 		if (coords.pointerId !== gesture.pointerId) return;
-		const point = this.locate(coords.clientX, coords.clientY);
-		if (!point) return;
+		const strictDestination = gesture.origin?.external || (gesture.kind === 'move' && this.deps.callbacks.dropOutside && (this.deps.allowOutsideDrop?.() ?? true));
+		const point = strictDestination
+			? this.locatePointerSlot(coords.clientX, coords.clientY)
+			: this.locate(coords.clientX, coords.clientY);
+		if (!point) {
+			if (strictDestination) {
+				if (gesture.origin && gesture.editable) gesture.movedEnough = true;
+				if (gesture.lastDraft !== null) {
+					gesture.lastDraft = null;
+					this.deps.callbacks.onDraftChange(null);
+				}
+			}
+			return;
+		}
 
 		const crossedDay = point.dateISO !== gesture.anchor.dateISO;
 		// Atravessar de coluna/linha de recurso conta como arrasto mesmo sem mexer no horário:
@@ -275,7 +330,21 @@ export class InteractionEngine {
 		this.gesture = null;
 
 		const callbacks = this.deps.callbacks;
+		const outside = !this.isCalendarSurface(coords.clientX, coords.clientY);
+		if (gesture.kind === 'move' && gesture.origin && gesture.editable && outside
+			&& (gesture.origin.external || (gesture.movedEnough && callbacks.dropOutside && (this.deps.allowOutsideDrop?.() ?? true)))) {
+			if (!gesture.origin.external) callbacks.dropOutside?.(gesture.origin, {
+				clientX: coords.clientX, clientY: coords.clientY,
+				target: this.root?.ownerDocument.elementFromPoint?.(coords.clientX, coords.clientY) ?? null,
+			});
+			callbacks.onDraftChange(null);
+			return;
+		}
 		const draft = gesture.lastDraft;
+		if (gesture.origin?.external && !draft) {
+			callbacks.onDraftChange(null);
+			return;
+		}
 		const wasClick = !gesture.movedEnough || draft === null;
 
 		if (wasClick) {
@@ -339,11 +408,26 @@ export class InteractionEngine {
 		const origin = gesture.origin;
 		if (!origin) return;
 		const change = buildEventChange(gesture.kind, origin, draft);
-		if (gesture.kind === 'move') callbacks.commitMove(change);
+		if (origin.external) callbacks.commitExternal?.(change);
+		else if (gesture.kind === 'move') callbacks.commitMove(change);
 		else callbacks.commitResize(change);
 	}
 
 	// ---- helpers ---------------------------------------------------------------
+
+	private isCalendarSurface(clientX: number, clientY: number): boolean {
+		if (!this.root) return false;
+		const selector = '[data-mc-day], [data-mc-slot], [data-mc-month-day], [data-mc-allday-cell]';
+		const documentRef = this.root.ownerDocument;
+		const hit = documentRef.elementFromPoint?.(clientX, clientY);
+		if (hit) return this.root.contains(hit) && hit.closest(selector) !== null;
+		// DOM implementations without hit testing (including jsdom) can still verify bounds.
+		return Array.from(this.root.querySelectorAll(selector)).some(surface => {
+			const rect = surface.getBoundingClientRect();
+			return rect.width > 0 && rect.height > 0 && clientX >= rect.left && clientX <= rect.right
+				&& clientY >= rect.top && clientY <= rect.bottom;
+		});
+	}
 
 	private buildDraft(gesture: ActiveGesture, point: PointerSlot): InteractionDraft {
 		const slotMinutes = this.deps.getSlotMinutes();
@@ -383,7 +467,11 @@ export class InteractionEngine {
 		};
 		if (geometry.endDateISO) draft.endDateISO = geometry.endDateISO;
 		if (geometry.allDay !== undefined) draft.allDay = geometry.allDay;
-		if (gesture.origin) draft.eventId = gesture.origin.eventId;
+		if (gesture.origin) {
+			draft.eventId = gesture.origin.eventId;
+			draft.title = gesture.origin.occurrence.event.title;
+			if (gesture.origin.occurrence.event.color) draft.color = gesture.origin.occurrence.event.color;
+		}
 		if (geometry.resourceId) draft.resourceId = geometry.resourceId;
 		return draft;
 	}
@@ -544,6 +632,7 @@ export class InteractionEngine {
 			documentRef.addEventListener('pointerup', this.onPointerUp);
 			documentRef.addEventListener('pointercancel', this.onPointerCancel);
 			documentRef.addEventListener('dragstart', this.onNativeDragStart);
+			documentRef.addEventListener('keydown', this.onKeyDown);
 		}
 		const canCapture = typeof (captureTarget as Element & {
 			setPointerCapture?: (id: number) => void;
@@ -581,6 +670,7 @@ export class InteractionEngine {
 		documentRef.removeEventListener('pointerup', this.onPointerUp);
 		documentRef.removeEventListener('pointercancel', this.onPointerCancel);
 		documentRef.removeEventListener('dragstart', this.onNativeDragStart);
+		documentRef.removeEventListener('keydown', this.onKeyDown);
 	}
 }
 

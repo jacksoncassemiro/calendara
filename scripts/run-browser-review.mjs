@@ -43,6 +43,8 @@ try {
   await run(['run-code', '--filename', 'scripts/browser-draft-feedback-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-month-availability-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-view-selection-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-external-drag-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-default-theme-review.js']);
 } finally {
   await run(['close'], false);
   await server.close();

@@ -1,24 +1,40 @@
-/**
- * Tipos de data/hora canônicos.
- * Baseado em docs/reference/data-model-mapping.md (superconjunto RFC 5545 / Google / Outlook).
+/** RFC 5545 weekday code.
+ * @remarks Português: Código RFC 5545 do dia da semana.
  */
-
-/** Código de dia da semana RFC 5545. */
 export type WeekdayCode = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 
-/** Instante ou data de um extremo de evento (espelha Google `start`/`end`). */
+/** Date or local-time endpoint of an event.
+ * @remarks Português: Extremo de evento como data ou horário local.
+ */
 export interface EventDateTime {
-  /** 'YYYY-MM-DD' — presente quando all-day. */
+  /** All-day endpoint in YYYY-MM-DD format.
+   * @remarks Português: Extremo de dia inteiro em YYYY-MM-DD.
+   */
   date?: string;
-  /** Wall-clock ISO 'YYYY-MM-DDTHH:mm:ss' (SEM offset) — presente quando timed; a tz vem de `timeZone`. */
+  /** Local ISO wall time without offset: YYYY-MM-DDTHH:mm:ss.
+   * @remarks Português: Horário local ISO sem offset; o fuso vem de timeZone.
+   */
   dateTime?: string;
-  /** Timezone IANA, ex.: 'America/Sao_Paulo'. */
+  /** IANA zone for dateTime; omitted uses the calendar zone.
+   * @remarks Português: Fuso IANA de dateTime; ausente usa o fuso do calendário.
+   */
   timeZone?: string;
 }
 
-/** Janela temporal de um evento. Em all-day, `end` é EXCLUSIVO (convenção Google). */
+/** Event interval with an exclusive end.
+ * @remarks Português: Intervalo do evento com fim exclusivo.
+ */
 export interface EventTime {
+  /** Use date endpoints for all-day events; dateTime otherwise.
+   * @remarks Português: Usa extremos date para dia inteiro; dateTime nos demais.
+   */
   allDay: boolean;
+  /** Inclusive event start.
+   * @remarks Português: Início inclusivo do evento.
+   */
   start: EventDateTime;
+  /** Exclusive event end, including all-day dates.
+   * @remarks Português: Fim exclusivo; em dia inteiro, a data final não é ocupada.
+   */
   end: EventDateTime;
 }

@@ -18,6 +18,7 @@ export {
 	type SelectionChange,
 	type BlockedInfo,
 	type CommitResult,
+	type OutsideDropTarget,
 } from './model.js';
 
 export {

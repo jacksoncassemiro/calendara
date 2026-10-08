@@ -1,65 +1,115 @@
-/**
- * Modelo de recorrência canônico — fiel ao RFC 5545.
- * Diferença crítica vs protótipo: `byDay` guarda um ORDINAL POR ENTRADA
- * (`{ weekday, ordinal }`) em vez de um `bySetPos` global — é o que permite
- * "2ª e 4ª sexta" (`[{FR,2},{FR,4}]`). Ver docs/reference/recurrence-validation.md.
+/** Supported recurrence rules and occurrence exceptions.
+ * @remarks Português: Regras de recorrência suportadas e exceções por ocorrência.
  */
 import type { WeekdayCode } from './datetime.js';
 import type { CalendarEvent } from './event.js';
 
+/** Supported daily, weekly, monthly or yearly recurrence.
+ * @remarks Português: Frequências diária, semanal, mensal ou anual suportadas.
+ */
 export type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
 
-/** Entrada de BYDAY: dia da semana com ordinal opcional (2FR, 4FR, -1MO). */
+/** Weekday filter with an optional position.
+ * @remarks Português: Filtro de dia da semana com posição opcional.
+ */
 export interface ByDayEntry {
+  /** RFC weekday code, such as MO or FR.
+   * @remarks Português: Código RFC do dia da semana, como MO ou FR.
+   */
   weekday: WeekdayCode;
-  /** Ordinal (1..53 ou -1..-53). Ausente/undefined = todas as ocorrências do weekday. */
+  /** Weekday position: ±1..53; omitted matches every weekday occurrence.
+   * @remarks Português: Posição do dia: ±1..53; ausente seleciona todas as ocorrências desse dia.
+   */
   ordinal?: number;
 }
 
+/** Supported structured RFC 5545 recurrence fields.
+ * @remarks Português: Campos estruturados de recorrência RFC 5545 suportados.
+ */
 export interface RRuleModel {
+  /** Supported recurrence frequency.
+   * @remarks Português: Frequência de repetição suportada.
+   */
   freq: Frequency;
-  /** INTERVAL — default 1. */
+  /** Positive period step; default 1.
+   * @remarks Português: Passo positivo entre períodos; padrão 1.
+   */
   interval?: number;
-  /** COUNT — número total de ocorrências. */
+  /** Positive occurrence count before exclusions.
+   * @remarks Português: Quantidade positiva de ocorrências antes das exclusões.
+   */
   count?: number;
-  /** UNTIL — 'YYYY-MM-DD' ou ISO datetime. Limite inclusivo. */
+  /** Inclusive limit in YYYY-MM-DD or ISO datetime format.
+   * @remarks Português: Limite inclusivo em YYYY-MM-DD ou data e hora ISO.
+   */
   until?: string;
-  /** BYDAY com ordinal por entrada. */
+  /** Weekday filter with an optional ordinal per entry.
+   * @remarks Português: Filtro de dias da semana com posição opcional por entrada.
+   */
   byDay?: ByDayEntry[];
-  /** BYMONTHDAY — pode ser negativo (-1 = último dia do mês). */
+  /** Month days ±1..31; -1 means the last day.
+   * @remarks Português: Dias do mês ±1..31; -1 representa o último dia.
+   */
   byMonthDay?: number[];
-  /** BYMONTH — 1..12. */
+  /** Month filter using 1..12.
+   * @remarks Português: Filtro de meses de 1 a 12.
+   */
   byMonth?: number[];
-  /** BYYEARDAY — Gregorian year day, positive or negative; YEARLY only. */
+  /** Year days ±1..366; supported only for YEARLY.
+   * @remarks Português: Dias do ano ±1..366; disponível somente em YEARLY.
+   */
   byYearDay?: number[];
-  /** BYSETPOS — seleção posicional dentro do período. */
+  /** Candidate positions within each period: ±1..366.
+   * @remarks Português: Posições dos candidatos em cada período: ±1..366.
+   */
   bySetPos?: number[];
-  /** WKST — início da semana (default MO). */
+  /** Week boundary for weekly rules; default MO.
+   * @remarks Português: Início da semana para regras semanais; padrão MO.
+   */
   weekStart?: WeekdayCode;
 }
 
-/** Marca de cancelamento de uma ocorrência específica. */
+/** Cancellation marker for one occurrence.
+ * @remarks Português: Marca o cancelamento de uma ocorrência.
+ */
 export interface CancelledOverride {
+  /** Remove this occurrence from the expanded series.
+   * @remarks Português: Remove esta ocorrência da série expandida.
+   */
   cancelled: true;
 }
 
+/** Occurrence-specific event patch or cancellation.
+ * @remarks Português: Alteração ou cancelamento de uma ocorrência.
+ */
 export type OccurrenceOverride = Partial<CalendarEvent> | CancelledOverride;
 
-/**
- * Conjunto de recorrência (recurrence-set): a regra + datas extras/exceções + overrides.
- * A expansão gera OCORRÊNCIAS VIRTUAIS (não persistidas); `overrides` edita/cancela uma instância.
+/** Rule, extra dates, exclusions and occurrence patches.
+ * @remarks Português: Regra, datas extras, exclusões e alterações por ocorrência.
  */
 export interface Recurrence {
-  /** Regra estruturada, ou uma string RRULE bruta em cenário de interop. */
+  /** Structured rule or RRULE text; omitted permits RDATE-only sets.
+   * @remarks Português: Regra estruturada ou texto RRULE; ausente permite conjuntos somente com
+   * RDATE.
+   */
   rule?: RRuleModel | string;
-  /** RDATE — datas adicionais ('YYYY-MM-DD' ou ISO datetime). */
+  /** Additional starts in YYYY-MM-DD or ISO datetime format.
+   * @remarks Português: Inícios adicionais em YYYY-MM-DD ou data e hora ISO.
+   */
   rDates?: string[];
-  /** EXDATE — ocorrências removidas ('YYYY-MM-DD' ou ISO datetime). */
+  /** Excluded starts in YYYY-MM-DD or ISO datetime format.
+   * @remarks Português: Inícios excluídos em YYYY-MM-DD ou data e hora ISO.
+   */
   exDates?: string[];
-  /** Overrides por ocorrência. Chave = originalStart (ISO) da ocorrência. */
+  /** Occurrence patches keyed by the unchanged originalStart.
+   * @remarks Português: Alterações por ocorrência, indexadas pelo originalStart preservado.
+   */
   overrides?: Record<string, OccurrenceOverride>;
 }
 
+/** Check whether an occurrence patch cancels its instance.
+ * @remarks Português: Verifica se a alteração cancela a ocorrência.
+ */
 export function isCancelledOverride(o: OccurrenceOverride): o is CancelledOverride {
   return (o as CancelledOverride).cancelled === true;
 }

@@ -211,14 +211,16 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
 		list.sort((left, right) => left.epochMs - right.epochMs);
 	const selectedDay =
 		range.days.find((day) => day.toString() === selectedISO) ??
+		range.days.find((day) => day.toString() === props.context.referenceDateISO) ??
 		range.days.find((day) => day.toString() === todayISO) ??
 		range.days.find((day) => day.month === referenceMonth) ??
 		range.startDate;
 	const selectedChips = chipsByDay.get(selectedDay.toString()) ?? [];
 	useEffect(() => {
+		setSelectedISO(undefined);
 		setExpandedISO(undefined);
 		setMoreInfo(undefined);
-	}, [range.startDate.toString()]);
+	}, [range.startDate.toString(), props.context.referenceDateISO]);
 	const showDetail = compact || expandedISO === selectedDay.toString();
 	const maxEvents =
 		options.monthMaxEvents === false ? Infinity : (options.monthMaxEvents ?? 3);
@@ -438,12 +440,12 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
 												</span>
 												{" · "}
 												<span className="mc-draft-title">
-													{draft.eventId
+													{draft.title ?? (draft.eventId
 														? (occurrences.find(
 																(occurrence) =>
 																	occurrenceKey(occurrence) === draft.eventId,
 															)?.event.title ?? "Novo intervalo")
-														: "Novo intervalo"}
+														: "Novo intervalo")}
 												</span>
 												{!draft.valid && (
 													<span className="mc-draft-reason">{` · Indisponível: ${draft.reason}`}</span>

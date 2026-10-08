@@ -246,7 +246,7 @@ function Timeline(props: {
                       width: toPx((rowDraft.endMin - rowDraft.startMin) * options.pxPerMinute),
                       pointerEvents: 'none',zIndex:10000,
                     }}
-                  ><span className="mc-draft-time">{formatDraftInterval(context.draft ?? rowDraft,options.locale)}</span>{' · '}<span className="mc-draft-title">{context.occurrences.find(occurrence=>occurrenceKey(occurrence)===rowDraft.eventId)?.event.title ?? 'Novo intervalo'}</span></div>
+                  ><span className="mc-draft-time">{formatDraftInterval(context.draft ?? rowDraft,options.locale)}</span>{' · '}<span className="mc-draft-title">{context.draft?.title ?? context.occurrences.find(occurrence=>occurrenceKey(occurrence)===rowDraft.eventId)?.event.title ?? 'Novo intervalo'}</span></div>
                 )}
               </div>
             </div>

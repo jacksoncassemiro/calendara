@@ -87,7 +87,7 @@ describe('<Calendar/> (jsdom)', () => {
     rerender(<Calendar date="2026-08-10" view="day" temporal={temporal}
       options={options} eventSource={source} refetchKey="initial" />);
     await waitFor(() => expect(source).toHaveBeenCalledTimes(2));
-    expect(source.mock.calls[1]).toEqual([{ start: '2026-08-10', end: '2026-08-10' }]);
+    expect(source.mock.calls[1]?.[0]).toEqual({ start: '2026-08-10', end: '2026-08-10' });
   });
 
   it('preserves imperative navigation when unrelated options change', async () => {

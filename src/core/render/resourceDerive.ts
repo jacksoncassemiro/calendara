@@ -10,6 +10,8 @@ import type { CalendarResource } from '../types/resource.js';
 import type { EventOccurrence } from '../types/event.js';
 import type { ConstraintSet } from '../types/constraint.js';
 import { buildDays, resourceBusyIntervals, type DayData, type Segment } from './derive.js';
+import { resourceConstraintSet, resourceSlotBands } from './resourceConstraints.js';
+export { resourceConstraintSet } from './resourceConstraints.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
@@ -41,22 +43,6 @@ export function occurrencesForResource(
     const resourceIds = occurrence.event.resourceIds ?? [];
     return resourceIds.includes(resourceId);
   });
-}
-
-/** ConstraintSet efetivo do recurso: usa o horário comercial próprio se houver, senão o global. */
-export function resourceConstraintSet(
-  resource: CalendarResource,
-  globalConstraints: ConstraintSet,
-): ConstraintSet {
-  const hasOwnBusinessHours = (resource.businessHours?.length ?? 0) > 0;
-  const businessHours = hasOwnBusinessHours
-    ? resource.businessHours
-    : globalConstraints.businessHours;
-  const constraints: ConstraintSet = {};
-  if (businessHours) constraints.businessHours = businessHours;
-  if (globalConstraints.blocked) constraints.blocked = globalConstraints.blocked;
-  if (globalConstraints.allowedRanges) constraints.allowedRanges = globalConstraints.allowedRanges;
-  return constraints;
 }
 
 /** Maior concorrência (nº de eventos simultâneos) entre os timed de um dia. */
@@ -134,6 +120,7 @@ export function buildResourceColumns(
     const resourceOccurrences = occurrencesForResource(occurrences, resource.id);
     const constraints = resourceConstraintSet(resource, globalConstraints);
     const dayData = buildDays(temporal, [day], resourceOccurrences, constraints, grid, displayTimeZone)[0]!;
+    dayData.nonBusiness = resourceSlotBands(constraints, day.toString(), gridStartMin, gridEndMin);
 
     const concurrency = maxConcurrency(dayData);
     const capacity = resourceCapacity(resource,defaultCapacity);

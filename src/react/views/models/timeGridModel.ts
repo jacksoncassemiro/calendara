@@ -136,8 +136,8 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
         startMin: draft.startMin,
         endMin: draft.endMin,
         eventId: draft.eventId,
-        title: occurrences.find(occurrence=>occurrenceKey(occurrence)===draft.eventId)?.event.title,
-        color: occurrences.find(occurrence=>occurrenceKey(occurrence)===draft.eventId)?.event.color,
+        title: draft.title ?? occurrences.find(occurrence=>occurrenceKey(occurrence)===draft.eventId)?.event.title,
+        color: draft.color ?? occurrences.find(occurrence=>occurrenceKey(occurrence)===draft.eventId)?.event.color,
         kind: draft.kind,
         valid: draft.valid,
       };

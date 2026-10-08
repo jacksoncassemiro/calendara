@@ -5,30 +5,30 @@ import { expandRuleAll } from '../../src/core/recurrence/engine.js';
 import { expandRRuleOracle, expandCalendarRule } from './_oracle.js';
 import { ALL } from './scenarios.js';
 
-let T: TemporalLike;
+let temporal: TemporalLike;
 beforeAll(async () => {
-  T = await ensureTemporal();
+  temporal = await ensureTemporal();
 });
 
 describe('motor de recorrência vs rrule.js (oráculo)', () => {
-  for (const [name, dtstart, rule] of ALL) {
+  for (const [name, startDate, rule] of ALL) {
     it(name, () => {
-      expect(expandCalendarRule(T, dtstart, rule)).toEqual(expandRRuleOracle(dtstart, rule));
+      expect(expandCalendarRule(temporal, startDate, rule)).toEqual(expandRRuleOracle(startDate, rule));
     });
   }
 });
 
 describe('regressões de filtros RFC 5545', () => {
   it('seeks a distant daily COUNT window without spending its period budget on history', () => {
-    const dates=expandRuleAll(T,parseRRule('FREQ=DAILY;COUNT=3000'),T.PlainDate.from('2020-01-01'),new Set(),10,
-      {windowStart:T.PlainDate.from('2026-01-01'),windowEnd:T.PlainDate.from('2026-01-02'),maxPeriods:2});
-    expect(dates.map(date=>date.toString())).toEqual(['2026-01-01','2026-01-02']);
-    expect(expandRuleAll(T,parseRRule('FREQ=DAILY;COUNT=3'),T.PlainDate.from('2020-01-01'),new Set(),10,
-      {windowStart:T.PlainDate.from('2026-01-01'),windowEnd:T.PlainDate.from('2026-01-02'),maxPeriods:2})).toEqual([]);
+    const dates = expandRuleAll(temporal, parseRRule('FREQ=DAILY;COUNT=3000'), temporal.PlainDate.from('2020-01-01'), new Set(), 10,
+      { windowStart: temporal.PlainDate.from('2026-01-01'), windowEnd: temporal.PlainDate.from('2026-01-02'), maxPeriods: 2 });
+    expect(dates.map(date => date.toString())).toEqual(['2026-01-01', '2026-01-02']);
+    expect(expandRuleAll(temporal, parseRRule('FREQ=DAILY;COUNT=3'), temporal.PlainDate.from('2020-01-01'), new Set(), 10,
+      { windowStart: temporal.PlainDate.from('2026-01-01'), windowEnd: temporal.PlainDate.from('2026-01-02'), maxPeriods: 2 })).toEqual([]);
   });
   it('BYYEARDAY combines negative days, leap years and positional selection', () => {
     for (const rule of ['FREQ=YEARLY;BYYEARDAY=60,-1;COUNT=8', 'FREQ=YEARLY;BYYEARDAY=1,60,-1;BYSETPOS=-1;COUNT=5']) {
-      expect(expandCalendarRule(T, '2023-01-01', `RRULE:${rule}`)).toEqual(expandRRuleOracle('2023-01-01', `RRULE:${rule}`));
+      expect(expandCalendarRule(temporal, '2023-01-01', `RRULE:${rule}`)).toEqual(expandRRuleOracle('2023-01-01', `RRULE:${rule}`));
     }
     expect(() => parseRRule('FREQ=MONTHLY;BYYEARDAY=60')).toThrow(/YEARLY/);
   });
@@ -42,17 +42,17 @@ describe('regressões de filtros RFC 5545', () => {
   ];
   for (const [start, rule] of rules) {
     it(`${start}: ${rule}`, () => {
-      expect(expandCalendarRule(T, start!, `RRULE:${rule}`)).toEqual(expandRRuleOracle(start!, `RRULE:${rule}`));
+      expect(expandCalendarRule(temporal, start!, `RRULE:${rule}`)).toEqual(expandRRuleOracle(start!, `RRULE:${rule}`));
     });
   }
   it('combina entradas BYDAY ordinais e não ordinais como união', () => {
-    expect(expandCalendarRule(T, '2024-01-01', 'RRULE:FREQ=MONTHLY;BYDAY=1MO,FR;COUNT=10')).toEqual([
+    expect(expandCalendarRule(temporal, '2024-01-01', 'RRULE:FREQ=MONTHLY;BYDAY=1MO,FR;COUNT=10')).toEqual([
       '2024-01-01', '2024-01-05', '2024-01-12', '2024-01-19', '2024-01-26',
       '2024-02-02', '2024-02-05', '2024-02-09', '2024-02-16', '2024-02-23',
     ]);
   });
   it('BYSETPOS selecionando a mesma data duas vezes não duplica ocorrência nem COUNT', () => {
-    expect(expandCalendarRule(T, '2024-01-01', 'RRULE:FREQ=MONTHLY;BYMONTHDAY=1;BYSETPOS=1,-1;COUNT=3')).toEqual([
+    expect(expandCalendarRule(temporal, '2024-01-01', 'RRULE:FREQ=MONTHLY;BYMONTHDAY=1;BYSETPOS=1,-1;COUNT=3')).toEqual([
       '2024-01-01', '2024-02-01', '2024-03-01',
     ]);
   });
@@ -67,50 +67,50 @@ describe('janela (lazy) e performance', () => {
       'FREQ=YEARLY;INTERVAL=2;BYMONTH=2,6;BYMONTHDAY=-1',
     ];
     for (const rule of rules) {
-      const model = parseRRule(`${rule};UNTIL=20271231`);
-      const full = expandRuleAll(T, model, T.PlainDate.from('2010-01-03'), new Set(), 10000);
-      const expected = full.filter((date) => date.toString() >= '2026-10-07' && date.toString() <= '2027-01-31').map(String);
-      const sought = expandRuleAll(T, model, T.PlainDate.from('2010-01-03'), new Set(), 10000, {
-        windowStart: T.PlainDate.from('2026-10-07'), windowEnd: T.PlainDate.from('2027-01-31'), maxPeriods: 50,
+      const recurrenceRule = parseRRule(`${rule};UNTIL=20271231`);
+      const allDates = expandRuleAll(temporal, recurrenceRule, temporal.PlainDate.from('2010-01-03'), new Set(), 10000);
+      const expectedWindowDates = allDates.filter((date) => date.toString() >= '2026-10-07' && date.toString() <= '2027-01-31').map(String);
+      const windowDates = expandRuleAll(temporal, recurrenceRule, temporal.PlainDate.from('2010-01-03'), new Set(), 10000, {
+        windowStart: temporal.PlainDate.from('2026-10-07'), windowEnd: temporal.PlainDate.from('2027-01-31'), maxPeriods: 50,
       });
-      expect(sought.map(String)).toEqual(expected);
+      expect(windowDates.map(String)).toEqual(expectedWindowDates);
     }
   });
 
   it('não salta COUNT anterior à janela', () => {
-    const values = expandRuleAll(T, parseRRule('FREQ=DAILY;COUNT=5'), T.PlainDate.from('2010-01-01'), new Set(), 100, {
-      windowStart: T.PlainDate.from('2026-10-01'), windowEnd: T.PlainDate.from('2026-10-31'),
+    const occurrenceDates = expandRuleAll(temporal, parseRRule('FREQ=DAILY;COUNT=5'), temporal.PlainDate.from('2010-01-01'), new Set(), 100, {
+      windowStart: temporal.PlainDate.from('2026-10-01'), windowEnd: temporal.PlainDate.from('2026-10-31'),
     });
-    expect(values).toEqual([]);
+    expect(occurrenceDates).toEqual([]);
   });
   it('não confunde dias antes da janela com períodos sem candidatos', () => {
-    const list = expandRuleAll(T, parseRRule('FREQ=DAILY'), T.PlainDate.from('2010-01-01'), new Set(), 10, {
-      windowStart: T.PlainDate.from('2026-10-01'),
-      windowEnd: T.PlainDate.from('2026-10-03'),
+    const occurrenceDates = expandRuleAll(temporal, parseRRule('FREQ=DAILY'), temporal.PlainDate.from('2010-01-01'), new Set(), 10, {
+      windowStart: temporal.PlainDate.from('2026-10-01'),
+      windowEnd: temporal.PlainDate.from('2026-10-03'),
     });
-    expect(list.map((date) => date.toString())).toEqual(['2026-10-01', '2026-10-02', '2026-10-03']);
+    expect(occurrenceDates.map((date) => date.toString())).toEqual(['2026-10-01', '2026-10-02', '2026-10-03']);
   });
 
   it('encerra na janela mesmo quando a regra não possui candidatos', () => {
-    const list = expandRuleAll(T, parseRRule('FREQ=MONTHLY;BYMONTH=2;BYMONTHDAY=30'), T.PlainDate.from('2024-01-01'), new Set(), 10, {
-      windowEnd: T.PlainDate.from('2024-02-29'),
+    const occurrenceDates = expandRuleAll(temporal, parseRRule('FREQ=MONTHLY;BYMONTH=2;BYMONTHDAY=30'), temporal.PlainDate.from('2024-01-01'), new Set(), 10, {
+      windowEnd: temporal.PlainDate.from('2024-02-29'),
     });
-    expect(list).toEqual([]);
-    expect(() => expandRuleAll(T, parseRRule('FREQ=DAILY;COUNT=999999999'), T.PlainDate.from('2024-01-01'), new Set(), 100, { maxPeriods: 2 }))
+    expect(occurrenceDates).toEqual([]);
+    expect(() => expandRuleAll(temporal, parseRRule('FREQ=DAILY;COUNT=999999999'), temporal.PlainDate.from('2024-01-01'), new Set(), 100, { maxPeriods: 2 }))
       .toThrow(/orçamento de expansão/);
   });
   it('expande regra infinita numa janela de 1 mês rapidamente', () => {
-    const model = parseRRule('RRULE:FREQ=DAILY');
-    const start = T.PlainDate.from('2024-01-01');
-    const t0 = performance.now();
-    const list = expandRuleAll(T, model, start, new Set(), 10000, {
-      windowStart: T.PlainDate.from('2024-06-01'),
-      windowEnd: T.PlainDate.from('2024-06-30'),
+    const recurrenceRule = parseRRule('RRULE:FREQ=DAILY');
+    const start = temporal.PlainDate.from('2024-01-01');
+    const expansionStartedAt = performance.now();
+    const occurrenceDates = expandRuleAll(temporal, recurrenceRule, start, new Set(), 10000, {
+      windowStart: temporal.PlainDate.from('2024-06-01'),
+      windowEnd: temporal.PlainDate.from('2024-06-30'),
     });
-    const dt = performance.now() - t0;
-    expect(list).toHaveLength(30);
-    expect(list[0]!.toString()).toBe('2024-06-01');
-    expect(list[29]!.toString()).toBe('2024-06-30');
-    expect(dt).toBeLessThan(500);
+    const expansionDurationMs = performance.now() - expansionStartedAt;
+    expect(occurrenceDates).toHaveLength(30);
+    expect(occurrenceDates[0]!.toString()).toBe('2024-06-01');
+    expect(occurrenceDates[29]!.toString()).toBe('2024-06-30');
+    expect(expansionDurationMs).toBeLessThan(500);
   });
 });

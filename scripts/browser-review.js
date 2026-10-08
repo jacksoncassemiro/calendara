@@ -142,6 +142,7 @@ async page => {
   await page.getByRole('combobox', { name: 'Recurso visível' }).selectOption('');
   // Transfer the real reservation to another resource on the pointer surface.
   const reservation = page.locator('[data-mc-resource="sala-1"] [data-mc-event][title="Novo agendamento"]');
+  await reservation.scrollIntoViewIfNeeded();
   const reservationBox = await reservation.boundingBox();
   const targetResource = await page.locator('[data-mc-resource="sala-2"]').boundingBox();
   await page.mouse.move(reservationBox.x + reservationBox.width / 2, reservationBox.y + 12);

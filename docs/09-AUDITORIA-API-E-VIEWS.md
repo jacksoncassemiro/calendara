@@ -2,6 +2,12 @@
 
 Escopo: código local, contratos públicos, documentação oficial e relatos públicos de usuários. Não executamos benchmarks ou suítes nos concorrentes. Relatos antigos não demonstram defeito na versão atual. Esta auditoria complementa os roteiros de personas do documento 08.
 
+## Continuação concluída em 08/10
+
+O [plano SDD](../specs/calendar-remediation/tasks.md) registra as fatias implementadas e evidências. Foram adicionados `initialView`/`initialDate`, callbacks React de navegação/loading/erro, AbortSignal, reset de opções declarativas, constraints por recurso, arraste externo opt-in e `evaluateEvent` para formulário próprio. O editor permanece independente do calendário. Tema padrão e JSDoc curto EN/PT revisados; o CSS do playground é separado.
+
+A [pesquisa adicional de críticas de API](../specs/calendar-remediation/api-feedback.md) resultou também em correções de data inicial por fuso, refetch de views e data selecionada no mês compacto. Validação atual: **343 testes em 33 arquivos**, tipos/build/tarball/consumidor/demo e **25 roteiros Edge** aprovados. Logs `output/sdd-verify.log`, `output/sdd-browser.log`, `output/sdd-final-browser.log`; screenshots do tema e arraste inspecionados. O build mantém aviso de chunk acima de 500 KB. As métricas de 322 testes/23 roteiros ao final registram a rodada anterior.
+
 ## Conclusão e mudanças aplicadas
 
 Havia acoplamento na seleção: CalendarApp sempre registrava quatro views internas, mesmo recebendo uma lista explícita. A propriedade views significava apenas views extras; remover uma view ativa forçava Semana. Agora views define o conjunto completo, sua ordem e a view inicial quando view está ausente. A substituição preserva a seleção existente se ainda disponível; caso contrário, escolhe a primeira disponível. Lista vazia, nomes duplicados e view inicial não registrada são recusados antes da alteração do registro. registerView continua uma operação imperativa aditiva.
@@ -56,9 +62,9 @@ A toolbar oferece somente Dia, Mês e Recursos. Não é necessário instanciar C
 | Disponibilidade | Expediente global/próprio de recurso, bloqueios globais, faixas permitidas, capacidade global/individual/ilimitada e buffers | Alta: exceções pontuais por recurso. Indicador mensal fechado é global, não representa lotação de cada sala |
 | Recorrência | Quatro frequências, filtros públicos, exceções, overrides, editar ocorrência/série/esta e seguintes | Média: UI de regras ordinais e BYSETPOS; validação de conflitos futuros precisa janela definida. Não representa todo RFC 5545 |
 | Recursos | Múltiplos resourceIds, filtro, capacidades e preparação | Média: árvore de recursos, agrupamento e linhas recolhíveis. [DayPilot Resource Tree](https://doc.daypilot.org/scheduler/resource-tree/) é referência concreta |
-| Dados remotos | Uma eventSource por range, refetch e proteção contra respostas obsoletas | Alta: AbortSignal, estado de loading/erro na API React, múltiplas fontes, política de cache e janela adjacente explícita para buffers |
-| Estado React | Props sincronizadas, eventos fornecidos pelo consumidor, API imperativa e commits assíncronos recusáveis | Alta: onDateChange/onViewChange/onRangeChange e contrato claro entre controlled e default. Navegação interna hoje pode divergir de props cujo valor não mudou |
-| Opções | Patch de options com validação, slots/escala/rótulos independentes | Média: definir semântica de remoção/reset de options declarativas; setOptions hoje faz merge, não substituição |
+| Dados remotos | Uma eventSource por range, AbortSignal, callbacks de loading/erro e proteção contra respostas obsoletas | Múltiplas fontes, política de cache e janela adjacente explícita para buffers |
+| Estado React | Props iniciais explícitas, callbacks de data/view/range, eventos do consumidor e commits assíncronos recusáveis | `date`/`view` são pedidos ao mudar valor, não controlled estritos; guia descreve essa regra |
+| Opções | Props substituem opções declaradas; setOptions aplica patch; slots/escala/rótulos independentes | Opções por view continuam candidatas |
 | Customização | Conteúdo React de eventos, toolbar, popovers, decoração de dias e tokens CSS | Média: slots para dia/horário/recurso, indicadores e células; mensagens traduzíveis. locale formata datas, não traduz todos os textos |
 | Mobile e acessibilidade | Mês compacto/lista/editor, foco, teclado em slots e overflow horizontal | Alta: toque físico Safari/iOS/Android, NVDA/VoiceOver e contraste/zoom. Viewport pequeno no Edge não é validação física |
 | Integrações | Utilitários temporais e contrato de persistência do consumidor | Conforme domínio: ICS, impressão, undo/redo e conectores externos; persistência transacional é responsabilidade do backend |
@@ -112,7 +118,7 @@ Compartilhar TimeGrid entre Dia/Semana/N dias é reaproveitamento de apresentaç
 
 Não substituir toda composição por plugins ou criar um pacote por view. Primeiro esclarecer contratos, opções e estado; depois medir bundle e extrair módulos opcionais se houver benefício demonstrado. O pacote permanece único e React nativo.
 
-A revisão de nomes não está concluída no repositório inteiro. Exemplos restantes: T/dtstart nos cenários de recorrência, e/eng em constraint.spec.ts, m em parser.spec.ts e callbacks e em CalendarEventEditor. Priorizar tempo/fuso, capacidade e recorrência, onde a ambiguidade esconde regras; depois revisar fixtures e apresentação. Nomes devem expressar papel, unidade e referencial: occurrenceLimit, minuteOfDay, startDateISO, epochMs, candidatePlacement e resourceCapacity. Um evento com id A/B num teste de geometria pode representar um cenário deliberado; o identificador da variável deve explicar seu papel nesse cenário. Evitar tanto letras isoladas quanto nomes longos que apenas repetem o tipo.
+A revisão de nomes não está concluída no repositório inteiro. Nesta continuação, os cenários de recorrência, constraint.spec.ts, parser.spec.ts e callbacks do CalendarEventEditor foram revisados, junto a outros testes temporais/geométricos. Nomes devem expressar papel, unidade e referencial: occurrenceLimit, minuteOfDay, startDateISO, epochMs, candidatePlacement e resourceCapacity. Um evento com id A/B num teste de geometria pode representar um cenário deliberado; o identificador da variável deve explicar seu papel. Evitar tanto letras isoladas quanto nomes longos que apenas repetem o tipo.
 
 ## Duplicação e condições reutilizáveis
 

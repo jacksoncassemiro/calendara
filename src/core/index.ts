@@ -81,6 +81,7 @@ export {
 	type SelectionChange,
 	type BlockedInfo,
 	type CommitResult,
+	type OutsideDropTarget,
 	type SnapRounding,
 	type BusyInterval,
 	type ResourceOccupancy,

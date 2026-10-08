@@ -4,7 +4,7 @@
  * consumer's React tree owns rendering, contexts and component lifecycle.
  */
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore } from 'react';
-import { CalendarApp, type CalendarConfig } from './app/calendarApp.js';
+import { CalendarApp, type CalendarConfig, type RangeChange } from './app/calendarApp.js';
 import { createHandle } from './handle.js';
 import type { CalendarProps, CalendarHandle } from './types.js';
 
@@ -41,6 +41,8 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 			onClickBlocked: (info) => propsRef.current.onClickBlocked?.(info),
 		};
 		const initial = propsRef.current;
+		if (initial.initialDate !== undefined) config.initialDate = initial.initialDate;
+		if (initial.initialView !== undefined) config.initialView = initial.initialView;
 		if (initial.date !== undefined) config.date = initial.date;
 		if (initial.view !== undefined) config.view = initial.view;
 		if (initial.events !== undefined) config.events = [...initial.events];
@@ -50,14 +52,29 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 		if (initial.views !== undefined) config.views = initial.views;
 		if (initial.temporal !== undefined) config.temporal = initial.temporal;
 		if (initial.eventSource) config.eventSource = initial.eventSource;
+		if (initial.renderEvent) config.renderEvent = initial.renderEvent;
+		if (initial.getDayStyle) config.getDayStyle = initial.getDayStyle;
+		if (initial.renderEventMore) config.renderEventMore = initial.renderEventMore;
+		if (initial.renderMonthMore) config.renderMonthMore = initial.renderMonthMore;
+		if (initial.customToolbar) config.renderToolbar = initial.customToolbar;
+		config.onExternalEventDrop = initial.onExternalEventDrop;
+		config.onEventDropOutside = initial.onEventDropOutside;
 
 		const app = new CalendarApp(config);
-		syncedPropsRef.current = null;
+		syncedPropsRef.current = initial;
 		appRef.current = app;
+		const unsubscribeCallbacks = [
+			app.on('dateChange', (date) => propsRef.current.onDateChange?.(date as string)),
+			app.on('viewChange', (view) => propsRef.current.onViewChange?.(view as string)),
+			app.on('rangeChange', (range) => propsRef.current.onRangeChange?.(range as RangeChange)),
+			app.on('error', (error) => propsRef.current.onError?.(error)),
+			app.on('loadingChange', (loading) => propsRef.current.onLoadingChange?.(loading as boolean)),
+		];
 		app.mount(container, { external: true });
 		setMountedApp(app);
 
 		return () => {
+			for (const unsubscribe of unsubscribeCallbacks) unsubscribe();
 			app.destroy();
 			appRef.current = null;
 		};
@@ -77,6 +94,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 		if (!app) return;
 		const previous = syncedPropsRef.current;
 		app.batchUpdate(() => {
+			app.setExternalDragCallbacks(props.onExternalEventDrop, props.onEventDropOutside);
 			if (!previous || previous.views !== props.views) app.setViews(props.views);
 			if (!previous || previous.eventSource !== props.eventSource) app.setEventSource(props.eventSource);
 			if (!previous || previous.renderEvent !== props.renderEvent) app.setRenderEvent(props.renderEvent);
@@ -86,7 +104,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 			if (!previous || previous.customToolbar !== props.customToolbar) app.setRenderToolbar(props.customToolbar);
 			if ((!previous || previous.events !== props.events) && props.events !== undefined) app.setEvents(props.events);
 			if (!previous || previous.constraints !== props.constraints) app.setConstraints(props.constraints ?? {});
-			if ((!previous || previous.options !== props.options) && props.options !== undefined) app.setOptions(props.options);
+			if (!previous || previous.options !== props.options) app.replaceOptions(props.options);
 			if (!previous || previous.resources !== props.resources) app.setResources(props.resources);
 			if ((!previous || previous.view !== props.view) && props.view !== undefined && app.getState().viewName !== props.view) app.changeView(props.view);
 			if ((!previous || previous.date !== props.date) && props.date !== undefined && app.getState().date !== props.date) app.setDate(props.date);
@@ -96,7 +114,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 		syncedPropsRef.current = props;
 	}, [props.views, props.eventSource, props.renderEvent, props.customToolbar,
 		props.events, props.constraints, props.options, props.resources, props.renderMonthMore, props.renderEventMore, props.getDayStyle,
-		props.view, props.date, props.refetchKey]);
+		props.view, props.date, props.refetchKey, props.onExternalEventDrop, props.onEventDropOutside]);
 	return (
 		<div
 			ref={containerRef}

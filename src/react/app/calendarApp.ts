@@ -58,6 +58,7 @@ import {
 import { BUILTIN_VIEWS } from '../views/registry/defaultViews.js';
 import { createViewRegistry } from '../views/registry/createViewRegistry.js';
 import { CalendarShell } from '../components/CalendarShell.js';
+import { registerExternalDragReceiver, type ExternalEventDropHandler, type EventDropOutsideInfo } from '../externalDrag.js';
 import type {
   CalendarView,
   ViewContext,
@@ -73,19 +74,29 @@ import type {
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
-export type CalendarEventName = 'render' | 'dateChange' | 'viewChange' | 'rangeChange' | 'error';
+export type CalendarEventName = 'render' | 'dateChange' | 'viewChange' | 'rangeChange' | 'loadingChange' | 'error';
 
 export interface RangeChange {
   start: string;
   end: string;
 }
 
+/** Pass signal to fetch or another abort-aware client to cancel obsolete requests. */
+export interface EventSourceContext {
+  signal: AbortSignal;
+}
+
 /** Fonte de eventos por range (expansão lazy). Pode ser síncrona ou assíncrona. */
 export type EventSource = (
   range: RangeChange,
+  context: EventSourceContext,
 ) => CalendarEvent[] | Promise<CalendarEvent[]>;
 
 export interface CalendarConfig {
+  /** Used only during construction; date takes precedence when both are present. */
+  initialDate?: string;
+  /** Used only during construction; view takes precedence when both are present. */
+  initialView?: string;
   date?: string;
   view?: string;
   events?: CalendarEvent[];
@@ -112,6 +123,8 @@ export interface CalendarConfig {
   onDateClick?: (dateISO: string, minuteOfDay?: number) => void;
   /** Evento arrastado para novo horário/dia. Retornar `false`/rejeitar ⇒ reverter (revert em falha). */
   onEventDrop?: (change: EventChange) => CommitResult;
+  onExternalEventDrop?: ExternalEventDropHandler;
+  onEventDropOutside?: (info: EventDropOutsideInfo) => void | Promise<void>;
   /** Evento redimensionado (nova duração). Retornar `false`/rejeitar ⇒ reverter. */
   onEventResize?: (change: EventChange) => CommitResult;
   /** Seleção de intervalo em área vazia (drag). */
@@ -207,6 +220,9 @@ export class CalendarApp {
   private readonly onClickBlocked: ((info: BlockedInfo) => void) | undefined;
 
   private readonly interaction: InteractionEngine;
+  private onExternalEventDrop: ExternalEventDropHandler | undefined;
+  private onEventDropOutside: CalendarConfig['onEventDropOutside'];
+  private unregisterExternalReceiver: (() => void) | undefined;
   private resources: readonly CalendarResource[];
   private hasResourceConfig: boolean;
   /** Índice das ocorrências do render atual (id do bloco → ocorrência), para a interação. */
@@ -225,10 +241,14 @@ export class CalendarApp {
   private temporal: TemporalLike | null = null;
   private dateUtils: DateUtils | null = null;
   private fetchToken = 0;
+  private fetchController: AbortController | null = null;
+  private loading = false;
+  private needsInitialDateResolution = false;
   private destroyed = false;
   private updateDepth = 0;
   private renderPending = false;
   private fetchPending = false;
+  private rangePending = false;
   private readonly rejectedOptimistic = new WeakMap<CalendarEvent, CalendarEvent>();
   /** rAF pendente do render de rascunho (throttle do fantasma durante drag — ver scheduleDraftRender). */
   private draftRenderHandle: number | null = null;
@@ -237,9 +257,10 @@ export class CalendarApp {
     validateResources(config.resources);
     const options: CalendarOptions = { ...DEFAULT_OPTIONS, ...config.options };
     validateCalendarOptions(options);
+    this.needsInitialDateResolution = config.date === undefined && config.initialDate === undefined;
     const initialState: CalendarState = {
-      date: config.date ?? this.localTodayISO(),
-      viewName: config.view ?? (config.views ?? BUILTIN_VIEWS)[0]?.name ?? 'week',
+      date: config.date ?? config.initialDate ?? this.localTodayISO(options.nowMs ?? Date.now()),
+      viewName: config.view ?? config.initialView ?? (config.views ?? BUILTIN_VIEWS)[0]?.name ?? 'week',
       events: config.events ?? [],
       constraints: config.constraints ?? {},
       options,
@@ -263,6 +284,8 @@ export class CalendarApp {
     this.onEventClick = config.onEventClick;
     this.onDateClick = config.onDateClick;
     this.onEventDrop = config.onEventDrop;
+    this.onExternalEventDrop = config.onExternalEventDrop;
+    this.onEventDropOutside = config.onEventDropOutside;
     this.onEventResize = config.onEventResize;
     this.onDateSelect = config.onDateSelect;
     this.onDropBlocked = config.onDropBlocked;
@@ -278,6 +301,13 @@ export class CalendarApp {
       if (this.destroyed) return;
       this.temporal = resolvedTemporal;
       this.dateUtils = createDateUtils(resolvedTemporal);
+      if (this.needsInitialDateResolution) {
+        this.needsInitialDateResolution = false;
+        this.store.setState({ date: this.todayISO() });
+      }
+      this.emit('dateChange', this.store.getState().date);
+      this.emit('viewChange', this.store.getState().viewName);
+      this.emitRange();
       return this.runInitialFetch();
     });
   }
@@ -298,6 +328,13 @@ export class CalendarApp {
     }
     // Delegação de Pointer Events no container (persiste entre re-renders do React).
     this.interaction.attach(container);
+    this.unregisterExternalReceiver?.();
+    this.unregisterExternalReceiver = registerExternalDragReceiver(container, {
+      canReceive: (clientX, clientY) => Boolean(this.onExternalEventDrop && this.temporal
+        && this.interaction.locatePointerSlot(clientX, clientY)),
+      start: (event, pointer) => this.startExternalEvent(event, pointer),
+      cancel: () => this.interaction.cancelDrag(),
+    });
     void this.readyPromise.then(() => {
       if (this.snapshot === null) this.renderNow();
     }).catch((error: unknown) => {
@@ -314,12 +351,14 @@ export class CalendarApp {
 
   destroy(): void {
     this.destroyed = true;
-    ++this.fetchToken;
+    this.cancelFetch();
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = null;
     }
     this.interaction.detach();
+    this.unregisterExternalReceiver?.();
+    this.unregisterExternalReceiver = undefined;
     this.cancelScheduledDraftRender();
     if (this.container) {
       this.container.removeEventListener('keydown', this.onGridKeyDown);
@@ -345,7 +384,8 @@ export class CalendarApp {
   setEventSource(source: EventSource | undefined): void {
     if (this.eventSource === source) return;
     this.eventSource = source;
-    ++this.fetchToken;
+    this.cancelFetch();
+    if (!source) this.setLoading(false);
     this.refetch();
   }
 
@@ -394,6 +434,7 @@ export class CalendarApp {
   }
 
   setDate(dateISO: string): void {
+    this.needsInitialDateResolution = false;
     if (this.store.getState().date === dateISO) return;
     this.store.setState({ date: dateISO });
     this.emit('dateChange', dateISO);
@@ -414,7 +455,8 @@ export class CalendarApp {
 
   setEvents(events: readonly CalendarEvent[]): void {
     if (equivalentData(this.store.getState().events, events)) return;
-    ++this.fetchToken;
+    this.cancelFetch();
+    this.setLoading(false);
     this.store.setState({ events });
   }
 
@@ -425,9 +467,17 @@ export class CalendarApp {
   }
 
   setOptions(patch: Partial<CalendarOptions>): void {
+    this.applyOptions({ ...this.store.getState().options, ...patch });
+  }
+
+  /** Declarative options reset omitted keys to their defaults. */
+  replaceOptions(options: Partial<CalendarOptions> | undefined): void {
+    this.applyOptions({ ...DEFAULT_OPTIONS, ...options });
+  }
+
+  private applyOptions(options: CalendarOptions): void {
     const previousOptions = this.store.getState().options;
     const previousRange = this.temporal ? this.getVisibleRange() : null;
-    const options = { ...previousOptions, ...patch };
     validateCalendarOptions(options);
     if (equivalentData(this.store.getState().options, options)) return;
     this.store.setState({ options });
@@ -445,9 +495,12 @@ export class CalendarApp {
 
   /** Registra/subscreve view nova (1ª classe). */
   registerView(view: CalendarView): void {
+    createViewRegistry([view]);
     if (equivalentData(this.views.get(view.name), view)) return;
+    const previousRange = this.temporal ? this.getVisibleRange() : null;
     this.views.set(view.name, view);
     this.renderNow();
+    this.refetchChangedRange(previousRange);
   }
 
   /** Replace all available views; undefined restores the standard set. */
@@ -456,11 +509,23 @@ export class CalendarApp {
     const next = createViewRegistry(configuredViews);
     const previousViews = [...this.views.values()];
     if (next.size === this.views.size && configuredViews.every((view, index) => equivalentData(previousViews[index], view))) return;
+    const previousRange = this.temporal ? this.getVisibleRange() : null;
+    const previousViewName = this.store.getState().viewName;
     this.views.clear();
     for (const [name, view] of next) this.views.set(name, view);
-    if (!this.views.has(this.store.getState().viewName)) this.changeView(configuredViews[0]!.name);
-    else {
-      this.renderNow();
+    if (!this.views.has(previousViewName)) {
+      const viewName = configuredViews[0]!.name;
+      this.store.setState({ viewName });
+      this.emit('viewChange', viewName);
+    }
+    this.renderNow();
+    this.refetchChangedRange(previousRange);
+  }
+
+  private refetchChangedRange(previousRange: RangeChange | null): void {
+    if (!this.temporal) return;
+    if (!equivalentData(previousRange, this.getVisibleRange())) {
+      this.emitRange();
       this.refetch();
     }
   }
@@ -475,9 +540,12 @@ export class CalendarApp {
       if (this.updateDepth === 0) {
         const render = this.renderPending;
         const fetch = this.fetchPending;
+        const range = this.rangePending;
         this.renderPending = false;
         this.fetchPending = false;
+        this.rangePending = false;
         if (render) this.renderNow();
+        if (range) this.emitRange();
         if (fetch) this.refetch();
       }
     }
@@ -508,6 +576,27 @@ export class CalendarApp {
   /** Evaluate creation or editing with the same resource rules used by pointer gestures. */
   evaluatePlacement(input: EvaluationInput): DraftEvaluation {
     return this.evaluateDraft(input);
+  }
+
+  /** Validate an editor candidate against the same constraints and occupancy as gestures. */
+  evaluateEvent(event: CalendarEvent, occurrence?: EventOccurrence): DraftEvaluation {
+    if (!this.temporal) {
+      throw new Error('[meucalendario] evaluateEvent requer o calendário pronto; aguarde ready().');
+    }
+    const candidateOccurrence: EventOccurrence = occurrence
+      ? { ...occurrence, event }
+      : {
+        event,
+        masterId: event.id,
+        isMaster: true,
+        originalStart: event.time.allDay ? event.time.start.date! : event.time.start.dateTime!,
+      };
+    const span = this.resolveOccurrenceSpan(candidateOccurrence);
+    return this.evaluateDraft({
+      ...span,
+      kind: occurrence ? 'move' : 'select',
+      occurrence: candidateOccurrence,
+    });
   }
 
   on(eventName: CalendarEventName, callback: (payload: unknown) => void): () => void {
@@ -565,6 +654,7 @@ export class CalendarApp {
     );
 
     const context: ViewRenderContext = {
+      referenceDateISO: state.date,
       temporal,
       dateUtils: this.dateUtils!,
       options: state.options,
@@ -605,6 +695,7 @@ export class CalendarApp {
   }
 
   private renderNow(): void {
+    if (this.destroyed) return;
     if (this.updateDepth > 0) { this.renderPending = true; return; }
     if (!this.temporal || !this.dateUtils || !this.container) return;
     const { view, range, context } = this.resolveView();
@@ -639,6 +730,52 @@ export class CalendarApp {
 
   // ---- interação (Fase 4) ----------------------------------------------------
 
+  setExternalDragCallbacks(receive: ExternalEventDropHandler | undefined, outside: CalendarConfig['onEventDropOutside']): void {
+    this.onExternalEventDrop = receive;
+    this.onEventDropOutside = outside;
+  }
+
+  private startExternalEvent(event: CalendarEvent, pointer: PointerEvent): boolean {
+    if (!this.temporal || !this.onExternalEventDrop || event.recurrence || event.editable === false) return false;
+    if (this.store.getState().events.some((existing) => existing.id === event.id)) return false;
+    const occurrence: EventOccurrence = { event, masterId: event.id, isMaster: true,
+      originalStart: event.time.allDay ? event.time.start.date! : event.time.start.dateTime! };
+    try {
+      const span = this.resolveOccurrenceSpan(occurrence);
+      return this.interaction.startExternalDrag({ ...span, occurrence, eventId: occurrenceKey(occurrence), editable: true }, pointer);
+    } catch (error) {
+      this.emit('error', error);
+      return false;
+    }
+  }
+
+  private resolveOccurrenceSpan(occurrence: EventOccurrence) {
+    const { time } = occurrence.event;
+    if (time.allDay) return { dateISO: time.start.date!, startMin: 0, endDateISO: time.end.date!, endMin: 0, allDay: true };
+    const zone = this.store.getState().options.timeZone;
+    const start = this.temporal!.PlainDateTime.from(time.start.dateTime!).toZonedDateTime(time.start.timeZone ?? zone).withTimeZone(zone);
+    const end = this.temporal!.PlainDateTime.from(time.end.dateTime!).toZonedDateTime(time.end.timeZone ?? zone).withTimeZone(zone);
+    return { dateISO: start.toPlainDate().toString(), startMin: start.hour * 60 + start.minute,
+      endDateISO: end.toPlainDate().toString(), endMin: end.hour * 60 + end.minute,
+      durationMinutes: Number(end.epochMilliseconds - start.epochMilliseconds) / 60000 };
+  }
+
+  private notifyExternalDrop(change: EventChange): void {
+    change.timeZone = this.store.getState().options.timeZone;
+    const receivedEvent = applyEventTimeChange([change.event], change)[0]!;
+    receivedEvent.resourceIds = [...this.resourceIdsAfterDrop(change.occurrence, change)];
+    change.event = receivedEvent;
+    this.runTransferCallback(() => this.onExternalEventDrop?.(change));
+  }
+
+  private runTransferCallback(callback: () => void | Promise<void>): void {
+    try {
+      Promise.resolve(callback()).catch((error: unknown) => {
+        if (!this.destroyed) this.emit('error', error);
+      });
+    } catch (error) { this.emit('error', error); }
+  }
+
   /** Constrói o InteractionEngine ligado a este app (dados vivos + política de avaliação). */
   private createInteractionEngine(): InteractionEngine {
     return new InteractionEngine({
@@ -648,19 +785,11 @@ export class CalendarApp {
       },
       getSlotMinutes: () => this.store.getState().options.slotMinutes,
       allowEventTypeChange:()=>this.store.getState().options.allowEventTypeChange===true,
+      allowOutsideDrop: () => Boolean(this.onEventDropOutside),
       getMinDurationMin: () => this.store.getState().options.minEventMinutes,
       evaluate: (input) => this.evaluateDraft(input),
       resolveOccurrence: (eventId) => this.occurrenceIndex.get(eventId) ?? null,
-      resolveSpan: (occurrence) => {
-        const { time } = occurrence.event;
-        if (time.allDay) return { dateISO: time.start.date!, startMin: 0, endDateISO: time.end.date!, endMin: 0, allDay: true };
-        const zone = this.store.getState().options.timeZone;
-        const start = this.temporal!.PlainDateTime.from(time.start.dateTime!).toZonedDateTime(time.start.timeZone ?? zone).withTimeZone(zone);
-        const end = this.temporal!.PlainDateTime.from(time.end.dateTime!).toZonedDateTime(time.end.timeZone ?? zone).withTimeZone(zone);
-        return { dateISO: start.toPlainDate().toString(), startMin: start.hour * 60 + start.minute,
-          endDateISO: end.toPlainDate().toString(), endMin: end.hour * 60 + end.minute,
-          durationMinutes: Number(end.epochMilliseconds - start.epochMilliseconds) / 60000 };
-      },
+      resolveSpan: (occurrence) => this.resolveOccurrenceSpan(occurrence),
       normalizeDraft: (draft, origin, kind) => {
         if (kind !== 'move' || draft.allDay || origin.durationMinutes === undefined) return draft;
         const start = this.temporal!.PlainDate.from(draft.dateISO).toPlainDateTime()
@@ -687,6 +816,10 @@ export class CalendarApp {
           this.scheduleDraftRender();
         },
         commitMove: (change) => this.applyEventChange(change, this.onEventDrop),
+        commitExternal: (change) => this.notifyExternalDrop(change),
+        dropOutside: (placement, target) => {
+          if (this.onEventDropOutside) this.runTransferCallback(() => this.onEventDropOutside?.({ ...target, occurrence: placement.occurrence }));
+        },
         commitResize: (change) => this.applyEventChange(change, this.onEventResize),
         commitSelect: (selection) => this.onDateSelect?.(selection),
         clickEvent: (placement) => this.onEventClick?.(placement.occurrence),
@@ -749,19 +882,20 @@ export class CalendarApp {
   private evaluateDay(input: EvaluationInput): DraftEvaluation {
     const slot: Slot = input.allDay ? { date: input.dateISO }
       : { date: input.dateISO, startMin: input.startMin, endMin: input.endMin };
-    const targetResource =
-      input.resourceId === undefined
-        ? undefined
-        : this.resources.find((candidate) => candidate.id === input.resourceId);
-    const baseEvaluation = this.constraintEngineFor(targetResource).evaluate(slot);
-    if (!baseEvaluation.valid) {
-      const reason = (baseEvaluation.reason ?? 'blocked') as DraftReason;
-      return { valid: false, reason };
-    }
     const occurrence = input.occurrence;
+    const resourceIds = occurrence ? this.resourceIdsAfterDrop(occurrence, input)
+      : input.resourceId === undefined ? [] : [input.resourceId];
+    const applicableResources = resourceIds.length > 0
+      ? resourceIds.map((resourceId) => this.resources.find((resource) => resource.id === resourceId))
+      : [undefined];
+    for (const resource of applicableResources) {
+      const evaluation = this.constraintEngineFor(resource).evaluate(slot);
+      if (!evaluation.valid) {
+        return { valid: false, reason: (evaluation.reason ?? 'blocked') as DraftReason };
+      }
+    }
     const canCheckOccupancy = this.temporal !== null && (occurrence !== undefined || input.resourceId !== undefined);
     if (canCheckOccupancy) {
-      const resourceIds = occurrence ? this.resourceIdsAfterDrop(occurrence, input) : [input.resourceId!];
       for (const resourceId of resourceIds) {
         const resource = this.resources.find((candidate) => candidate.id === resourceId);
         if (!resource) continue;
@@ -785,21 +919,16 @@ export class CalendarApp {
   ): readonly string[] {
     const current = occurrence.event.resourceIds ?? [];
     if (input.resourceId === undefined) return current;
-    if (input.fromResourceId === undefined) return [input.resourceId];
+    if (input.fromResourceId === undefined) return [...new Set([...current, input.resourceId])];
     return reassignResource(current, input.fromResourceId, input.resourceId);
   }
 
   /**
-   * ConstraintEngine a usar na avaliação: o do calendário, ou um do RECURSO-alvo quando o gesto
-   * veio de uma view de recurso. Sem isto o fantasma diria "válido" sobre a faixa que a própria
-   * coluna desenha como fora do expediente (o sombreado usa `resourceConstraintSet`).
-   * Instanciar por avaliação é O(1) (o construtor só guarda três arrays) e mantém o motor sempre
-   * coerente com o `constraints`/`resources` do momento, sem cache para invalidar.
+   * Resolve the same effective global and resource rules used by background bands.
+   * Each resource assigned to an event is evaluated, including in ordinary date views.
    */
   private constraintEngineFor(resource: CalendarResource | undefined): ConstraintEngine {
     if (!resource) return this.engine;
-    const hasOwnRules = (resource.businessHours?.length ?? 0) > 0;
-    if (!hasOwnRules) return this.engine;
     return new ConstraintEngine(
       resourceConstraintSet(resource, this.store.getState().constraints),
     );
@@ -812,15 +941,15 @@ export class CalendarApp {
     const movedId = input.occurrence ? occurrenceKey(input.occurrence) : '';
     const dayPlain = temporal.PlainDate.from(input.dateISO);
     const state = this.store.getState();
-    const range = this.getVisibleRange();
-    const isVisibleDate = input.dateISO >= range.start && input.dateISO <= range.end;
     // Both the existing reservation and candidate acquire buffers. Fetch the
     // neighbouring dates before clipping; a 23:50 end can occupy tomorrow.
     const bufferDays = Math.ceil(((resource.bufferBefore ?? 0) + (resource.bufferAfter ?? 0)) / 1440);
-    const candidates = bufferDays > 0
-      ? this.memoOccupancyExpand(temporal, state.events, dayPlain.subtract({days:bufferDays}).toString(), dayPlain.add({days:bufferDays}).toString(), state.options.timeZone)
-      : isVisibleDate ? this.currentOccurrences
-        : expandRange(temporal, state.events, input.dateISO, input.dateISO, state.options.timeZone);
+    const candidates = this.memoOccupancyExpand(
+      temporal, state.events,
+      dayPlain.subtract({ days: bufferDays }).toString(),
+      dayPlain.add({ days: bufferDays }).toString(),
+      state.options.timeZone,
+    );
     const resourceOccurrences = occurrencesForResource(candidates, resourceId).filter(
       (occurrence) => occurrenceKey(occurrence) !== movedId,
     );
@@ -883,38 +1012,53 @@ export class CalendarApp {
       .catch(rollback);
   }
 
-  /** Busca inicial (parte do readyPromise, para que `ready()` aguarde os eventos). */
+  /** Initial request belongs to ready(), while navigation requests run independently. */
   private runInitialFetch(): void | Promise<void> {
-    if (!this.eventSource || this.destroyed) return;
-    const token = ++this.fetchToken;
-    const range = this.getVisibleRange();
-    const source = this.eventSource;
-    return Promise.resolve().then(() => {
-      if (this.destroyed || token !== this.fetchToken) return undefined;
-      return source(range);
-    }).then((events) => {
-      const isLatestFetch = token === this.fetchToken;
-      if (isLatestFetch && events !== undefined && !equivalentData(this.store.getState().events, events)) this.store.setState({ events });
-    }).catch((error: unknown) => {
-      if (token === this.fetchToken && !this.destroyed) this.emit('error', error);
-    });
+    return this.fetchEvents();
   }
 
-  /** Refetch por mudança de range (assíncrono; ignora resultados obsoletos). Público p/ `refetchKey`. */
+  /** Refetch the final visible range, cancelling any superseded request. */
   refetch(): void {
     if (this.updateDepth > 0) { this.fetchPending = true; return; }
+    void this.fetchEvents();
+  }
+
+  private cancelFetch(): void {
+    ++this.fetchToken;
+    this.fetchController?.abort();
+    this.fetchController = null;
+  }
+
+  private setLoading(loading: boolean): void {
+    if (this.loading === loading) return;
+    this.loading = loading;
+    if (!this.destroyed) this.emit('loadingChange', loading);
+  }
+
+  private fetchEvents(): void | Promise<void> {
     if (!this.eventSource || !this.temporal || this.destroyed) return;
-    const token = ++this.fetchToken;
+    this.cancelFetch();
+    const token = this.fetchToken;
+    const controller = new AbortController();
+    this.fetchController = controller;
     const range = this.getVisibleRange();
     const source = this.eventSource;
-    void Promise.resolve().then(() => {
-      if (this.destroyed || token !== this.fetchToken) return undefined;
-      return source(range);
+    this.setLoading(true);
+    const isCurrentRequest = (): boolean =>
+      !this.destroyed && token === this.fetchToken && !controller.signal.aborted;
+    return Promise.resolve().then(() => {
+      if (!isCurrentRequest()) return undefined;
+      return source(range, { signal: controller.signal });
     }).then((events) => {
-      const isLatestFetch = token === this.fetchToken;
-      if (isLatestFetch && events !== undefined && !equivalentData(this.store.getState().events, events)) this.store.setState({ events });
+      if (isCurrentRequest() && events !== undefined && !equivalentData(this.store.getState().events, events)) {
+        this.store.setState({ events });
+      }
     }).catch((error: unknown) => {
-      if (token === this.fetchToken && !this.destroyed) this.emit('error', error);
+      if (isCurrentRequest()) this.emit('error', error);
+    }).finally(() => {
+      if (!isCurrentRequest()) return;
+      this.fetchController = null;
+      this.setLoading(false);
     });
   }
 
@@ -925,21 +1069,24 @@ export class CalendarApp {
   }
 
   private emitRange(): void {
+    if (this.updateDepth > 0) { this.rangePending = true; return; }
     if (!this.temporal) return;
     this.emit('rangeChange', this.getVisibleRange());
   }
 
   private todayISO(): string {
+    const options = this.store.getState().options;
+    const nowMs = options.nowMs ?? Date.now();
     if (this.temporal) {
-      return this.temporal.Now.zonedDateTimeISO(this.store.getState().options.timeZone)
+      return this.temporal.Instant.fromEpochMilliseconds(nowMs).toZonedDateTimeISO(options.timeZone)
         .toPlainDate()
         .toString();
     }
-    return this.localTodayISO();
+    return this.localTodayISO(nowMs);
   }
 
-  private localTodayISO(): string {
-    const now = new Date();
+  private localTodayISO(nowMs = Date.now()): string {
+    const now = new Date(nowMs);
     return `${now.getFullYear()}-${padTwo(now.getMonth() + 1)}-${padTwo(now.getDate())}`;
   }
 }

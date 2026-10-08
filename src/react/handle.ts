@@ -18,6 +18,7 @@ export function createHandle(app: CalendarApp): CalendarHandle {
 		listViews: () => app.listViews(),
 		evaluateSlot: (slot) => app.evaluateSlot(slot),
 		evaluatePlacement: (input) => app.evaluatePlacement({ ...input, kind: input.occurrence ? 'move' : 'select' }),
+		evaluateEvent: (event, occurrence) => app.evaluateEvent(event, occurrence),
 		refetch: () => app.refetch(),
 	};
 }

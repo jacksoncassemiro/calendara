@@ -1,74 +1,140 @@
-/**
- * Tipos e defaults do estado de render do CalendarApp.
- * (Estado puro de dados — o Preact é apenas o desenhador.)
+/** Calendar state and layout defaults.
+ * @remarks Português: Estado de dados e padrões de layout do calendário.
  */
 import type { WeekdayCode } from '../types/datetime.js';
 import type { CalendarEvent } from '../types/event.js';
 import type { ConstraintSet } from '../types/constraint.js';
 import { hhmmToMinutes } from '../date/time.js';
 
-/**
- * Hora do grid: um número (hora inteira, ex.: `7`) OU uma string de horário `'HH:mm'` ou
- * `'HH:mm:ss'` (ex.: `'07:30'` ou `'07:30:00'`, formato do FullCalendar `slotMinTime`). Os segundos
- * são ignorados. Para o dia inteiro use `0`/`24` ou `'00:00'`/`'24:00'`. Resolvido por `resolveHour`.
+/** Grid hour as a number, HH:mm or HH:mm:ss; seconds are ignored.
+ * @remarks Português: Hora numérica ou HH:mm/HH:mm:ss, sem segundos; 24/24:00 representa o fim do
+ * dia.
  */
 export type GridHour = number | string;
 
-/** Converte `GridHour` para horas (fracionárias): `7`→7, `'07:30'`→7.5, `'07:30:00'`→7.5. */
+/** Convert a grid endpoint to fractional hours.
+ * @remarks Português: Converte o extremo para horas fracionárias: 07:30 vira 7,5.
+ */
 export function resolveHour(value: GridHour): number {
   return typeof value === 'string' ? hhmmToMinutes(value) / 60 : value;
 }
 
-/** Opções visuais/comportamentais. Escala de horário é dinâmica (startHour/endHour/slotMinutes). */
+/** Calendar behavior and time-axis layout options.
+ * @remarks Português: Opções de comportamento e geometria do calendário.
+ */
 export interface CalendarOptions {
+  /** Locale for date and time labels; default pt-BR.
+   * @remarks Português: Idioma dos rótulos; padrão pt-BR.
+   */
   locale: string;
-  /** Primeiro dia da semana (afeta a view Week). */
+  /** First weekday in week views; default MO.
+   * @remarks Português: Primeiro dia da semana; padrão segunda-feira (MO).
+   */
   weekStart: WeekdayCode;
-  /** Topo do grid: hora (0..24) ou 'HH:mm' (ex.: `7` ou `'07:30'`). */
+  /** Visible grid start; default 6.
+   * @remarks Português: Início visível: hora numérica ou HH:mm; padrão 06:00.
+   */
   startHour: GridHour;
-  /** Base do grid: hora (0..24, > startHour) ou 'HH:mm'. */
+  /** Exclusive grid end; default 22.
+   * @remarks Português: Fim exclusivo: hora numérica ou HH:mm; padrão 22:00.
+   */
   endHour: GridHour;
-  /** Granularidade das linhas de horário, em minutos (ex.: 30). Equivale ao `slotDuration` do FullCalendar. */
+  /** Grid and gesture step in minutes; default 30.
+   * @remarks Português: Passo da grade e dos gestos em minutos; padrão 30.
+   */
   slotMinutes: number;
-  /** Axis label interval; independent from drag/selection snapping. Undefined adapts to scale. */
+  /** Label interval in minutes; omitted adapts to scale.
+   * @remarks Português: Intervalo dos rótulos em minutos; ausente adapta à escala, sem mudar o
+   * snap.
+   */
   timeLabelInterval?: number;
-  /** Escala vertical: pixels por minuto. */
+  /** Time-axis scale in pixels per minute; default 1.
+   * @remarks Português: Escala do eixo de tempo em px por minuto; padrão 1.
+   */
   pxPerMinute: number;
-  /** Timezone de exibição (IANA). */
+  /** IANA display zone; default America/Sao_Paulo.
+   * @remarks Português: Fuso IANA de exibição; padrão America/Sao_Paulo.
+   */
   timeZone: string;
-  /** Relógio injetável para a linha "agora" (epoch ms). null → Date.now() em runtime. */
+  /** Injected current time in epoch milliseconds; null uses Date.now().
+   * @remarks Português: Relógio em milissegundos desde epoch; null usa Date.now().
+   */
   nowMs: number | null;
-  /** Duração mínima visual/de interação de um evento, em minutos (altura mínima + resize). */
+  /** Minimum visual and resize duration in minutes; default 15.
+   * @remarks Português: Duração mínima visual e de redimensionamento em minutos; padrão 15.
+   */
   minEventMinutes: number;
-  /** Visible chips per day in Month; false displays all. Defaults to 3. */
+  /** Month cards per day; default 3, false shows all.
+   * @remarks Português: Cartões por dia no mês; padrão 3, false exibe todos.
+   */
   monthMaxEvents?: number | false;
-  /** Open this registered view on +more instead of the default popover. */
+  /** Registered view opened by month overflow; omitted uses a popover.
+   * @remarks Português: View aberta por ver mais no mês; ausente usa popover.
+   */
   monthMoreView?: string;
-  /** Timed grids: compress all events, widen columns, or group excess events. */
-  /** Opt-in drag conversion between all-day lane and timed grid; preserves duration/days. */
+  /** Allow timed/all-day conversion while moving; default false.
+   * @remarks Português: Permite converter horário/dia inteiro ao mover; padrão false.
+   */
   allowEventTypeChange?: boolean;
-  /** Used by resources without their own capacity; false disables capacity limits. */
+  /** Inherited simultaneous resource capacity; default 1, false is unlimited.
+   * @remarks Português: Capacidade herdada por recursos; padrão 1, false remove o limite.
+   */
   defaultResourceCapacity?: number | false;
+  /** Dense-event layout: shrink, scroll or more; default shrink.
+   * @remarks Português: Eventos próximos: comprimir, rolar ou agrupar; padrão shrink.
+   */
   timedEventOverflow?: 'shrink' | 'scroll' | 'more';
-  /** Vertical timed views: adjacent lanes may overlap up to half of an event. */
+  /** Allow partial overlap in vertical timed views; default false.
+   * @remarks Português: Sobreposição parcial nas grades verticais; padrão false.
+   */
   slotEventOverlap?: boolean;
+  /** Visible stack limit in more mode; minimum 2, default 3.
+   * @remarks Português: Limite no modo more, incluindo ver mais; mínimo 2, padrão 3.
+   */
   eventMaxStack?: number;
+  /** Minimum event lane width in scroll mode, in pixels; default 100.
+   * @remarks Português: Largura mínima da faixa no modo scroll em px; padrão 100.
+   */
   minEventWidth?: number;
+  /** Registered view opened by timed overflow; omitted uses a popover.
+   * @remarks Português: View aberta por ver mais nas grades de horário; ausente usa popover.
+   */
   eventMoreView?: string;
-  /** Recursos visíveis nas views de recurso (undefined = todos). Toggle por recurso/grupo. */
+  /** Visible resource IDs; omitted shows all.
+   * @remarks Português: IDs de recursos visíveis; ausente exibe todos.
+   */
   visibleResourceIds?: readonly string[];
 }
 
+/** Immutable data snapshot of the calendar.
+ * @remarks Português: Estado de dados do calendário; trate a consulta como imutável.
+ */
 export interface CalendarState {
-  /** Data de referência ('YYYY-MM-DD'). */
+  /** Reference date in YYYY-MM-DD format.
+   * @remarks Português: Data de referência em YYYY-MM-DD.
+   */
   date: string;
-  /** View ativa ('week' | 'day' | custom registrada). */
+  /** Active registered view name.
+   * @remarks Português: Nome da view registrada ativa.
+   */
   viewName: string;
+  /** Current immutable event collection.
+   * @remarks Português: Coleção atual de eventos; trate os dados como imutáveis.
+   */
   events: readonly CalendarEvent[];
+  /** Current global availability rules.
+   * @remarks Português: Regras gerais atuais de disponibilidade.
+   */
   constraints: ConstraintSet;
+  /** Resolved calendar options, including defaults.
+   * @remarks Português: Opções resolvidas, incluindo os padrões.
+   */
   options: CalendarOptions;
 }
 
+/** Default calendar behavior and display settings.
+ * @remarks Português: Valores padrão de comportamento e exibição.
+ */
 export const DEFAULT_OPTIONS: CalendarOptions = {
   locale: 'pt-BR',
   weekStart: 'MO',
@@ -83,7 +149,9 @@ export const DEFAULT_OPTIONS: CalendarOptions = {
   slotEventOverlap: false,
 };
 
-/** Reject unusable grid dimensions before views enter their slot-generation loops. */
+/** Reject invalid ranges, scales and density settings.
+ * @remarks Português: Rejeita intervalos, escalas e limites inválidos antes da renderização.
+ */
 export function validateCalendarOptions(options: CalendarOptions): void {
   const validHour = (value: GridHour): boolean => {
     if (typeof value === 'string' && !/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$|^24:00(?::00)?$/.test(value)) return false;

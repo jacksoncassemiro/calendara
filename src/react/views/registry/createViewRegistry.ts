@@ -6,6 +6,7 @@ export function createViewRegistry(views: readonly CalendarView[]): Map<string, 
 
   const registry = new Map<string, CalendarView>();
   for (const view of views) {
+    if (!view.name.trim()) throw new Error('[meucalendario] o nome da view não pode ser vazio');
     if (registry.has(view.name)) throw new Error(`[meucalendario] view duplicada: ${view.name}`);
     registry.set(view.name, view);
   }

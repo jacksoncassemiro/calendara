@@ -9,8 +9,10 @@ import {
 	createResourceDayView,
 	createTimelineView,
 	getTemporal,
+	occurrenceKey,
 	splitEventSeries,
 	useCalendar,
+	useCalendarDraggable,
 	useCompactCalendar,
 	type CalendarEvent,
 	type EventChange,
@@ -135,6 +137,13 @@ function App() {
 	// Width changes alter layout, not a view the user explicitly selected.
 	const initialView = useRef(window.innerWidth < 640 ? "day" : "week");
 	const [events, setEvents] = useState(initialEvents);
+	const externalEvent: CalendarEvent = {
+		id: "external-template", calendarId: "agenda", title: "Agendamento externo",
+		time: { allDay: false,
+			start: { dateTime: `${REF}T09:00:00`, timeZone: TZ },
+			end: { dateTime: `${REF}T09:30:00`, timeZone: TZ } },
+	};
+	const externalDrag = useCalendarDraggable(externalEvent);
 	const [rejectNext, setRejectNext] = useState(false);
 	const [feedback, setFeedback] = useState(
 		"Selecione um horário livre ou abra um evento para editar.",
@@ -392,12 +401,20 @@ function App() {
 			<p className="demo-feedback" role="status">
 				{feedback}
 			</p>
+			<section aria-label="Arrasto externo" className="demo-controls">
+				<button type="button" {...externalDrag} style={{ touchAction: "none" }}>
+					Arrastar agendamento externo · 30 minutos
+				</button>
+				<div data-demo-drop-zone style={{ border: "1px dashed currentColor", padding: "1rem" }}>
+					Área externa: solte aqui para receber a ação de saída
+				</div>
+			</section>
 			<section ref={containerRef} className="demo-calendar" aria-label="Agenda">
 				{mounted ? (
 					<Calendar
 						apiRef={ref}
-						date={REF}
-						view={initialView.current}
+						initialDate={REF}
+						initialView={initialView.current}
 						events={events}
 						options={{
 							...options,
@@ -447,6 +464,15 @@ function App() {
 								: undefined
 						}
 						onEventDrop={commit}
+						onExternalEventDrop={(change) => {
+							setEvents((current) => [...current, { ...change.event, id: crypto.randomUUID() }]);
+							setFeedback("Agendamento externo recebido e salvo nesta demonstração.");
+						}}
+						onEventDropOutside={({ occurrence, target }) => {
+							if (target?.closest("[data-demo-drop-zone]")) {
+								setFeedback(`${occurrence.event.title}: saída recebida; o consumidor decide persistir ou remover.`);
+							}
+						}}
 						onEventResize={commit}
 						onEventClick={openEditor}
 						onDateClick={(date, minute = 9 * 60) => openCreate(date, minute)}
@@ -529,7 +555,7 @@ function App() {
 				<h2 id="editor-title">{editing ? "Editar evento" : "Criar evento"}</h2>
 				{(editing || selection) && (
 					<CalendarEventEditor
-						key={editing?.originalStart ?? selection?.date}
+						key={editing ? occurrenceKey(editing) : selection?.date}
 						event={
 							editing?.event ?? {
 								id: "new",
@@ -550,52 +576,8 @@ function App() {
 						timeZone={TZ}
 						onCancel={closeEditor}
 						validate={(draft) => {
-							const T = getTemporal(),
-								time = draft.time;
-							const first = time.allDay
-								? time.start.date!
-								: time.start.dateTime!.slice(0, 10);
-							const last = time.allDay
-								? time.end.date!
-								: time.end.dateTime!.slice(0, 10);
-							const minute = (value: string) =>
-								Number(value.slice(11, 13)) * 60 + Number(value.slice(14, 16));
-							for (
-								let day = T.PlainDate.from(first);
-								day.toString() <= last;
-								day = day.add({ days: 1 })
-							) {
-								const iso = day.toString();
-								const startMin = time.allDay
-									? 0
-									: iso === first
-										? minute(time.start.dateTime!)
-										: 0;
-								const endMin = time.allDay
-									? 1440
-									: iso === last
-										? minute(time.end.dateTime!)
-										: 1440;
-								if ((time.allDay && iso === last) || endMin <= startMin)
-									continue;
-								const constraint = api.evaluateSlot(
-									time.allDay ? { date: iso } : { date: iso, startMin, endMin },
-								);
-								if (!constraint.valid)
-									return `Horário indisponível em ${iso}: ${constraint.reason}.`;
-								for (const resourceId of draft.resourceIds ?? []) {
-									const evaluation = api.evaluatePlacement({
-										dateISO: iso,
-										startMin,
-										endMin,
-										allDay: time.allDay,
-										resourceId,
-										...(editing ? { occurrence: editing } : {}),
-									});
-									if (!evaluation.valid)
-										return `Recurso indisponível em ${iso}: ${evaluation.reason}.`;
-								}
-							}
+							const evaluation = api.evaluateEvent(draft, editing ?? undefined);
+							if (!evaluation.valid) return `Horário ou recurso indisponível: ${evaluation.reason}.`;
 						}}
 						onSave={(draft, context) => {
 							if (editing && context.scope === "following") {

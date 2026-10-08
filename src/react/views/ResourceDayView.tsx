@@ -303,7 +303,7 @@ function ResourceColumn(props: {
             height: toPx((draft.endMin - draft.startMin) * pxPerMinute),
             pointerEvents: 'none',zIndex:10000,
           }}
-        ><span className="mc-draft-time">{formatDraftInterval(context.draft ?? draft,context.options.locale)}</span>{' · '}<span className="mc-draft-title">{context.occurrences.find(occurrence=>occurrenceKey(occurrence)===draft.eventId)?.event.title ?? 'Novo intervalo'}</span></div>
+        ><span className="mc-draft-time">{formatDraftInterval(context.draft ?? draft,context.options.locale)}</span>{' · '}<span className="mc-draft-title">{context.draft?.title ?? context.occurrences.find(occurrence=>occurrenceKey(occurrence)===draft.eventId)?.event.title ?? 'Novo intervalo'}</span></div>
       )}
       {nowMinutes !== null && (
         <div

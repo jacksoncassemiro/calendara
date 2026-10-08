@@ -52,6 +52,8 @@ export interface GridBounds {
 
 /** Colocação atual de um evento timed numa coluna (origem de um move/resize). */
 export interface PlacementInfo {
+	/** External source; received through commitExternal rather than a move in the store. */
+	external?: boolean;
 	/** Chave estável do bloco (`${masterId}@${originalStart}`). */
 	eventId: string;
 	dateISO: string;
@@ -70,6 +72,13 @@ export interface PlacementInfo {
 	resourceId?: string;
 }
 
+/** Actual pointer destination, independent of pointer capture on the original card. */
+export interface OutsideDropTarget {
+	clientX: number;
+	clientY: number;
+	target: Element | null;
+}
+
 /** Geometria de um rascunho (posição tentativa em minutos-do-dia). */
 export interface DraftGeometry {
 	dateISO: string;
@@ -84,6 +93,9 @@ export interface DraftGeometry {
 
 /** Rascunho vivo do gesto — desenhado como fantasma e reavaliado a cada movimento. */
 export interface InteractionDraft extends DraftGeometry {
+	/** Presentation for external cards that are absent from the calendar store. */
+	title?: string;
+	color?: string;
 	kind: InteractionKind;
 	/** Slot válido segundo o ConstraintEngine + ocupação de recurso (drop/click permitido). */
 	valid: boolean;

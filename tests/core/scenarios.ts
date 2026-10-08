@@ -1,7 +1,7 @@
-/** Cenários RFC 5545 — espelham os harnesses validados na Fase 0 (harness/harness2/harness3). */
+/** Cenários RFC 5545 compartilhados pelos testes de expansão e pelo oráculo independente. */
 export type Scenario = [name: string, dtstart: string, rule: string];
 
-/** Suíte base (harness.mjs — 28 cenários). */
+/** Frequências, intervalos, filtros e limites de quantidade ou data. */
 export const BASE: Scenario[] = [
   ['Daily count 5', '2024-01-01', 'RRULE:FREQ=DAILY;COUNT=5'],
   ['Daily interval 3 count 6', '2024-01-01', 'RRULE:FREQ=DAILY;INTERVAL=3;COUNT=6'],
@@ -33,7 +33,7 @@ export const BASE: Scenario[] = [
   ['Daily count+until both', '2024-01-01', 'RRULE:FREQ=DAILY;COUNT=10;UNTIL=20240105T000000Z'],
 ];
 
-/** Edge cases (harness2.mjs — 16 cenários). */
+/** Combinações de filtros e limites do calendário civil. */
 export const EDGE: Scenario[] = [
   ['WKST: Weekly int2 from Sunday', '2024-01-07', 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,SA;COUNT=8'],
   ['WKST: Weekly int2 MO,SU from Wed', '2024-01-03', 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,SU;COUNT=8'],
@@ -53,7 +53,7 @@ export const EDGE: Scenario[] = [
   ['Monthly int3 day15 c5', '2024-01-15', 'RRULE:FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=15;COUNT=5'],
 ];
 
-/** Multi-ordinal — o gap corrigido (harness3.mjs). */
+/** Múltiplos dias da semana com posição ordinal no mesmo período. */
 export const MULTI_ORDINAL: Scenario[] = [
   ['Monthly 2FR,4FR count6', '2024-01-01', 'RRULE:FREQ=MONTHLY;BYDAY=2FR,4FR;COUNT=6'],
   ['Monthly 1MO,3MO count6', '2024-01-01', 'RRULE:FREQ=MONTHLY;BYDAY=1MO,3MO;COUNT=6'],
@@ -61,7 +61,7 @@ export const MULTI_ORDINAL: Scenario[] = [
   ['Yearly 1MO,3MO BYMONTH3 c4', '2024-01-01', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=1MO,3MO;COUNT=4'],
 ];
 
-/** WKST explícito ≠ MO (novo requisito da Fase 1). */
+/** Início de semana explícito diferente de segunda-feira. */
 export const WKST: Scenario[] = [
   ['WKST=SU Weekly int2 SU,SA c8', '2024-01-07', 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,SA;WKST=SU;COUNT=8'],
   ['WKST=SU Weekly int2 MO,SU c8', '2024-01-03', 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,SU;WKST=SU;COUNT=8'],

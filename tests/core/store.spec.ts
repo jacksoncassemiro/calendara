@@ -2,70 +2,70 @@ import { describe, it, expect, vi } from 'vitest';
 import { createStore } from '../../src/core/store/store.js';
 import { memoize } from '../../src/core/store/memoize.js';
 
-interface S {
-  a: number;
-  b: string;
-  obj: { n: number };
+interface StoreState {
+  count: number;
+  label: string;
+  nestedState: { value: number };
 }
 
 describe('createStore (diff granular)', () => {
   it('notifica só quando alguma chave muda, com o conjunto de chaves alteradas', () => {
-    const store = createStore<S>({ a: 1, b: 'x', obj: { n: 0 } });
-    const seen: Array<ReadonlySet<keyof S>> = [];
-    store.subscribe((changed) => seen.push(changed));
+    const store = createStore<StoreState>({ count: 1, label: 'x', nestedState: { value: 0 } });
+    const changedKeySets: Array<ReadonlySet<keyof StoreState>> = [];
+    store.subscribe((changed) => changedKeySets.push(changed));
 
-    store.setState({ a: 2 });
-    store.setState({ a: 2 }); // mesmo valor → NÃO notifica
-    store.setState({ b: 'y' });
+    store.setState({ count: 2 });
+    store.setState({ count: 2 }); // mesmo valor → NÃO notifica
+    store.setState({ label: 'y' });
 
-    expect(seen).toHaveLength(2);
-    expect([...seen[0]!]).toEqual(['a']);
-    expect([...seen[1]!]).toEqual(['b']);
-    expect(store.getState().a).toBe(2);
-    expect(store.getState().b).toBe('y');
+    expect(changedKeySets).toHaveLength(2);
+    expect([...changedKeySets[0]!]).toEqual(['count']);
+    expect([...changedKeySets[1]!]).toEqual(['label']);
+    expect(store.getState().count).toBe(2);
+    expect(store.getState().label).toBe('y');
   });
 
   it('compara por identidade (novo objeto = mudança)', () => {
-    const obj = { n: 0 };
-    const store = createStore<S>({ a: 1, b: 'x', obj });
-    const fn = vi.fn();
-    store.subscribe(fn);
-    store.setState({ obj }); // mesma ref → sem notificação
-    expect(fn).not.toHaveBeenCalled();
-    store.setState({ obj: { n: 0 } }); // nova ref → notifica
-    expect(fn).toHaveBeenCalledTimes(1);
+    const nestedState = { value: 0 };
+    const store = createStore<StoreState>({ count: 1, label: 'x', nestedState });
+    const subscriber = vi.fn();
+    store.subscribe(subscriber);
+    store.setState({ nestedState }); // mesma ref → sem notificação
+    expect(subscriber).not.toHaveBeenCalled();
+    store.setState({ nestedState: { value: 0 } }); // nova ref → notifica
+    expect(subscriber).toHaveBeenCalledTimes(1);
   });
 
   it('unsubscribe encerra as notificações', () => {
-    const store = createStore<S>({ a: 1, b: 'x', obj: { n: 0 } });
-    const fn = vi.fn();
-    const off = store.subscribe(fn);
-    store.setState({ a: 9 });
-    off();
-    store.setState({ a: 10 });
-    expect(fn).toHaveBeenCalledTimes(1);
+    const store = createStore<StoreState>({ count: 1, label: 'x', nestedState: { value: 0 } });
+    const subscriber = vi.fn();
+    const unsubscribe = store.subscribe(subscriber);
+    store.setState({ count: 9 });
+    unsubscribe();
+    store.setState({ count: 10 });
+    expect(subscriber).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('memoize', () => {
   it('reusa o resultado enquanto os argumentos forem idênticos', () => {
-    const compute = vi.fn((n: number) => n * 2);
-    const m = memoize(compute);
-    expect(m(2)).toBe(4);
-    expect(m(2)).toBe(4);
+    const compute = vi.fn((value: number) => value * 2);
+    const memoizedCompute = memoize(compute);
+    expect(memoizedCompute(2)).toBe(4);
+    expect(memoizedCompute(2)).toBe(4);
     expect(compute).toHaveBeenCalledTimes(1);
-    expect(m(3)).toBe(6);
+    expect(memoizedCompute(3)).toBe(6);
     expect(compute).toHaveBeenCalledTimes(2);
   });
 
   it('distingue por identidade de referência', () => {
-    const compute = vi.fn((arr: number[]) => arr.length);
-    const m = memoize(compute);
-    const a = [1, 2, 3];
-    m(a);
-    m(a);
+    const compute = vi.fn((values: number[]) => values.length);
+    const memoizedCompute = memoize(compute);
+    const inputValues = [1, 2, 3];
+    memoizedCompute(inputValues);
+    memoizedCompute(inputValues);
     expect(compute).toHaveBeenCalledTimes(1);
-    m([1, 2, 3]); // nova ref
+    memoizedCompute([1, 2, 3]); // nova ref
     expect(compute).toHaveBeenCalledTimes(2);
   });
 });

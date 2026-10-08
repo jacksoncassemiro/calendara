@@ -4,9 +4,9 @@ import { layoutDay, type GeoInput, type GeoGrid } from '../../src/core/geometry/
 const grid: GeoGrid = { startHour: 0, endHour: 24, pxPerMinute: 1, minEventMinutes: 15, gutter: 0 };
 
 function byId(blocks: ReturnType<typeof layoutDay>, id: string) {
-  const b = blocks.find((x) => x.id === id);
-  if (!b) throw new Error(`bloco ${id} ausente`);
-  return b;
+  const block = blocks.find((candidateBlock) => candidateBlock.id === id);
+  if (!block) throw new Error(`bloco ${id} ausente`);
+  return block;
 }
 
 describe('GeometryEngine.layoutDay', () => {
@@ -17,12 +17,12 @@ describe('GeometryEngine.layoutDay', () => {
   });
   it('posiciona vertical: top/height por minuto', () => {
     const items: GeoInput[] = [{ id: 'a', startMin: 540, endMin: 600 }]; // 09:00–10:00
-    const [b] = layoutDay(items, grid);
-    expect(b).toBeDefined();
-    expect(b!.top).toBe(540);
-    expect(b!.height).toBe(60);
-    expect(b!.left).toBe(0);
-    expect(b!.width).toBe(1);
+    const [block] = layoutDay(items, grid);
+    expect(block).toBeDefined();
+    expect(block!.top).toBe(540);
+    expect(block!.height).toBe(60);
+    expect(block!.left).toBe(0);
+    expect(block!.width).toBe(1);
   });
 
   it('evento único ocupa largura total', () => {
@@ -40,12 +40,12 @@ describe('GeometryEngine.layoutDay', () => {
       grid,
     );
     expect(blocks).toHaveLength(2);
-    const a = byId(blocks, 'a');
-    const b = byId(blocks, 'b');
-    expect(a.columns).toBe(2);
-    expect(a.width).toBeCloseTo(0.5);
-    expect(b.width).toBeCloseTo(0.5);
-    expect(new Set([a.left, b.left])).toEqual(new Set([0, 0.5]));
+    const firstBlock = byId(blocks, 'a');
+    const block = byId(blocks, 'b');
+    expect(firstBlock.columns).toBe(2);
+    expect(firstBlock.width).toBeCloseTo(0.5);
+    expect(block.width).toBeCloseTo(0.5);
+    expect(new Set([firstBlock.left, block.left])).toEqual(new Set([0, 0.5]));
   });
 
   it('eventos que só se tocam (fim==início) NÃO colidem', () => {
@@ -72,32 +72,32 @@ describe('GeometryEngine.layoutDay', () => {
       grid,
     );
     expect(byId(blocks, 'L').columns).toBe(3);
-    const c = byId(blocks, 'C');
-    expect(c.column).toBe(1);
-    expect(c.width).toBeCloseTo(2 / 3); // expandiu por 2 colunas
-    expect(c.left).toBeCloseTo(1 / 3);
-    const b = byId(blocks, 'B');
-    expect(b.column).toBe(2);
-    expect(b.width).toBeCloseTo(1 / 3);
+    const expandedBlock = byId(blocks, 'C');
+    expect(expandedBlock.column).toBe(1);
+    expect(expandedBlock.width).toBeCloseTo(2 / 3); // expandiu por 2 colunas
+    expect(expandedBlock.left).toBeCloseTo(1 / 3);
+    const block = byId(blocks, 'B');
+    expect(block.column).toBe(2);
+    expect(block.width).toBeCloseTo(1 / 3);
   });
 
   it('aplica altura mínima a eventos muito curtos', () => {
-    const [b] = layoutDay([{ id: 'a', startMin: 540, endMin: 541 }], grid);
-    expect(b!.height).toBe(15); // minEventMinutes * pxPerMinute
+    const [block] = layoutDay([{ id: 'a', startMin: 540, endMin: 541 }], grid);
+    expect(block!.height).toBe(15); // minEventMinutes * pxPerMinute
   });
 
   it('recorta ao grid e descarta eventos totalmente fora', () => {
-    const clip: GeoGrid = { startHour: 8, endHour: 18, pxPerMinute: 1 };
+    const clippedGrid: GeoGrid = { startHour: 8, endHour: 18, pxPerMinute: 1 };
     const blocks = layoutDay(
       [
         { id: 'fora', startMin: 0, endMin: 300 }, // 00:00–05:00 (fora)
         { id: 'cruza', startMin: 420, endMin: 540 }, // 07:00–09:00 → recorta p/ 08:00
       ],
-      clip,
+      clippedGrid,
     );
-    expect(blocks.find((b) => b.id === 'fora')).toBeUndefined();
-    const cruza = byId(blocks, 'cruza');
-    expect(cruza.top).toBe(0); // recortado ao topo (08:00)
-    expect(cruza.height).toBe(60); // 08:00–09:00
+    expect(blocks.find((block) => block.id === 'fora')).toBeUndefined();
+    const crossingBlock = byId(blocks, 'cruza');
+    expect(crossingBlock.top).toBe(0); // recortado ao topo (08:00)
+    expect(crossingBlock.height).toBe(60); // 08:00–09:00
   });
 });

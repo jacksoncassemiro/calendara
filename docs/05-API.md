@@ -15,13 +15,82 @@ const events: CalendarEvent[] = [];
 // Defina resources uma vez; a view de recursos recebe os dados atuais do Calendar.
 export function Agenda() {
   return <Calendar views={views} resources={resources} events={events}
-    date="2026-10-08" options={{ timeZone: 'America/Sao_Paulo' }} />;
+    initialDate="2026-10-08" initialView="month" options={{ timeZone: 'America/Sao_Paulo' }} />;
 }
 ```
 
-`views` define a lista completa e a ordem dos botões. Sem `view`, inicia na primeira da lista. Omitir `views` usa o conjunto padrão; `[]` é inválido. Para o comportamento anterior de acrescentar views, use `[...BUILTIN_VIEWS, minhaView]`. `CalendarApp.setViews` substitui o conjunto; `registerView` acrescenta ou substitui uma definição individual. Uma view inicial precisa estar registrada. Nomes duplicados na lista são recusados.
+`views` define a lista completa e a ordem dos botões. `initialView` escolhe somente a view inicial; omitida, usa a primeira da lista. `initialDate` escolhe somente a data inicial. Mudanças nessas duas props depois da montagem não navegam. Omitir `views` usa o conjunto padrão; `[]` é inválido. Para acrescentar views aos defaults, use `[...BUILTIN_VIEWS, minhaView]`. `CalendarApp.setViews` substitui o conjunto; `registerView` acrescenta ou substitui uma definição individual. Uma view inicial precisa estar registrada. Nomes duplicados são recusados.
+
+`view` e `date` continuam aceitos: têm precedência sobre `initialView`/`initialDate` na montagem e solicitam navegação quando seu valor muda. Não são props controlled estritas: a navegação interna não é desfeita por um rerender com o mesmo valor. Para acompanhar o estado real, use `onViewChange`, `onDateChange` e `onRangeChange`, ou o handle. Prefira as props `initial*` quando desejar somente configurar a montagem.
 
 O handle usa `RefObject<CalendarHandle | null>`; `useCalendar`, `useRef` e `createRef` podem ser usados em `apiRef`. `MutableRefObject` deixou de ser exposto pela biblioteca. A análise dos contratos que ainda precisam evolução está em `09-AUDITORIA-API-E-VIEWS.md`.
+
+## Fonte remota e opções React
+
+```tsx
+<Calendar
+  views={views}
+  initialView="day"
+  eventSource={async ({ start, end }, { signal }) => {
+    const response = await fetch(`/api/events?start=${start}&end=${end}`, { signal });
+    if (!response.ok) throw new Error('Não foi possível buscar os eventos');
+    return response.json();
+  }}
+  onLoadingChange={setLoading}
+  onError={setError}
+/>
+```
+
+A fonte recebe `AbortSignal`; navegação, substituição da fonte e desmontagem cancelam a requisição obsoleta. Resultados/erros antigos não sobrescrevem a busca atual mesmo se a fonte ignorar o sinal. Para interromper a rede, repasse `signal` ao cliente HTTP. Funções com apenas o argumento de range continuam aceitas. Mantenha a identidade da fonte estável se não desejar refetch por substituição.
+
+Escolha uma fonte de verdade: com `events`, atualize o estado React após salvar; com `eventSource`, salve no servidor e chame `api.refetch()` para buscar o resultado. A resposta remota substitui os eventos carregados, não é somada à prop `events`. Usar ambas como listas independentes pode sobrescrever alterações. O calendário não fornece persistência automática.
+
+Alterar uma view inativa ou a ordem dos botões não dispara uma busca. Substituir a definição ativa busca novamente somente quando seu período muda. Sem data explícita, a montagem usa hoje no fuso configurado.
+
+`options` nas props substitui as opções declaradas: campos removidos voltam ao default. `CalendarApp.setOptions` aplica patch; `replaceOptions` substitui a configuração sobre os defaults.
+
+## Arrasto externo opcional
+
+```tsx
+function CartaoExterno({ event }: { event: CalendarEvent }) {
+  const drag = useCalendarDraggable(event);
+  return <button {...drag} style={{ touchAction: 'none' }}>{event.title}</button>;
+}
+
+<Calendar
+  onExternalEventDrop={async ({ event }) => {
+    await persistEvent(event);
+    setEvents(current => [...current, event]);
+  }}
+  onEventDropOutside={({ occurrence, target }) => {
+    if (target?.closest('[data-drop-zone]')) openExportDialog(occurrence);
+  }}
+/>
+```
+
+Importe `useCalendarDraggable` do pacote. O callback de entrada recebe `change.event` com horário, timezone e recursos propostos; a biblioteca valida constraints/capacidade/buffers, mas não insere automaticamente. O consumidor persiste e atualiza `events`. IDs já existentes no destino são recusados; gere novos IDs para cópias. Para uma integração fora do React, use `beginExternalEventDrag(event, pointerEvent)` e execute sua função de cancelamento na desmontagem da fonte.
+
+Entrada aceita eventos não recorrentes; escolher/materializar uma ocorrência de série é responsabilidade da aplicação. Escape, cancelamento e soltura externa abortam a entrada. Saída é habilitada por `onEventDropOutside`, informa a ocorrência e o elemento sob o ponteiro e não exclui automaticamente. O callback precisa decidir se a área é um destino válido e como persistir. Esta fatia não fornece transferência automática entre calendários, auto-scroll ou suporte a HTML DataTransfer entre documentos. Toque físico ainda requer validação; disponibilize também ações por clique/teclado.
+
+## Formulário próprio e editor padrão
+
+`CalendarEventEditor` é independente: `Calendar` não o abre nem o renderiza internamente. A aplicação pode abrir um componente próprio em modal, drawer ou rota usando `onEventClick`, `onDateClick` ou `onDateSelect`; pode também abrir diretamente por dados, sem um cartão visível.
+
+Em callbacks de renderização, retorne seu componente: `renderEvent={info => <MeuEvento {...info} />}`. Hooks ficam dentro de `MeuEvento`; não os chame diretamente no callback. `createReactView` também recebe um componente React.
+
+Use `api.evaluateEvent(draft, occurrence?)` para validar o intervalo completo e todos os recursos com o mesmo motor dos gestos. Ao editar, passe a ocorrência original para excluir sua própria reserva da ocupação. A validação não salva nem altera estado e não garante disponibilidade de todas as futuras ocorrências de uma série. A aplicação continua responsável por `onSubmit`, persistência e escopo recorrente.
+
+```tsx
+async function salvarFormularioProprio(draft: CalendarEvent) {
+  const evaluation = api.evaluateEvent(draft, occurrenceBeingEdited);
+  if (!evaluation.valid) return setError(evaluation.reason);
+  await persistEvent(draft);
+  setEvents(current => updateEvents(current, draft));
+  closeEditor();
+}
+```
+
+As funções de persistência/estado nos exemplos são da aplicação. O formulário padrão oferece `validate`, `onSave`, `onDelete` e `onCancel`; use `key={occurrenceKey(occurrence)}` para mudar sua identidade entre ocorrências. Slots adicionais e um hook opcional de editor estão propostos em `specs/calendar-remediation/editor-extensibility.md`; ainda não fazem parte da API.
 
 ## 1. Um evento
 

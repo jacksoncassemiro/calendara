@@ -9,8 +9,11 @@ select { max-width: 100%; min-height: 44px; padding: 8px; border: 1px solid #819
 button { min-height: 44px; padding: 8px 14px; border: 1px solid #c4ceda; border-radius: 6px; background: #fff; color: inherit; cursor: pointer; }
 button:hover { background: #edf2f8; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
-.demo-tools { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
-.demo-tools label { display: flex; gap: 8px; align-items: center; min-height: 44px; }
+.demo-tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem 1.5rem; align-items: end; padding: 1rem 0; border-bottom: 1px solid #d5dce6; }
+.demo-tools label { display: flex; gap: .5rem; align-items: center; min-height: 44px; flex-wrap: wrap; font-size: .875rem; }
+.demo-tools select { flex: 1; min-width: 8rem; font-size: .875rem; }
+.demo-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin: 1rem 0; font-size: .875rem; }
+.demo-controls [data-demo-drop-zone] { flex: 1; min-width: min(100%, 16rem); }
 .demo-feedback { min-height: 24px; color: #334d70; position: sticky; top: 0; z-index: 20; padding: 6px 0; background: #f5f7fa; }
 .demo-more-custom { display: grid; gap: 8px; padding: 12px; }
 .demo-calendar { background: #fff; border: 1px solid #d5dce6; border-radius: 8px; overflow: hidden; }

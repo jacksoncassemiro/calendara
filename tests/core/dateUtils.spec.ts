@@ -9,11 +9,11 @@ import {
   type DateUtils,
 } from '../../src/core/date/dateUtils.js';
 
-let T: TemporalLike;
-let du: DateUtils;
+let temporal: TemporalLike;
+let dateUtils: DateUtils;
 beforeAll(async () => {
-  T = await ensureTemporal();
-  du = createDateUtils(T);
+  temporal = await ensureTemporal();
+  dateUtils = createDateUtils(temporal);
 });
 
 describe('conversões de weekday', () => {
@@ -34,29 +34,29 @@ describe('conversões de weekday', () => {
 describe('startOfWeek', () => {
   it('semana começando na segunda (default)', () => {
     // 2024-01-10 é uma quarta
-    expect(du.startOfWeek(T.PlainDate.from('2024-01-10')).toString()).toBe('2024-01-08');
+    expect(dateUtils.startOfWeek(temporal.PlainDate.from('2024-01-10')).toString()).toBe('2024-01-08');
   });
   it('semana começando no domingo', () => {
-    expect(du.startOfWeek(T.PlainDate.from('2024-01-10'), 'SU').toString()).toBe('2024-01-07');
+    expect(dateUtils.startOfWeek(temporal.PlainDate.from('2024-01-10'), 'SU').toString()).toBe('2024-01-07');
   });
 });
 
 describe('eachDayOfRange', () => {
   it('lista [start,end)', () => {
-    const days = du.eachDayOfRange(T.PlainDate.from('2024-01-01'), T.PlainDate.from('2024-01-04'));
-    expect(days.map((d) => d.toString())).toEqual(['2024-01-01', '2024-01-02', '2024-01-03']);
+    const days = dateUtils.eachDayOfRange(temporal.PlainDate.from('2024-01-01'), temporal.PlainDate.from('2024-01-04'));
+    expect(days.map((date) => date.toString())).toEqual(['2024-01-01', '2024-01-02', '2024-01-03']);
   });
 });
 
 describe('nthWeekdayInMonth', () => {
   it('2ª e 4ª sexta de jan/2024', () => {
-    expect(du.nthWeekdayInMonth(2024, 1, 5, 2)!.toString()).toBe('2024-01-12');
-    expect(du.nthWeekdayInMonth(2024, 1, 5, 4)!.toString()).toBe('2024-01-26');
+    expect(dateUtils.nthWeekdayInMonth(2024, 1, 5, 2)!.toString()).toBe('2024-01-12');
+    expect(dateUtils.nthWeekdayInMonth(2024, 1, 5, 4)!.toString()).toBe('2024-01-26');
   });
   it('última segunda de jan/2024', () => {
-    expect(du.nthWeekdayInMonth(2024, 1, 1, -1)!.toString()).toBe('2024-01-29');
+    expect(dateUtils.nthWeekdayInMonth(2024, 1, 1, -1)!.toString()).toBe('2024-01-29');
   });
   it('5ª quarta inexistente (fev/2024) → null', () => {
-    expect(du.nthWeekdayInMonth(2024, 2, 3, 5)).toBeNull();
+    expect(dateUtils.nthWeekdayInMonth(2024, 2, 3, 5)).toBeNull();
   });
 });
