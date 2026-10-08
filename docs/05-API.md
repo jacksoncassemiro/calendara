@@ -1,8 +1,96 @@
 # 05 — Guia de uso da API (com exemplos)
 
-Guia prático: para cada conceito, **um exemplo preenchido**, o **propósito** de cada campo e **quando usar**. A tipagem formal está no código (`packages/core/src/types`); aqui o foco é como preencher na prática.
+Guia prático: para cada conceito, **um exemplo preenchido**, o **propósito** de cada campo e **quando usar**. A tipagem formal está no código (`src/core/types`); aqui o foco é como preencher na prática.
 
 ---
+
+## Escolher as views no React
+
+```tsx
+import { Calendar, dayView, monthView, createResourceDayView, type CalendarEvent } from '@jacksoncassemiro/calendara';
+
+const views = [dayView, monthView, createResourceDayView()];
+const resources = [{ id: 'triagem', title: 'Triagem', capacity: 3 }];
+const events: CalendarEvent[] = [];
+// Defina resources uma vez; a view de recursos recebe os dados atuais do Calendar.
+export function Agenda() {
+  return <Calendar views={views} resources={resources} events={events}
+    initialDate="2026-10-08" initialView="month" options={{ timeZone: 'America/Sao_Paulo' }} />;
+}
+```
+
+`views` define a lista completa e a ordem dos botões. `initialView` escolhe somente a view inicial; omitida, usa a primeira da lista. `initialDate` escolhe somente a data inicial. Mudanças nessas duas props depois da montagem não navegam. `views` é obrigatória; `[]` é inválido. Para acrescentar views aos defaults, use `[...BUILTIN_VIEWS, minhaView]`. `CalendarApp.setViews` substitui o conjunto; `registerView` acrescenta ou substitui uma definição individual. Uma view inicial precisa estar registrada. Nomes duplicados são recusados.
+
+`view` e `date` continuam aceitos: têm precedência sobre `initialView`/`initialDate` na montagem e solicitam navegação quando seu valor muda. Não são props controlled estritas: a navegação interna não é desfeita por um rerender com o mesmo valor. Para acompanhar o estado real, use `onViewChange`, `onDateChange` e `onRangeChange`, ou o handle. Prefira as props `initial*` quando desejar somente configurar a montagem.
+
+O handle usa `RefObject<CalendarHandle | null>`; `useCalendar`, `useRef` e `createRef` podem ser usados em `apiRef`. `MutableRefObject` deixou de ser exposto pela biblioteca. A análise dos contratos que ainda precisam evolução está em `09-AUDITORIA-API-E-VIEWS.md`.
+
+## Fonte remota e opções React
+
+```tsx
+<Calendar
+  views={views}
+  initialView="day"
+  eventSource={async ({ start, end }, { signal }) => {
+    const response = await fetch(`/api/events?start=${start}&end=${end}`, { signal });
+    if (!response.ok) throw new Error('Não foi possível buscar os eventos');
+    return response.json();
+  }}
+  onLoadingChange={setLoading}
+  onError={setError}
+/>
+```
+
+A fonte recebe `AbortSignal`; navegação, substituição da fonte e desmontagem cancelam a requisição obsoleta. Resultados/erros antigos não sobrescrevem a busca atual mesmo se a fonte ignorar o sinal. Para interromper a rede, repasse `signal` ao cliente HTTP. Funções com apenas o argumento de range continuam aceitas. Mantenha a identidade da fonte estável se não desejar refetch por substituição.
+
+Escolha uma fonte de verdade: com `events`, atualize o estado React após salvar; com `eventSource`, salve no servidor e chame `api.refetch()` para buscar o resultado. A resposta remota substitui os eventos carregados, não é somada à prop `events`. Usar ambas como listas independentes pode sobrescrever alterações. O calendário não fornece persistência automática.
+
+Alterar uma view inativa ou a ordem dos botões não dispara uma busca. Substituir a definição ativa busca novamente somente quando seu período muda. Sem data explícita, a montagem usa hoje no fuso configurado.
+
+`options` nas props substitui as opções declaradas: campos removidos voltam ao default. `CalendarApp.setOptions` aplica patch; `replaceOptions` substitui a configuração sobre os defaults.
+
+## Arrasto externo opcional
+
+```tsx
+function CartaoExterno({ event }: { event: CalendarEvent }) {
+  const drag = useCalendarDraggable(event);
+  return <button {...drag} style={{ touchAction: 'none' }}>{event.title}</button>;
+}
+
+<Calendar
+  onExternalEventDrop={async ({ event }) => {
+    await persistEvent(event);
+    setEvents(current => [...current, event]);
+  }}
+  onEventDropOutside={({ occurrence, target }) => {
+    if (target?.closest('[data-drop-zone]')) openExportDialog(occurrence);
+  }}
+/>
+```
+
+Importe `useCalendarDraggable` do pacote. O callback de entrada recebe `change.event` com horário, timezone e recursos propostos; a biblioteca valida constraints/capacidade/buffers, mas não insere automaticamente. O consumidor persiste e atualiza `events`. IDs já existentes no destino são recusados; gere novos IDs para cópias. Para uma integração fora do React, use `beginExternalEventDrag(event, pointerEvent)` e execute sua função de cancelamento na desmontagem da fonte.
+
+Entrada aceita eventos não recorrentes; escolher/materializar uma ocorrência de série é responsabilidade da aplicação. Escape, cancelamento e soltura externa abortam a entrada. Saída é habilitada por `onEventDropOutside`, informa a ocorrência e o elemento sob o ponteiro e não exclui automaticamente. O callback precisa decidir se a área é um destino válido e como persistir. Esta fatia não fornece transferência automática entre calendários, auto-scroll ou suporte a HTML DataTransfer entre documentos. Toque físico ainda requer validação; disponibilize também ações por clique/teclado.
+
+## Formulário próprio e editor padrão
+
+`CalendarEventEditor` é independente: `Calendar` não o abre nem o renderiza internamente. A aplicação pode abrir um componente próprio em modal, drawer ou rota usando `onEventClick`, `onDateClick` ou `onDateSelect`; pode também abrir diretamente por dados, sem um cartão visível.
+
+Em callbacks de renderização, retorne seu componente: `renderEvent={info => <MeuEvento {...info} />}`. Hooks ficam dentro de `MeuEvento`; não os chame diretamente no callback. `createReactView` também recebe um componente React.
+
+Use `api.evaluateEvent(draft, occurrence?)` para validar o intervalo completo e todos os recursos com o mesmo motor dos gestos. Ao editar, passe a ocorrência original para excluir sua própria reserva da ocupação. A validação não salva nem altera estado e não garante disponibilidade de todas as futuras ocorrências de uma série. A aplicação continua responsável por `onSubmit`, persistência e escopo recorrente.
+
+```tsx
+async function salvarFormularioProprio(draft: CalendarEvent) {
+  const evaluation = api.evaluateEvent(draft, occurrenceBeingEdited);
+  if (!evaluation.valid) return setError(evaluation.reason);
+  await persistEvent(draft);
+  setEvents(current => updateEvents(current, draft));
+  closeEditor();
+}
+```
+
+As funções de persistência/estado nos exemplos são da aplicação. O formulário padrão oferece `validate`, `onSave`, `onDelete` e `onCancel`; use `key={occurrenceKey(occurrence)}` para mudar sua identidade entre ocorrências. Slots adicionais e um hook opcional de editor estão propostos em `specs/calendar-remediation/editor-extensibility.md`; ainda não fazem parte da API.
 
 ## 1. Um evento
 
@@ -24,7 +112,7 @@ const consulta = {
 };
 ```
 
-- **`time.timeZone`**: o horário é "wall-clock" naquela timezone. `'2026-07-22T09:00:00'` + `'America/Sao_Paulo'` = 9h no horário de São Paulo, independentemente da timezone de exibição. Use a tz de origem do evento (ex.: a da clínica).
+- **`time.start.timeZone` / `time.end.timeZone`**: o horário é "wall-clock" naquela timezone. `'2026-07-22T09:00:00'` + `'America/Sao_Paulo'` = 9h no horário de São Paulo, independentemente da timezone de exibição. Use a tz de origem do evento (ex.: a da clínica). Os callbacks de gesto informam `change.timeZone`, a zona dos novos horários.
 - **evento de dia inteiro** (feriado, férias): `allDay: true` e use `date` (não `dateTime`). O `end` é **exclusivo** (convenção Google): um feriado só no dia 22 vai de `22` a `23`.
 
 ```ts
@@ -37,7 +125,9 @@ const feriado = {
 
 ---
 
-## 2. Recorrência (motor próprio, superconjunto RFC 5545)
+## 2. Recorrência (subconjunto de RFC 5545)
+
+Frequências DAILY/WEEKLY/MONTHLY/YEARLY. RDATE datetime preserva horário; EXDATE datetime exclui o início exato, enquanto date-only exclui o dia. UNTIL datetime respeita hora e timezone. Valores com Z/offset são projetados na timezone do mestre, ou UTC quando ela estiver ausente. Ao chamar `expandEvent` diretamente, forneça `window.end` para regras sem COUNT/UNTIL; materialização infinita lança erro. Não há suporte completo a filtros subdiários do RFC.
 
 Coloque `recurrence` no evento. A `start`/`end` do evento definem o **horário** de cada ocorrência; a regra define **em quais dias**.
 
@@ -186,27 +276,33 @@ onDropBlocked: (info) => toast(`Não pode: ${traduz(info.reason)}`), // 'blocked
 ```ts
 app.changeView('day');   // internas: 'week' | 'day' | 'month' | 'list'
 
-import { createNDaysView, createResourceDayView, createTimelineView } from '@meucalendario/core';
+import { createNDaysView, createResourceDayView, createTimelineView } from '@jacksoncassemiro/calendara';
 app.registerView(createNDaysView(3));                 // escala de 3 dias corridos → view 'ndays-3'
 app.registerView(createResourceDayView(resources));   // Multiagenda (1 dia, N colunas) → 'resources'
 app.registerView(createTimelineView(resources));      // Timeline (recursos em linhas) → 'timeline'
 ```
 
-**View totalmente customizada** (o `render` devolve nós Preact; no React use `createReactView`):
+**View totalmente customizada** (o `render` devolve nós React; para componentes com hooks use `createReactView`):
 ```ts
-import { h } from 'preact';
+import { createElement } from 'react';
 app.registerView({
   name: 'resumo', label: 'Resumo',
   getRange: (date) => ({ days: [date], startDate: date, endDate: date }),
   navigate: (dir, date) => (dir === 'next' ? date.add({ days: 1 }) : date.subtract({ days: 1 })),
   getTitle: (range) => `Resumo de ${range.startDate.toString()}`,
-  render: (ctx) => h('ul', null, ctx.occurrences.map((o) => h('li', { key: o.event.id }, o.event.title))),
+  render: (ctx) => createElement('ul', null, ctx.occurrences.map((o) => createElement('li', { key: o.event.id }, o.event.title))),
 });
 ```
 
 ---
 
-## 8. React (`@meucalendario/react`)
+## 8. React (`@jacksoncassemiro/calendara`)
+
+O pacote único exporta motor, componentes e tipos. Importe os estilos por `@jacksoncassemiro/calendara/styles.css`; `/core` é uma entrada opcional do mesmo pacote sem renderer.
+
+`CalendarEventEditor` é um formulário opcional para criação, edição e exclusão. Recebe `event`, `occurrence` opcional, `resources`, `timeZone`, `validate`, `onSave`, `onDelete` e `onCancel`. `validate` retorna uma mensagem de erro ou undefined; callbacks podem ser assíncronos e retornar false para rejeitar. O consumidor aplica as mudanças ao estado/servidor. `context.scope` informa occurrence/series; `context.occurrence.originalStart` identifica a exceção. Monte com key da ocorrência ao trocar de evento. A interface all-day pede o último dia inclusivo e converte para fim exclusivo nos dados.
+
+Gestos multiday timed e all-day na faixa de dias preservam o intervalo completo. `EventChange` e `SelectionChange` podem incluir `endDateISO` e `allDay`. `evaluatePlacement` valida todos os dias quando `endDateISO` é fornecido, incluindo ocupação fora do range visível. Regras do cliente não substituem validação transacional no servidor.
 
 ```tsx
 const { ref, api } = useCalendar();
@@ -221,7 +317,7 @@ const { ref, api } = useCalendar();
   options={{ timeZone: 'America/Sao_Paulo', startHour: 7, endHour: 20 }}
   refetchKey={filtroAtual}                // muda ⇒ dispara eventSource de novo
   eventSource={({ start, end }) => api.buscarEventos(start, end)}
-  renderEvent={(info) => <MeuEventoReact occ={info.occurrence} />} // conteúdo React (ilha)
+  renderEvent={(info) => <MeuEventoReact occ={info.occurrence} />} // React nativo com contexto do consumidor
   customToolbar={(t) => <MinhaToolbar title={t.title} onNext={t.goNext} />}
   onEventDrop={(c) => salvar(c)}
 />;
@@ -230,6 +326,124 @@ const { ref, api } = useCalendar();
 api.next(); api.changeView('day'); api.getTitle();
 ```
 
-A instância do core é criada **uma vez**; trocar `events`/`view`/`date` entra pela API imperativa (sem re-render da árvore interna). `renderEvent`/`customToolbar` aceitam React de verdade, embutido via ilha (`ReactIsland`).
+A instância acompanha a montagem; trocar `events`/`view`/`date` entra pela API imperativa. As extensões `renderEvent`, `customToolbar` e `createReactView` pertencem à árvore React do consumidor e compartilham seus providers. Props imutáveis equivalentes são deduplicadas; mudanças de dados/view/date são agrupadas. `CalendarApp` e as fábricas de views são exportados por @jacksoncassemiro/calendara. SSR renderiza inicialmente apenas o container.
 
-> A tipagem formal (todos os campos e defaults) está em `packages/core/src/types` e em `render/state.ts` (`DEFAULT_OPTIONS`).
+`evaluateSlot` consulta constraints globais. Para criação/edição com recursos, use `api.evaluatePlacement({ dateISO, startMin, endMin, resourceId, occurrence? })`: considera expediente do recurso, capacidade e buffers. A ocorrência original opcional evita contar a própria reserva durante a edição. Para eventos atravessando dias, avalie cada segmento diário e cada recurso antes de persistir; a biblioteca não grava no servidor.
+
+`useCompactCalendar(640)` retorna `{ containerRef, compact }` e acompanha a largura do container com ResizeObserver. Defina a view inicial conforme a largura, preservando as escolhas posteriores do usuário (veja o exemplo React). Passar continuamente `view={compact ? 'day' : 'week'}` pode sobrescrever uma escolha manual quando a largura mudar. A toolbar troca botões por seletor em containers estreitos.
+
+Nas grades de horário, Tab entra na primeira célula; setas seguem o eixo de tempo ou mudam o dia/recurso, Home/End vão ao início/fim da coluna (Ctrl: grade inteira). Enter/Espaço disparam `onDateSelect` com um slot e `resourceId`, respeitando constraints, capacidade e buffers; se houver rejeição, disparam `onClickBlocked`. Sem `onDateSelect`, a ativação válida usa `onDateClick`. No mês, setas percorrem dias/semanas e Home/End a semana; a ativação mantém o comportamento do botão do dia. Seleção de intervalo e mover/redimensionar pelo teclado ainda são pendências.
+
+> A tipagem formal (todos os campos e defaults) está em `src/core/types` e em `render/state.ts` (`DEFAULT_OPTIONS`).
+
+## Editar ou excluir esta ocorrência e as seguintes
+
+`CalendarEventEditor` envia `context.scope === 'following'`. O consumidor pode chamar:
+
+```ts
+const {before, following} = splitEventSeries(temporal, master, occurrence.originalStart,
+  crypto.randomUUID(), {title: draft.title, time: draft.time, resourceIds: draft.resourceIds});
+// Substitua master por before (ou remova quando null) e persista following como novo mestre.
+// Para excluir esta e seguintes, persista somente before.
+```
+
+O corte usa a chave original da ocorrência, não seu horário efetivo após override. COUNT é dividido antes de EXDATE/cancelamentos; RDATE não consome COUNT. Exceções e overrides são particionados pelo início original e os futuros acompanham o deslocamento wall-clock do novo início. O histórico anterior permanece imutável. Um corte sem alterações recompõe a série original nos cenários existentes de frequências/filtros.
+
+O corte precisa ser uma ocorrência ativa gerada pela RRULE. Datas extras RDATE-only, troca de timezone ou all-day↔timed e início incompatível com os filtros são rejeitados. Para filtros explícitos como BYDAY=MO, reagendar o novo início para terça exige alterar a regra em uma operação própria. O helper não grava dados nem verifica constraints de todos os eventos futuros: faça essa validação e a persistência dos dois mestres em uma transação no consumidor; séries infinitas exigem uma política de janela de validação.
+
+## Espaçamento e abertura do mês
+
+`pxPerMinute` define a escala dos horários em todas as grades; `1.5` corresponde a 45 px por meia hora. `timeLabelInterval: 60` mostra rótulos a cada hora, independentemente de `slotMinutes: 30`, usado para seleção e snapping. Sem intervalo explícito, os rótulos adaptam a distância mínima conforme a escala.
+
+`monthMaxEvents` limita as faixas visíveis por semana: padrão 3, zero oculta todas, `false` mostra todas. Barras de vários dias preservam a mesma faixa; por isso um dia pode ter menos eventos visíveis que o limite. O botão informa quantas ocorrências daquele dia estão ocultas.
+
+```tsx
+<Calendar events={events}
+  options={{pxPerMinute:1.5, timeLabelInterval:60, monthMaxEvents:3}}
+  renderMonthMore={({dateISO, occurrences, close, openView}) => (
+    <MinhaLista date={dateISO} events={occurrences}
+      onClose={close} onOpenDay={() => openView('day')} />
+  )} />
+```
+
+Sem `renderMonthMore`, o conteúdo padrão aparece em popover com posicionamento e gestão de foco do Floating UI. `options.monthMoreView: 'day'` abre diretamente a view registrada na data escolhida. Para um componente externo, use `onMonthMoreClick={info => { abrirPainel(info); return false; }}`: retornar false cancela a abertura interna. `MonthMoreInfo` fornece data, todas as ocorrências, ocorrências ocultas, âncora e funções close/openView.
+
+Nas grades de semana/N dias e recursos, cabeçalho, dia inteiro e eventos compartilham uma rolagem horizontal. Containers até 640 px mantêm piso de 104 px por dia e 140 px por recurso. A barra aparece somente quando as colunas não cabem. Os tokens CSS `--mc-day-min-width` e `--mc-resource-min-width` permitem aumentar o piso.
+
+## Capacidade global e por recurso
+
+```tsx
+<Calendar
+  options={{defaultResourceCapacity: 4}}
+  resources={[
+    {id:'triagem', title:'Triagem'},             // herda 4
+    {id:'consulta', title:'Consulta', capacity:1},
+    {id:'coletas', title:'Coletas', capacity:false} // sem limite
+  ]}
+/>
+```
+
+`capacity: undefined` herda `options.defaultResourceCapacity`; `false` representa ilimitado. O padrão global também aceita `false`; omitido mantém 1. Um número próprio continua prevalecendo mesmo quando o global é ilimitado. A mesma capacidade efetiva é usada na avaliação de movimentos/criação e na indicação visual de lotação. Eventos de dia inteiro também contam na concorrência. Buffers estendem a ocupação de cada atendimento; não impõem capacidade 1. Sem limite, não há recusa por concorrência/buffer, mas expediente e bloqueios continuam sendo avaliados.
+
+## Densidade, conteúdo e edição
+
+Nas grades verticais de Dia/Semana/N dias/Recursos:
+
+```tsx
+<Calendar options={{
+  timedEventOverflow:'more', // 'shrink' (padrão), 'scroll' ou 'more'
+  eventMaxStack:3,
+  minEventWidth:110,
+  // eventMoreView:'day', // navega em vez de abrir o popover
+}} />
+```
+
+`scroll` amplia colunas conforme a concorrência visual e a largura mínima. `more` reserva uma faixa para as ocorrências excedentes de cada grupo conectado. `renderEventMore` personaliza o conteúdo do popover; `onEventMoreClick` permite substituir sua abertura retornando false, como no mês. A timeline horizontal empilha eventos em linhas e também aceita more para agrupar o excesso por intervalo.
+
+O popover padrão permite iniciar arraste de um evento para a grade. Conteúdo personalizado precisa preservar o contrato de atributos de interação ou oferecer edição própria. O editor permanece a alternativa de teclado/toque.
+
+`event.color` controla o destaque lateral. Fundo/texto padrão são os tokens `--mc-color-event-bg` / `--mc-color-event-fg`; `renderEvent` troca o conteúdo React. Cor não representa bloqueio ou capacidade. As prévias de drag/resize ocultam a origem durante o gesto e mostram o título. Alças no início/fim só aparecem quando a extremidade real está visível.
+
+`options.allowEventTypeChange: true` permite converter por arraste entre faixa de dia inteiro e grade de horários. Padrão false preserva o tipo. Timed→allDay arredonda duração para dias completos (mínimo um); allDay→timed preserva a quantidade de dias com início no horário alvo. Mudar a view ou mover no mês preserva tipo e relógio; não é uma conversão de evento.
+
+## Decoração visual por dia
+
+```tsx
+<Calendar getDayStyle={({dateISO,resourceId}) =>
+  dateISO==='2026-10-09'
+    ? {backgroundColor:'#fff7ed', color:'#9a3412'}
+    : undefined
+} />
+```
+
+`getDayStyle` recebe `dateISO`, `viewName` e recurso quando aplicável. Decora mês, grade vertical, recursos, timeline e agenda sem mudar disponibilidade. Use-o para feriados, campanhas, status ou ocupação; constraints continuam sendo a API de bloqueio. Evite propriedades de geometria (posição, altura, largura) na decoração.
+
+
+Os rótulos respeitam uma distância mínima de 60 px na timeline horizontal e 24 px nas grades verticais. Somente o modo automático adapta a frequência; um `timeLabelInterval` explícito é respeitado exatamente; isso não altera `slotMinutes` nem o snapping. A escala `pxPerMinute` usa pixels CSS: compacto 1 e amplo 2 dobram a largura temporal na timeline (e a altura nas grades verticais), sem alterar a altura das salas. Use `rem` em fontes e espaçamentos de interface; para derivar a escala de `rem`, converta a medida para pixels CSS efetivos antes de passar a opção.
+
+
+### Contrato de eixo temporal e comparação
+
+- FullCalendar separa slotDuration, slotHeaderInterval (slotLabelInterval em versões anteriores) e slotMinWidth: https://fullcalendar.io/docs/slotDuration , https://fullcalendar.io/docs/slotHeaderInterval , https://fullcalendar.io/docs/slotMinWidth .
+- DayPilot configura a altura da célula em cellHeight: https://doc.daypilot.org/calendar/cell-height/ .
+- Bryntum separa tickSize, timeResolution e headers do viewPreset: https://bryntum.com/products/scheduler-next/docs/guide/Scheduler/whats-new/api/Scheduler/view/Scheduler .
+- Schedule-X usa weekOptions.gridHeight e gridStep: https://schedule-x.dev/docs/calendar/configuration . Não tem o mesmo contrato completo de nomes do FullCalendar.
+
+Aqui, slotMinutes é o intervalo das células (e atualmente também o snapping), pxPerMinute define a escala e timeLabelInterval controla somente os textos. Exemplo: slotMinutes:30, pxPerMinute:2, timeLabelInterval:60 cria slots de 60px com rótulos separados por 120px. Intervalos explícitos nunca mudam ao trocar a escala; somente undefined (Automático) adapta os rótulos. Configurações explícitas muito densas podem produzir colisão de texto: aumente a escala ou escolha intervalo maior.
+
+
+### Playground: controles independentes
+
+Duração do slot configura slotMinutes (15/30/60 min); Tamanho do slot configura30/45/60px por divisão. A escala passada ao calendário é tamanhoEmPixels/slotMinutes. Intervalo dos rótulos configura timeLabelInterval (15/30/60min ou automático). Os valores efetivos aparecem abaixo dos controles. Mudar a duração mantém o tamanho visual escolhido por divisão; não altera o intervalo explícito dos textos.
+
+### Formulário de recorrência
+
+CalendarEventEditor expõe campos da frequência escolhida ao editar a série: intervalo, dias da semana, dia do mês (incluindo -1 para o último), mês anual e fim por quantidade ou data. Nos escopos ocorrência/seguintes, esses controles não alteram a regra da série. Editar apenas título conserva a RRULE original; campos avançados não editados são preservados. O formulário valida formato e limites; avaliar disponibilidade de todas as ocorrências futuras e persistir a série são responsabilidades do aplicativo.
+
+### Prévia do gesto
+
+O cartão do rascunho exibe o intervalo candidato atualizado e o título. Em eventos que atravessam dias, inclui as datas do intervalo completo; em dia inteiro, mostra as datas ocupadas com o fim exclusivo convertido para o último dia visível. Essa apresentação não confirma a alteração antes do fim do gesto.
+
+### Rótulos em escalas horizontais compactas
+
+Um intervalo explícito de rótulos é preservado mesmo quando a distância é curta. A timeline distribui textos em linhas alternadas para evitar colisões: 60 minutos em 30 px com rótulos a cada 30 minutos usa quatro linhas; 30 minutos em 30 px com rótulos a cada 30 minutos usa duas. O modo automático pode reduzir a frequência. Isso não modifica duração dos slots nem horários dos eventos.

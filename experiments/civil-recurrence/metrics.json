@@ -1,0 +1,127 @@
+{
+  "measuredAt": "2026-10-07T21:48:44.109Z",
+  "runtime": "v24.18.1",
+  "iterations": 10,
+  "dateScenarios": 50,
+  "eventIntegrations": 13,
+  "dstDivergences": [
+    {
+      "name": "gap start does not consume COUNT",
+      "productionStarts": [
+        "2024-03-09T02:30:00",
+        "2024-03-11T02:30:00",
+        "2024-03-12T02:30:00"
+      ],
+      "experimentalStarts": [
+        "2024-03-09T02:30:00",
+        "2024-03-10T02:30:00",
+        "2024-03-11T02:30:00"
+      ]
+    },
+    {
+      "name": "fold UTC UNTIL compares actual instant",
+      "productionStarts": [
+        "2024-11-02T01:30:00",
+        "2024-11-03T01:30:00"
+      ],
+      "experimentalStarts": [
+        "2024-11-02T01:30:00"
+      ]
+    },
+    {
+      "name": "fold EXDATE second instant retains first instant",
+      "productionStarts": [
+        "2024-11-02T01:30:00",
+        "2024-11-03T01:30:00",
+        "2024-11-04T01:30:00"
+      ],
+      "experimentalStarts": [
+        "2024-11-02T01:30:00",
+        "2024-11-04T01:30:00"
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "name": "daily DST exceptions",
+      "occurrences": 40,
+      "temporalMs": 7.923539999999991,
+      "civilMs": 0.4714899999999943,
+      "ratio": 16.805319306878378
+    },
+    {
+      "name": "monthly multiordinal",
+      "occurrences": 24,
+      "temporalMs": 1.4359499999999912,
+      "civilMs": 0.45544000000001006,
+      "ratio": 3.152885122079658
+    },
+    {
+      "name": "yearly leap",
+      "occurrences": 6,
+      "temporalMs": 0.8345500000000016,
+      "civilMs": 5.144489999999996,
+      "ratio": 0.1622221055925859
+    },
+    {
+      "name": "daily distant visible month",
+      "occurrences": 31,
+      "temporalMs": 2.331349999999998,
+      "civilMs": 9.775839999999993,
+      "ratio": 0.23848078528290145
+    }
+  ],
+  "ruleMetrics": [
+    {
+      "name": "DAILY distant window",
+      "rule": "FREQ=DAILY;UNTIL=20261031",
+      "start": "2010-01-01",
+      "window": {
+        "start": "2026-10-01",
+        "end": "2026-10-31"
+      },
+      "results": 31,
+      "temporalMs": 0.24782000000000154,
+      "civilMs": 9.586120000000005,
+      "rruleMs": 26.893349999999987,
+      "temporalToCivil": 0.0258519609602218,
+      "rruleToCivil": 2.8054468335468337
+    },
+    {
+      "name": "WEEKLY interval/WKST",
+      "rule": "FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO,WE;WKST=SU;COUNT=24",
+      "start": "2024-01-03",
+      "window": {},
+      "results": 24,
+      "temporalMs": 0.1989699999999857,
+      "civilMs": 0.07821999999998752,
+      "rruleMs": 0.08873000000000957,
+      "temporalToCivil": 2.5437228330352526,
+      "rruleToCivil": 1.1343646126313438
+    },
+    {
+      "name": "MONTHLY multiordinal",
+      "rule": "FREQ=MONTHLY;BYDAY=2FR,4FR;COUNT=24",
+      "start": "2024-03-08",
+      "window": {},
+      "results": 24,
+      "temporalMs": 0.4473700000000008,
+      "civilMs": 0.3649700000000166,
+      "rruleMs": 0.13151000000000296,
+      "temporalToCivil": 1.22577198125868,
+      "rruleToCivil": 0.36033098610843894
+    },
+    {
+      "name": "YEARLY leap",
+      "rule": "FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29;COUNT=6",
+      "start": "2024-02-28",
+      "window": {},
+      "results": 6,
+      "temporalMs": 0.08783000000000811,
+      "civilMs": 5.5348799999999985,
+      "rruleMs": 0.3475900000000138,
+      "temporalToCivil": 0.01586845604602234,
+      "rruleToCivil": 0.06279991616801338
+    }
+  ]
+}

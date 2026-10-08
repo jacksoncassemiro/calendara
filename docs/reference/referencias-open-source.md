@@ -29,7 +29,7 @@ rerender do calendário inteiro. **É exatamente o desenho que vamos adotar** (v
   é plugável — não está no coração. Vamos embutir a nossa (Temporal) como parte do core, mas mantendo-a
   isolável.
 - `google-calendar` é um plugin de **event source** (fetch por período) — confirma o padrão de
-  `EventsSourceConfig.fetch({start,end})` que o Jackson já gosta.
+  `EventsSourceConfig.fetch({start,end})` como contrato de busca por período.
 - Licença MIT (standard). Premium (timeline/resource) é comercial — não usar como base de código.
 
 ## 2. Schedule-X (`schedule-x/schedule-x`)
@@ -81,12 +81,44 @@ Next). Bom para inspirar o visual das views (month/week/day/agenda/year) e o DnD
 Fonte: documentação/blog oficial (código fechado). Serve como **checklist de paridade de features**:
 - Views: day, week, work-week, month, **agenda**, e **timeline** (day/week/work-week/month/year).
 - **Resources/grouping**: agrupar eventos por recurso (sala, profissional, equipamento) em linhas —
-  relevante para o wsaude (agenda por profissional). Marcar como **fase posterior** (timeline/resource).
+  relevante para o aplicação consumidora (agenda por profissional). Marcar como **fase posterior** (timeline/resource).
 - Recorrência com exceções por ocorrência; timezone; drag & resize (módulo `resize`, `allowResizing`).
 - Integração com Google/Outlook; **load on demand** (fetch por período) para performance.
 - Há um "Pure React Scheduler" novo (2026), 100% hooks — indica a direção de mercado de schedulers
   idiomáticos em React, mas com estado/perf próprios. **Não** é base de código (licença comercial);
   usamos apenas como referência de **superfície de recursos**.
+
+---
+
+## 5. Como cada um resolve MOBILE / viewport estreita
+
+O problema é sempre o mesmo: a **week view** é uma grade de 7 colunas; num celular de 375px cada
+coluna cai para ~40px e vira ilegível. As saídas do mercado são só duas — **rolar** ou **trocar de
+view** — e cada projeto escolheu uma:
+
+| Projeto | Saída | Como |
+|---|---|---|
+| **FullCalendar** | **Rolar** | `dayMinWidth`: piso de largura por coluna; abaixo disso aparece **scroll horizontal** em vez de espremer. Vale para timegrid, daygrid e resource view. Complemento `dayNarrowWidth` (texto de data em variante curta quando a coluna fica estreita) e `stickyFooterScrollbar` (barra horizontal presa ao rodapé da viewport). **Detalhe importante: `dayMinWidth` está no plugin `scrollgrid`, que é PREMIUM** — a saída "certa" do FullCalendar é paga. |
+| **Schedule-X** | **Trocar de view** | Breakpoint interno de **700px**. Cada view declara compatibilidade com tela pequena/grande, e abaixo do breakpoint o calendário só exibe as compatíveis. Na tabela oficial, **Week e Month-grid são "large screen only"**; Day, Month-agenda, Week-agenda e List são as de tela pequena. Consequência: o app é **obrigado** a registrar pelo menos uma view de cada lado. |
+| **react-big-calendar** | **Nenhuma** | Sem estratégia responsiva. As issues do repo pedem o básico (datas cortadas no mobile, `onSelectSlot` que não funciona no toque) e a resposta da comunidade é workaround no app: custom view de 3 dias com paginação, ou cair na **agenda view**. |
+| **Mobiscroll / Syncfusion** (comerciais) | **Trocar de view**, configurável | Opção `responsive` declarativa: o app mapeia breakpoint → view (day no celular, week no desktop). |
+
+**Leitura para nós.** As duas saídas não competem — resolvem coisas diferentes:
+
+- **Trocar de view é a melhor UX**, e é o que Schedule-X/Mobiscroll fazem. Mas empurra uma decisão
+  para o app (quais views registrar, quando trocar) e, no caso do Schedule-X, chega a **impor**
+  quais views existem.
+- **Rolar é o piso de segurança**: funciona sem nenhuma decisão do app e sem forçar view alguma.
+
+Por isso a nossa decisão é **implementar o piso de rolagem** (estilo `dayMinWidth`, só que de graça
+e por token: `--mc-day-min-width`) **e recomendar** a troca para Dia/Agenda no celular como a UX
+preferida — sem transformar isso em regra do core. Detalhes em `../04-ESTILIZACAO.md`.
+
+Um ponto que nenhum dos três resolve bem e que herdamos: **alvo de toque**. Nossos botões de toolbar
+tinham `padding: 4px 10px` (~26px de altura), abaixo dos 44px de WCAG 2.5.5 / guias iOS e Android —
+daí o token `--mc-touch-target`.
+
+Fontes: [dayMinWidth](https://fullcalendar.io/docs/dayMinWidth) · [dayNarrowWidth](https://fullcalendar.io/docs/dayNarrowWidth) · [stickyFooterScrollbar](https://fullcalendar.io/docs/stickyFooterScrollbar) · [Schedule-X — Calendar views](https://schedule-x.dev/docs/calendar/views) · [react-big-calendar #2197](https://github.com/bigcalendar/react-big-calendar/issues/2197) · [react-big-calendar #1005](https://github.com/jquense/react-big-calendar/issues/1005)
 
 ---
 
@@ -99,6 +131,10 @@ Fonte: documentação/blog oficial (código fechado). Serve como **checklist de 
 3. **Motor de recorrência próprio com iterador-por-FREQ + recurrence-set + parser + specs por freq**
    (padrão Schedule-X), porém sobre **Temporal** (nossa decisão) e validado contra rrule.js.
 4. **Event source por período** (padrão FullCalendar/Syncfusion/`testes-nextjs`) como primeira classe.
-5. **Resource/Timeline views** = **Agenda Desvinculada** (requisito real do wsaude: agenda de exames e
+5. **Resource/Timeline views** = **Agenda Desvinculada** (requisito real do aplicação consumidora: agenda de exames e
    equipamentos). Promovido de backlog para **Fase 3B**; o núcleo nasce resource-aware na Fase 1.
    Detalhamento em `agenda-desvinculada.md`.
+6. **Responsivo = piso de rolagem no core + troca de view recomendada ao app.** Pegamos o
+   `dayMinWidth` do FullCalendar (mas por token e sem plugin pago) como garantia mínima, e deixamos
+   a troca Semana→Dia/Agenda no celular (padrão Schedule-X) como recomendação, não como imposição.
+   Tudo em CSS: nenhum breakpoint vaza para o core. Ver `../04-ESTILIZACAO.md`.

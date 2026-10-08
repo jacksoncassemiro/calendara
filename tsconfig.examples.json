@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "baseUrl": ".",
+    "paths": {
+      "@jacksoncassemiro/calendara": ["src/index.ts"],
+      "@jacksoncassemiro/calendara/core": ["src/core/index.ts"]
+    }
+  },
+  "include": ["examples/**/*.tsx", "src/**/*.ts", "src/**/*.tsx"]
+}
