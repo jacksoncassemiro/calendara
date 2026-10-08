@@ -16,7 +16,7 @@ async (page) => {
   };
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.reload();
-  await page.getByRole('button', { name: 'Voltar ao exemplo', exact: true }).click();
+  await page.getByRole('button', { name: 'Restaurar data de exemplo', exact: true }).click();
   await view('Mês');
   const more = page.locator('[data-mc-month-day="2026-10-07"] .mc-month-more');
   await more.focus();

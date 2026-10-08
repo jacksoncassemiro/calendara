@@ -1,0 +1,104 @@
+.calendara-site-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  padding: 1rem max(1.25rem, calc((100vw - 1480px) / 2));
+  border-bottom: 1px solid var(--demo-border, var(--site-line));
+  background: var(--demo-page, var(--site-surface));
+  color: var(--demo-text, var(--site-text));
+}
+.calendara-site-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--demo-heading, var(--site-blue));
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-decoration: none;
+}
+.calendara-site-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 25px;
+  height: 26px;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+}
+.calendara-site-mark i {
+  width: 3px;
+  height: 9px;
+  background: currentColor;
+}
+.calendara-site-mark i:nth-child(2) {
+  height: 15px;
+}
+.calendara-site-mark i:nth-child(3) {
+  height: 12px;
+}
+.calendara-site-navigation {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+}
+.calendara-site-navigation a {
+  color: var(--demo-heading, var(--site-link));
+  text-underline-offset: 3px;
+}
+.calendara-site-preferences {
+  display: flex;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+.calendara-site-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--demo-border, var(--site-line));
+  border-radius: 6px;
+}
+.calendara-site-toggle button {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.calendara-site-toggle button[aria-pressed='true'] {
+  background: var(--demo-tint, var(--site-active));
+  color: var(--demo-heading, var(--site-blue));
+  font-weight: 700;
+}
+.calendara-site-header :focus-visible {
+  outline: 2px solid var(--demo-heading, var(--site-blue));
+  outline-offset: 3px;
+}
+@media (max-width: 640px) {
+  .calendara-site-header {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  .calendara-site-brand {
+    font-size: 1.2rem;
+  }
+  .calendara-site-navigation {
+    order: 3;
+    width: 100%;
+    gap: 1rem;
+  }
+  .calendara-site-preferences {
+    gap: 0.4rem;
+  }
+  .calendara-site-toggle button {
+    min-width: 30px;
+    padding: 4px;
+  }
+}

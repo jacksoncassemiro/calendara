@@ -51,17 +51,26 @@ async (page) => {
   await page.getByLabel('Search fields or descriptions', { exact: true }).fill('does-not-exist');
   await page.getByRole('status').filter({ hasText: 'No fields match your search.' }).waitFor();
 
-  await page.getByLabel('Theme', { exact: true }).selectOption('dark');
+  await page
+    .getByRole('group', { name: 'Theme', exact: true })
+    .getByRole('button', { name: 'Dark', exact: true })
+    .click();
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
   await page.reload();
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
   await page.screenshot({ path: 'output/layout-review/docs-dark-en.png' });
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.getByLabel('Theme', { exact: true }).selectOption('system');
+  await page
+    .getByRole('group', { name: 'Theme', exact: true })
+    .getByRole('button', { name: 'System', exact: true })
+    .click();
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
-  await page.getByLabel('Theme', { exact: true }).selectOption('light');
+  await page
+    .getByRole('group', { name: 'Theme', exact: true })
+    .getByRole('button', { name: 'Light', exact: true })
+    .click();
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
 
   const featureLinks = await page

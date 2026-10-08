@@ -8,14 +8,14 @@ A personal, experimental project developed with assistance from OpenAI Codex. AP
 
 ## Install
 
-Calendara is distributed as a `.tgz` asset attached to a GitHub Release. It is not published to npm. After a release is published, copy its asset URL from [Releases](https://github.com/jacksoncassemiro/calendara/releases), then run:
+Calendara is distributed as a `.tgz` asset attached to a GitHub Release. It is not published to npm. Version [0.1.0](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.1.0) is available. Install its fixed asset URL:
 
 ```sh
 yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.1.0/calendara-0.1.0.tgz
 yarn add react react-dom
 ```
 
-This URL shows the planned first-release format; it does not mean the asset already exists. Choose an available tag and matching asset. React and React DOM 18 or 19 are peers; use matching versions. The [installation guide](docs/en/getting-started.md) covers a new React project and local installation.
+React and React DOM 18 or 19 are peers; use matching versions. The [installation guide](docs/en/getting-started.md) covers a new React project and local installation.
 
 ## Render
 
@@ -39,7 +39,7 @@ export function App() {
 }
 ```
 
-`views` selects the complete available set. Omit it for week, day, month and list; use `BUILTIN_VIEWS` to extend that set. `initialView` and `initialDate` apply only at mount. Your application creates and persists events. The [API guide](docs/en/api.md) shows drag/resize persistence and custom forms.
+`views` is required and selects the complete available set. Pass `BUILTIN_VIEWS` for the standard set, or list only the views you need. `initialView` and `initialDate` apply only at mount. Your application creates and persists events. The [API guide](docs/en/api.md) shows drag/resize persistence and custom forms.
 
 ## Included
 

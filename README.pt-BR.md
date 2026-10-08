@@ -8,14 +8,14 @@ Projeto pessoal e experimental desenvolvido com assistência do OpenAI Codex. As
 
 ## Instalação
 
-Calendara é distribuída como `.tgz` anexado a uma GitHub Release. Não está publicada no npm. Após uma release ser publicada, copie a URL do pacote em [Releases](https://github.com/jacksoncassemiro/calendara/releases) e execute:
+Calendara é distribuída como `.tgz` anexado a uma GitHub Release. Não está publicada no npm. A versão [0.1.0](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.1.0) está disponível. Instale pela URL fixa do pacote:
 
 ```sh
 yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.1.0/calendara-0.1.0.tgz
 yarn add react react-dom
 ```
 
-A URL representa o formato previsto da primeira release; não afirma que o arquivo já existe. Escolha uma tag disponível e seu arquivo correspondente. React e React DOM 18 ou 19 são peers; use versões compatíveis entre si. O [guia de instalação](docs/pt-BR/getting-started.md) inclui um projeto React novo e instalação local.
+React e React DOM 18 ou 19 são peers; use versões compatíveis entre si. O [guia de instalação](docs/pt-BR/getting-started.md) inclui um projeto React novo e instalação local.
 
 ## Renderizar
 
@@ -39,7 +39,7 @@ export function App() {
 }
 ```
 
-`views` define o conjunto completo. Omitir usa semana, dia, mês e agenda; `BUILTIN_VIEWS` amplia esse conjunto. `initialView` e `initialDate` valem somente na montagem. A aplicação cria e persiste eventos. Veja no [guia da API](docs/pt-BR/api.md) como salvar movimentos/redimensionamentos e usar formulário próprio.
+`views` é obrigatório e define o conjunto completo. Passe `BUILTIN_VIEWS` para o conjunto padrão ou liste somente as views necessárias. `initialView` e `initialDate` valem somente na montagem. A aplicação cria e persiste eventos. Veja no [guia da API](docs/pt-BR/api.md) como salvar movimentos/redimensionamentos e usar formulário próprio.
 
 ## Recursos disponíveis
 

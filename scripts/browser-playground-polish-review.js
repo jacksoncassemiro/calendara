@@ -45,10 +45,57 @@ async (page) => {
     'Documentation link preserves language and theme',
   );
   await page.screenshot({ path: 'output/layout-review/playground-summary-dark-en.png' });
+  await page.getByRole('link', { name: 'Back to documentation', exact: true }).click();
+  await page
+    .getByRole('heading', { name: 'A schedule that fits the way you work.', exact: true })
+    .waitFor();
+  check(
+    new URL(page.url()).searchParams.get('lang') === 'en',
+    'Return link opens English documentation',
+  );
+  check(
+    (await page.locator('html').getAttribute('data-theme')) === 'dark',
+    'Return link preserves dark theme',
+  );
+  await page.goto(`${playground}?lang=en&theme=dark&view=summary`);
+  await page.getByRole('heading', { name: 'Daily summary', exact: true }).waitFor();
 
   await page.getByLabel('Reject next save', { exact: true }).check();
   await page.locator('.demo-summary-list button').filter({ hasText: 'Weekly follow-up' }).click();
   const editor = page.getByRole('dialog');
+  const editorContrast = await editor.evaluate((dialog) => {
+    const luminance = (color) => {
+      const channels = color
+        .match(/[\d.]+/g)
+        .slice(0, 3)
+        .map(Number)
+        .map((channel) => {
+          const normalized = channel / 255;
+          return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+        });
+      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+    };
+    const contrast = (foreground, background) => {
+      const values = [luminance(foreground), luminance(background)].sort(
+        (first, second) => second - first,
+      );
+      return (values[0] + 0.05) / (values[1] + 0.05);
+    };
+    const surface = getComputedStyle(dialog).backgroundColor;
+    return [...dialog.querySelectorAll('label, legend, input:not([type="checkbox"]), select')].map(
+      (element) => {
+        const style = getComputedStyle(element);
+        const background =
+          style.backgroundColor === 'rgba(0, 0, 0, 0)' ? surface : style.backgroundColor;
+        return contrast(style.color, background);
+      },
+    );
+  });
+  check(
+    editorContrast.every((ratio) => ratio >= 4.5),
+    'Dark editor labels, legends and fields meet 4.5:1 contrast',
+  );
+  await page.screenshot({ path: 'output/layout-review/playground-editor-dark-en.png' });
   await editor.getByLabel('Apply changes', { exact: true }).selectOption('series');
   await editor.getByLabel('Repeat', { exact: true }).selectOption('YEARLY');
   await editor.getByLabel('Recurring month', { exact: true }).waitFor();
@@ -73,7 +120,10 @@ async (page) => {
     'Rejected form does not persist edited data',
   );
 
-  await page.getByLabel('Theme', { exact: true }).selectOption('light');
+  await page
+    .getByRole('group', { name: 'Theme', exact: true })
+    .getByRole('button', { name: 'Light', exact: true })
+    .click();
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
   await page.reload();
   await page.locator('[data-mc-root]').waitFor();
