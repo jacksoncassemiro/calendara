@@ -4,11 +4,14 @@
 
 ## [Unreleased]
 
-Sem alterações após a base preparada para 0.1.0.
+### Corrigido
+
+- Navegação compartilhada entre documentação/playground, toggles compactos de idioma/tema e link de retorno funcional.
+- Contraste do editor escuro; buffers de preparação diferenciados dos bloqueios fixos.
 
 ## [0.1.0] - 2026-10-08
 
-Candidato à primeira release; ainda não publicado.
+Primeira release experimental sob licença MIT.
 
 ### Adicionado
 
@@ -39,4 +42,4 @@ Candidato à primeira release; ainda não publicado.
 
 - Runtime validado: React 19/Edge. Safari/mobile físico e leitores de tela ainda precisam de validação.
 - Sem persistência automática, RFC 5545 completo, exportação ICS, virtualização ou timeline de recursos de vários dias.
-- Nenhuma release foi enviada; URLs de instalação só funcionam após o mantenedor publicar o draft.
+- Pacotes publicados são imutáveis; documentação/playground podem receber deploys separados.

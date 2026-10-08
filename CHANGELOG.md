@@ -4,11 +4,14 @@
 
 ## [Unreleased]
 
-No changes after the prepared 0.1.0 baseline.
+### Fixed
+
+- Shared documentation/playground navigation, compact language/theme toggles and a working return link.
+- Dark editor contrast; preparation buffers are clearly distinguished from fixed closures.
 
 ## [0.1.0] - 2026-10-08
 
-Initial release candidate; not published yet.
+Initial experimental release under the MIT license.
 
 ### Added
 
@@ -39,4 +42,4 @@ Initial release candidate; not published yet.
 
 - React 19/Edge is the tested runtime; physical Safari/mobile and screen-reader validation remains open.
 - No automatic persistence, full RFC 5545 coverage, ICS export, resource virtualization or multi-day resource timeline.
-- No release has been uploaded; installation URLs become usable after a maintainer publishes the draft.
+- Versioned package assets are immutable; documentation/playground updates can be deployed separately.

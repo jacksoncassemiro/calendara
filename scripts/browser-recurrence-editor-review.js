@@ -1,7 +1,7 @@
 async (page) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.reload();
-  await page.getByRole('button', { name: 'Voltar ao exemplo', exact: true }).click();
+  await page.getByRole('button', { name: 'Restaurar data de exemplo', exact: true }).click();
   await page.getByRole('button', { name: 'Dia', exact: true }).click();
   const slot = page.locator('[data-mc-day="2026-10-07"] [data-mc-cell-start="900"]');
   await slot.scrollIntoViewIfNeeded();

@@ -1,6 +1,6 @@
 async (page) => {
   await page.reload();
-  await page.getByRole('button', { name: 'Voltar ao exemplo', exact: true }).click();
+  await page.getByRole('button', { name: 'Restaurar data de exemplo', exact: true }).click();
   const changeView = async (label) => {
     const button = page.getByRole('button', { name: label, exact: true });
     if (await button.isVisible()) await button.click();

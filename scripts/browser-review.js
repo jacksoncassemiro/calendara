@@ -22,7 +22,7 @@ async (page) => {
   };
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('combobox', { name: 'Tamanho do slot', exact: true }).selectOption('1');
-  await page.getByRole('button', { name: 'Voltar ao exemplo', exact: true }).click();
+  await page.getByRole('button', { name: 'Restaurar data de exemplo', exact: true }).click();
   await page.getByRole('button', { name: 'Semana', exact: true }).click();
   await page.locator('[data-mc-event]').first().waitFor();
   const civilComparison = await page.evaluate(async () => {
@@ -374,7 +374,7 @@ async (page) => {
     await page.getByRole('button', { name: 'Período anterior', exact: true }).click();
   await page.locator('[data-mc-event][title="Ocorrência revisada"]').waitFor();
   results.push('Este e seguintes: edição/exclusão preservam override passado');
-  await page.getByRole('button', { name: 'Voltar ao exemplo', exact: true }).click();
+  await page.getByRole('button', { name: 'Restaurar data de exemplo', exact: true }).click();
   await page.getByRole('button', { name: 'Desmontar calendário' }).click();
   check((await page.locator('[data-mc-root]').count()) === 0, 'Unmount: DOM removido');
   await page.getByRole('button', { name: 'Montar calendário' }).click();

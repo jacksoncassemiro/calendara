@@ -1,6 +1,6 @@
 # Calendara — estado atual
 
-Atualizado em 2026-10-08. Biblioteca React nativa, pacote único `@jacksoncassemiro/calendara`, versão candidata 0.1.0, licença MIT. Projeto pessoal e experimental desenvolvido com assistência do Codex; ainda não publicado.
+Atualizado em 2026-10-08. Biblioteca React nativa, pacote único `@jacksoncassemiro/calendara`, versão 0.1.0, licença MIT. Projeto pessoal e experimental desenvolvido com assistência do Codex; release experimental publicada em 2026-10-08.
 
 ## Uso e organização
 
@@ -22,11 +22,11 @@ O fallback interno de views foi removido após confirmar retenção indevida. Ap
 
 ## Validação e publicação
 
-Tipos, build, pacote ESM/CJS e consumidor aprovados; 344 testes em 33 arquivos aprovados. Os 26 roteiros de calendário passaram no Edge. A documentação passou separadamente no build estático com base `/calendara/`, inclusive layouts de 320/375 px, idiomas, busca e links. Artefatos em `output/`, ignorado pelo Git.
+Tipos, build, pacote ESM/CJS e consumidor aprovados; 345 testes em 33 arquivos aprovados. Os 28 roteiros de calendário/site passaram no Edge e na CI do Chrome. A documentação passou separadamente no build estático com base `/calendara/`, inclusive layouts de 320/375 px, idiomas, busca e links. Artefatos em `output/`, ignorado pelo Git.
 
 Auditoria de dependências em 08/10: nenhum advisory conhecido. Workflows passaram no actionlint. Empacotamento de release passou em fixture Git isolada, incluindo rejeição de versão, checkout sujo e tag incompatível. [Controles de publicação](publishing-security.md).
 
-O remoto foi renomeado para `calendara`. Continua privado. Main/develop exigem PR/CI; tags de versão são protegidas e ambientes aceitam main. Pages via Actions foi habilitado. Revisores obrigatórios no ambiente foram recusados pelo plano do GitHub; release permanece draft com publicação manual. Nenhuma release ou reescrita do histórico foi realizada.
+O remoto foi renomeado para `calendara`. Está público. Main/develop exigem PR/CI; tags de versão são protegidas e ambientes aceitam main. Pages via Actions foi habilitado. O ambiente release exige aprovação manual do proprietário, sem bypass administrativo. A release v0.1.0 foi publicada com pacote compilado e SHA256SUMS após aprovação explícita. Nenhuma reescrita do histórico foi realizada.
 
 ## Limites e backlog
 
