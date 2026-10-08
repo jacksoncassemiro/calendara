@@ -1,0 +1,92 @@
+name: Prepare GitHub release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag on main, matching package.json (v0.1.1)'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  package:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      commit: ${{ steps.package.outputs.commit }}
+      prerelease: ${{ steps.package.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate and checkout tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          node -e 'if (!/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/.test(process.env.RELEASE_TAG)) process.exit(1)'
+          git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}"
+          git merge-base --is-ancestor "refs/tags/${RELEASE_TAG}^{commit}" origin/main
+          git checkout --detach "refs/tags/${RELEASE_TAG}"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - run: corepack enable && corepack prepare yarn@1.22.22 --activate
+      - run: yarn install --frozen-lockfile --non-interactive
+      - run: node scripts/check-publication.mjs
+      - run: yarn verify
+      - name: Install browser
+        run: node node_modules/playwright/cli.js install --with-deps chrome
+      - name: Validate browser interactions
+        env:
+          MC_BROWSER: chrome
+        run: yarn test:browser
+      - name: Package and checksum
+        id: package
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/prepare-release.mjs "$RELEASE_TAG"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-package
+          path: output/release/*
+          if-no-files-found: error
+          retention-days: 7
+  draft:
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-package
+          path: release-package
+      - name: Create draft release
+        working-directory: release-package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_COMMIT: ${{ needs.package.outputs.commit }}
+          PRERELEASE: ${{ needs.package.outputs.prerelease }}
+        run: |
+          archive_name="calendara-${RELEASE_TAG#v}.tgz"
+          test -f "$archive_name"
+          test "$(wc -l < SHA256SUMS)" -eq 1
+          checksum=$(cat SHA256SUMS)
+          digest=${checksum%%  *}
+          test "$checksum" = "$digest  $archive_name"
+          [[ "$digest" =~ ^[0-9a-f]{64}$ ]]
+          sha256sum --check SHA256SUMS
+          current_commit=$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq .sha)
+          if [ "$current_commit" != "$RELEASE_COMMIT" ]; then echo 'Release tag changed after validation.' >&2; exit 1; fi
+          args=("$RELEASE_TAG" --verify-tag --draft --title "$RELEASE_TAG" --target "$RELEASE_COMMIT" --notes-file release-notes.md)
+          if [ "$PRERELEASE" = true ]; then args+=(--prerelease); fi
+          gh release create "${args[@]}" "$archive_name" SHA256SUMS

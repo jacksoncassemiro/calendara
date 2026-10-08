@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.idea/
+.vscode/
+yarn-error.log
+npm-debug.log*
+.playwright-cli/
+output/
+examples/generated/

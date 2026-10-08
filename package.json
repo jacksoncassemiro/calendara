@@ -1,0 +1,96 @@
+{
+  "name": "@jacksoncassemiro/calendara",
+  "version": "0.1.1",
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
+  "packageManager": "yarn@1.22.22",
+  "scripts": {
+    "build": "node scripts/build-package.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "docs:model": "node scripts/build-docs-model.mjs",
+    "typecheck": "yarn docs:model && node scripts/typecheck.mjs",
+    "dev": "yarn docs:model && vite --host 127.0.0.1 --open /",
+    "test:package": "node scripts/package-smoke.mjs",
+    "build:demo": "yarn docs:model && vite build",
+    "test:browser": "node scripts/run-browser-review.mjs",
+    "audit:dependencies": "node scripts/audit-dependencies.mjs",
+    "check:publication": "node scripts/check-publication.mjs",
+    "export:clean": "node scripts/export-clean-repository.mjs",
+    "format": "prettier --write src tests scripts examples *.ts *.json *.html styles.css",
+    "format:check": "prettier --check src tests scripts examples *.ts *.json *.html styles.css",
+    "verify": "yarn typecheck && yarn test && yarn build && yarn test:package && yarn build:demo"
+  },
+  "devDependencies": {
+    "@playwright/cli": "0.1.22",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.1.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "ical.js": "^2.2.1",
+    "jsdom": "30.1.2",
+    "prettier": "3.9.9",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "rrule": "2.8.1",
+    "typescript": "5.5.4",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  },
+  "license": "MIT",
+  "author": "Jackson Cassemiro",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacksoncassemiro/calendara.git"
+  },
+  "homepage": "https://github.com/jacksoncassemiro/calendara#readme",
+  "bugs": {
+    "url": "https://github.com/jacksoncassemiro/calendara/issues"
+  },
+  "keywords": [
+    "react",
+    "calendar",
+    "scheduler",
+    "resources",
+    "recurrence",
+    "typescript"
+  ],
+  "description": "Experimental React calendar with configurable views, recurrence and resource scheduling.",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./core": {
+      "types": "./dist/esm/core/index.d.ts",
+      "import": "./dist/esm/core/index.js",
+      "require": "./dist/cjs/core/index.js"
+    },
+    "./styles.css": "./styles.css"
+  },
+  "files": [
+    "LICENSE",
+    "README.pt-BR.md",
+    "dist/esm",
+    "dist/cjs",
+    "styles.css"
+  ],
+  "sideEffects": [
+    "./styles.css"
+  ],
+  "dependencies": {
+    "@floating-ui/react": "^0.27.20",
+    "@js-temporal/polyfill": "0.5.1",
+    "rrule-temporal": "2.2.8"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  }
+}

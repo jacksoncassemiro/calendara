@@ -1,0 +1,85 @@
+.focused-main {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.focused-main a {
+  color: var(--demo-heading);
+}
+.focused-main h1 {
+  color: var(--demo-heading);
+}
+.focused-catalog {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 24px;
+}
+.focused-catalog [aria-current='page'] {
+  font-weight: 700;
+  text-decoration-thickness: 3px;
+}
+.focused-controls {
+  border: 1px solid var(--demo-border);
+  background: var(--demo-surface);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.focused-controls > button,
+.focused-controls output {
+  margin-left: 8px;
+}
+.focused-controls input,
+.focused-controls button,
+.focused-toolbar button {
+  font: inherit;
+  color: var(--demo-text);
+  background: var(--demo-surface);
+  border: 1px solid var(--demo-border);
+  border-radius: 6px;
+  padding: 8px;
+}
+.focused-controls input[type='range'] {
+  max-width: 100%;
+  vertical-align: middle;
+}
+.focused-resizer {
+  resize: horizontal;
+  overflow: auto;
+  max-width: 100%;
+  min-width: min(280px, 100%);
+  padding-bottom: 12px;
+  border: 1px dashed var(--demo-border);
+}
+.focused-archive {
+  min-height: 80px;
+  margin-top: 16px;
+  border: 1px dashed var(--demo-border);
+  padding: 12px;
+}
+.focused-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  gap: 12px;
+}
+.focused-summary {
+  padding: 16px;
+}
+.focused-status {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.focused-code {
+  overflow: auto;
+  padding: 16px;
+  background: var(--demo-tint);
+  border-radius: 8px;
+}
+@media (max-width: 480px) {
+  .focused-main {
+    padding: 12px;
+  }
+}
