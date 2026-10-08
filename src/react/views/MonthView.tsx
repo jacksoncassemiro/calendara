@@ -17,6 +17,7 @@ import type {
   ViewRenderContext,
 } from '../viewTypes.js';
 import { formatDate, formatDraftInterval, formatHourLabel } from './formatting/timeLabels.js';
+import { getViewLabels } from './formatting/viewLabels.js';
 import { occurrenceDays } from './layout/occurrenceDays.js';
 import { packDateSpans } from './layout/spanLayout.js';
 const MonthMorePopover = lazy(() =>
@@ -127,6 +128,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
     return () => observer.disconnect();
   }, []);
   const { temporal, options, range, occurrences, nowMs } = props.context;
+  const labels = getViewLabels(options.locale);
   const visibleStartMin = resolveHour(options.startHour) * 60;
   const visibleEndMin = resolveHour(options.endHour) * 60;
   const unavailableDays = new Set(
@@ -321,7 +323,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                           });
                         }
                       }}
-                      aria-label={`${formatDate(day, options.locale, { dateStyle: 'full' })}${compact ? `, ${chips.length} eventos` : ''}${unavailableDays.has(dayISO) ? ', sem horários disponíveis na faixa exibida' : ''}`}
+                      aria-label={`${formatDate(day, options.locale, { dateStyle: 'full' })}${compact ? `, ${chips.length} ${labels.events}` : ''}${unavailableDays.has(dayISO) ? `, ${labels.unavailableRange}` : ''}`}
                       aria-pressed={compact ? dayISO === selectedDay.toString() : undefined}
                       aria-controls={compact ? detailId : undefined}
                       aria-current={isToday ? 'date' : undefined}
@@ -379,8 +381,8 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                             (draft.eventId
                               ? (occurrences.find(
                                   (occurrence) => occurrenceKey(occurrence) === draft.eventId,
-                                )?.event.title ?? 'Novo intervalo')
-                              : 'Novo intervalo')}
+                                )?.event.title ?? labels.newInterval)
+                              : labels.newInterval)}
                         </span>
                         {!draft.valid && (
                           <span className="mc-draft-reason">{` · Indisponível: ${draft.reason}`}</span>
@@ -465,7 +467,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                         style={{ position: 'absolute', top: visibleLanes * 22 }}
                         aria-expanded={expandedISO === dayISO}
                         aria-controls={detailId}
-                        aria-label={`Mais ${hiddenCount} eventos em ${formatDate(day, options.locale, { dateStyle: 'full' })}`}
+                        aria-label={`${labels.moreEvents} ${hiddenCount} ${labels.events} ${labels.onDate} ${formatDate(day, options.locale, { dateStyle: 'full' })}`}
                         onClick={(click) => {
                           if (expandedISO === dayISO) closeDetail();
                           else {
@@ -497,7 +499,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                           }
                         }}
                       >
-                        +{hiddenCount} mais
+                        +{hiddenCount} {labels.more}
                       </button>
                     )}
                   </div>
@@ -509,8 +511,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
       })}
       {unavailableDays.size > 0 && (
         <p className="mc-month-availability-legend" data-mc-availability-legend>
-          Dias hachurados: sem horários disponíveis na faixa exibida, pelas regras gerais do
-          calendário. A disponibilidade de cada recurso pode variar.
+          {labels.unavailableDays}
         </p>
       )}
       {showDetail &&
@@ -518,7 +519,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
           <section
             id={detailId}
             className="mc-month-detail"
-            aria-label="Eventos do dia selecionado"
+            aria-label={labels.selectedDayEvents}
             onKeyDown={(event) => {
               if (!compact && event.key === 'Escape') {
                 event.preventDefault();
@@ -529,9 +530,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
             <h3 ref={detailHeadingRef} tabIndex={-1} aria-live="polite">
               {formatDate(selectedDay, options.locale, { dateStyle: 'full' })}
             </h3>
-            {selectedChips.length === 0 && (
-              <p className="mc-list-empty">Nenhum evento neste dia.</p>
-            )}
+            {selectedChips.length === 0 && <p className="mc-list-empty">{labels.noEventsDay}</p>}
             {selectedChips.map((chip) => (
               <div
                 key={chip.id}
@@ -561,7 +560,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                 ) : (
                   <>
                     <span className="mc-list-time">
-                      {chip.isAllDay ? 'dia inteiro' : chip.timeLabel}
+                      {chip.isAllDay ? labels.allDay : chip.timeLabel}
                     </span>
                     <span className="mc-list-title">{chip.occurrence.event.title}</span>
                   </>
@@ -574,7 +573,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                 className="mc-view-btn"
                 onClick={() => props.context.onDateClick?.(selectedDay.toString())}
               >
-                Criar evento neste dia
+                {labels.createEventDay}
               </button>
             )}
           </section>
@@ -591,6 +590,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                   dateStyle: 'full',
                 })}
                 onClose={closeDetail}
+                locale={options.locale}
               >
                 {props.context.renderMonthMore ? (
                   props.context.renderMonthMore({
@@ -650,7 +650,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                           })
                         ) : (
                           <>
-                            <span>{chip.isAllDay ? 'dia inteiro' : chip.timeLabel}</span>
+                            <span>{chip.isAllDay ? labels.allDay : chip.timeLabel}</span>
                             <span>{chip.occurrence.event.title}</span>
                           </>
                         )}

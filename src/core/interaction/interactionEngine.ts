@@ -126,8 +126,10 @@ interface ActiveGesture {
   movedEnough: boolean;
   lastDraft: InteractionDraft | null;
   captureTarget: Element | null;
-  /** Popover items do not occupy their event's time coordinates in the grid. */
-  popoverPointerOrigin?: { x: number; y: number };
+  /** List and popover cards do not occupy their event's time coordinates in the grid. */
+  pointerOrigin?: { x: number; y: number };
+  /** List cards can be exported, but do not define timed drop coordinates. */
+  sourceOnly?: boolean;
 }
 
 /** Coordenada de um MouseEvent/PointerEvent (o que o motor consome do DOM). */
@@ -254,13 +256,21 @@ export class InteractionEngine {
     )
       return;
 
+    const eventNode = targetElement.closest('[data-mc-event]') as HTMLElement | null;
+    const sourceOnly = eventNode?.hasAttribute('data-mc-drag-source') ?? false;
+    const sourcePlacement = sourceOnly ? this.placementFromNode(eventNode!) : null;
     const allDayCell = targetElement.closest('[data-mc-allday-cell]');
-    const anchor = allDayCell
-      ? this.locateAllDay(coords.clientX, coords.clientY)
-      : this.locate(coords.clientX, coords.clientY);
+    const anchor = sourcePlacement
+      ? {
+          dateISO: sourcePlacement.dateISO,
+          minuteOfDay: sourcePlacement.startMin,
+          allDay: sourcePlacement.allDay,
+        }
+      : allDayCell
+        ? this.locateAllDay(coords.clientX, coords.clientY)
+        : this.locate(coords.clientX, coords.clientY);
     if (!anchor) return;
 
-    const eventNode = targetElement.closest('[data-mc-event]') as HTMLElement | null;
     const resizeHandle = targetElement.closest('[data-mc-resize]');
     // Controls supplied by renderEvent own their pointer gestures.
     if (eventNode && !resizeHandle && isNestedInteractiveTarget(targetElement, eventNode)) return;
@@ -296,7 +306,9 @@ export class InteractionEngine {
         movedEnough: false,
         lastDraft: null,
         captureTarget: eventNode,
-        popoverPointerOrigin: fromPopover ? { x: coords.clientX, y: coords.clientY } : undefined,
+        pointerOrigin:
+          fromPopover || sourceOnly ? { x: coords.clientX, y: coords.clientY } : undefined,
+        sourceOnly,
       };
       this.beginDrag(eventNode, coords.pointerId);
       return;
@@ -324,6 +336,17 @@ export class InteractionEngine {
     const coords = readCoords(event);
     if (coords.pointerId !== gesture.pointerId) return;
     this.lastPointerMove = event;
+    if (gesture.sourceOnly) {
+      if (
+        gesture.pointerOrigin &&
+        Math.hypot(
+          coords.clientX - gesture.pointerOrigin.x,
+          coords.clientY - gesture.pointerOrigin.y,
+        ) >= 5
+      )
+        gesture.movedEnough = true;
+      return;
+    }
     const strictDestination =
       gesture.origin?.external ||
       (gesture.kind === 'move' &&
@@ -356,10 +379,10 @@ export class InteractionEngine {
       Boolean(point.allDay) !== Boolean(gesture.anchor.allDay);
     const movedMinutes = Math.abs(point.minuteOfDay - gesture.anchor.minuteOfDay);
     const threshold = this.deps.dragThresholdMin ?? DEFAULT_DRAG_THRESHOLD_MIN;
-    const passedThreshold = gesture.popoverPointerOrigin
+    const passedThreshold = gesture.pointerOrigin
       ? Math.hypot(
-          coords.clientX - gesture.popoverPointerOrigin.x,
-          coords.clientY - gesture.popoverPointerOrigin.y,
+          coords.clientX - gesture.pointerOrigin.x,
+          coords.clientY - gesture.pointerOrigin.y,
         ) >= 5
       : crossedDay || crossedResource || crossedType || movedMinutes >= threshold;
     if (passedThreshold) gesture.movedEnough = true;
@@ -411,6 +434,10 @@ export class InteractionEngine {
       return;
     }
     const draft = gesture.lastDraft;
+    if (gesture.sourceOnly && gesture.movedEnough) {
+      callbacks.onDraftChange(null);
+      return;
+    }
     if (gesture.origin?.external && !draft) {
       callbacks.onDraftChange(null);
       return;
@@ -487,7 +514,8 @@ export class InteractionEngine {
 
   private isCalendarSurface(clientX: number, clientY: number): boolean {
     if (!this.root) return false;
-    const selector = '[data-mc-day], [data-mc-slot], [data-mc-month-day], [data-mc-allday-cell]';
+    const selector =
+      '[data-mc-day], [data-mc-slot], [data-mc-month-day], [data-mc-allday-cell], [data-mc-list-day]';
     const documentRef = this.root.ownerDocument;
     const hit = documentRef.elementFromPoint?.(clientX, clientY);
     if (hit) return this.root.contains(hit) && hit.closest(selector) !== null;
@@ -584,15 +612,15 @@ export class InteractionEngine {
       slotNode?.dataset.mcSlotDate ??
       eventNode.dataset.mcEventDate;
     if (!dateISO) return null;
-    const startMin = Number(eventNode.dataset.mcStartMin);
-    const endMin = Number(eventNode.dataset.mcEndMin);
-    const hasNumericSpan = Number.isFinite(startMin) && Number.isFinite(endMin);
-    if (!hasNumericSpan) return null;
     const occurrence = this.deps.resolveOccurrence(eventId);
     if (!occurrence) return null;
+    const span = this.deps.resolveSpan?.(occurrence);
+    const startMin = Number(eventNode.dataset.mcStartMin ?? span?.startMin);
+    const endMin = Number(eventNode.dataset.mcEndMin ?? span?.endMin);
+    const hasNumericSpan = Number.isFinite(startMin) && Number.isFinite(endMin);
+    if (!hasNumericSpan) return null;
     const editable = eventNode.dataset.mcEditable !== 'false';
     const placement: PlacementInfo = { eventId, dateISO, startMin, endMin, occurrence, editable };
-    const span = this.deps.resolveSpan?.(occurrence);
     if (span) Object.assign(placement, span);
     const resourceId =
       slotNode?.dataset.mcSlotResource ??

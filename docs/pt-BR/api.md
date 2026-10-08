@@ -6,7 +6,11 @@
 
 ```tsx
 import {
-  Calendar, dayView, monthView, createResourceDayView, createTimelineView,
+  Calendar,
+  dayView,
+  monthView,
+  createResourceDayView,
+  createTimelineView,
   useCalendar,
 } from '@jacksoncassemiro/calendara';
 
@@ -14,11 +18,18 @@ const views = [dayView, monthView, createResourceDayView(), createTimelineView()
 
 function Agenda() {
   const { ref, api } = useCalendar();
-  return <>
-    <button onClick={() => api.today()}>Hoje</button>
-    <Calendar apiRef={ref} views={views} initialView="resources"
-      initialDate="2026-10-08" options={{ timeZone: 'America/Sao_Paulo' }} />
-  </>;
+  return (
+    <>
+      <button onClick={() => api.today()}>Hoje</button>
+      <Calendar
+        apiRef={ref}
+        views={views}
+        initialView="resources"
+        initialDate="2026-10-08"
+        options={{ timeZone: 'America/Sao_Paulo' }}
+      />
+    </>
+  );
 }
 ```
 
@@ -39,10 +50,10 @@ function Agenda() {
 
   async function commit(change: EventChange) {
     await persistChange(change);
-    setEvents(current => applyEventTimeChange(current, change));
+    setEvents((current) => applyEventTimeChange(current, change));
   }
 
-  return <Calendar events={events} onEventDrop={commit} onEventResize={commit} />;
+  return <Calendar views={views} events={events} onEventDrop={commit} onEventResize={commit} />;
 }
 ```
 
@@ -51,11 +62,16 @@ function Agenda() {
 Para dados remotos, mantenha a fonte estável:
 
 ```tsx
-<Calendar eventSource={async ({ start, end }, { signal }) => {
-  const response = await fetch(`/api/events?start=${start}&end=${end}`, { signal });
-  if (!response.ok) throw new Error('Falha ao buscar eventos');
-  return response.json();
-}} onError={handleError} onLoadingChange={setLoading} />
+<Calendar
+  views={views}
+  eventSource={async ({ start, end }, { signal }) => {
+    const response = await fetch(`/api/events?start=${start}&end=${end}`, { signal });
+    if (!response.ok) throw new Error('Falha ao buscar eventos');
+    return response.json();
+  }}
+  onError={handleError}
+  onLoadingChange={setLoading}
+/>
 ```
 
 Os limites do período visível são inclusivos. Navegação/troca de fonte/desmontagem cancelam pedidos antigos; repasse `signal` ao cliente HTTP. Resultados obsoletos são descartados mesmo se a fonte ignorar o sinal. Prefira `events` React ou `eventSource` como fonte de verdade: respostas remotas substituem os eventos carregados. Após edição remota, persista e execute `api.refetch()`. Trate carregamento/erros na aplicação.
@@ -75,8 +91,12 @@ const constraints: ConstraintSet = {
   blocked: [{ scope: 'day', date: '2026-10-12', description: 'Fechado' }],
 };
 
-<Calendar views={views} resources={resources} constraints={constraints}
-  options={{ defaultResourceCapacity: 3 }} />;
+<Calendar
+  views={views}
+  resources={resources}
+  constraints={constraints}
+  options={{ defaultResourceCapacity: 3 }}
+/>;
 ```
 
 `event.resourceIds` reserva salas/equipamentos/profissionais juntos. Capacidade ausente herda o default global (1 quando omitido); `false` é ilimitado. Número local substitui o default. Buffers são minutos antes/depois da ocupação. `constraints` do recurso adiciona regras: disponibilidade intersecta a global e bloqueios se somam. `businessHours` legado do recurso também participa dessa composição. Todos os recursos atribuídos são avaliados. O servidor deve garantir a capacidade em transações concorrentes.
@@ -85,22 +105,25 @@ const constraints: ConstraintSet = {
 
 `Calendar` não monta nem abre `CalendarEventEditor`. Abra modal/drawer/rota própria por `onEventClick`, `onDateSelect` ou pelo aplicativo. Valide com `api.evaluateEvent(draft, originalOccurrence?)`; na edição, passe a ocorrência original para excluir sua reserva. A avaliação cobre intervalo/recursos do candidato, não todas as repetições futuras, e lança erro antes do motor ficar pronto. Persista, atualize estado e feche o formulário.
 
-O editor opcional aceita `event`, `occurrence`, `resources`, `timeZone`, `validate`, `onSave`, `onDelete` e `onCancel`. Use `key={occurrenceKey(occurrence)}` ao trocar de ocorrência editada. Os callbacks definem persistência e escopo recorrente. A interface padrão atual é portuguesa; formulário próprio permite outros idiomas.
+O editor opcional aceita `event`, `occurrence`, `resources`, `timeZone`, `locale`, `validate`, `onSave`, `onDelete` e `onCancel`. Use `key={occurrenceKey(occurrence)}` ao trocar de ocorrência editada. Os callbacks definem persistência e escopo recorrente. Defina `locale="en-US"` ou `locale="pt-BR"` no editor padrão; o padrão é português. Formulários próprios controlam suas traduções.
 
 `renderEvent={info => <MeuEvento {...info} />}` troca o conteúdo mantendo geometria. Hooks ficam dentro de `MeuEvento`, nunca diretamente no callback. `customToolbar` substitui a navegação. `renderMonthMore`/`renderEventMore` personalizam ver mais; callbacks de clique correspondentes podem retornar `false` e abrir componente próprio. `monthMoreView`/`eventMoreView` direcionam para outra view registrada.
 
 ## Interação e layout
 
 ```tsx
-<Calendar options={{
-  slotMinutes: 30,
-  pxPerMinute: 2,
-  timeLabelInterval: 60,
-  timedEventOverflow: 'more',
-  eventMaxStack: 3,
-  slotEventOverlap: false,
-  monthMaxEvents: 3,
-}} />
+<Calendar
+  views={views}
+  options={{
+    slotMinutes: 30,
+    pxPerMinute: 2,
+    timeLabelInterval: 60,
+    timedEventOverflow: 'more',
+    eventMaxStack: 3,
+    slotEventOverlap: false,
+    monthMaxEvents: 3,
+  }}
+/>
 ```
 
 `slotMinutes` controla células e snapping; `pxPerMinute`, a escala temporal; `timeLabelInterval`, somente os textos. Intervalo explícito é preservado até em escalas densas. O automático adapta os textos quando omitido. Overflow timed aceita `shrink`, `scroll` ou `more`; a timeline horizontal empilha linhas. `slotEventOverlap` habilita sobreposição parcial nas grades verticais. `allowEventTypeChange` converte opcionalmente timed/dia inteiro entre suas faixas. Consulte `CalendarOptions` para todos os defaults.

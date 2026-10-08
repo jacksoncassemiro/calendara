@@ -3,6 +3,7 @@
 [Português](../pt-BR/README.md)
 
 - [Getting started](getting-started.md): GitHub asset installation and first React app.
+- [Feature scenarios](features.md): live workflows and supported limits.
 - [API guide](api.md): views, persistence, forms, resources, recurrence and styling.
 - [Comparison](comparison.md): integration tradeoffs and licensing.
 - [Bundle measurements](bundle-comparison.md): reproducible sizes and packaging tradeoffs.

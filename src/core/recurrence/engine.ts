@@ -63,7 +63,7 @@ export function* expandTemporalRule(
   validateRRuleModel(model);
   const maxPeriods = options.maxPeriods ?? 50000;
   if (!Number.isSafeInteger(maxPeriods) || maxPeriods <= 0)
-    throw new RangeError('[meucalendario] maxPeriods inválido');
+    throw new RangeError('[calendara] maxPeriods inválido');
   let visitedPeriods = 0;
   const dateUtils: DateUtils = createDateUtils(temporal);
   const frequency = model.freq;
@@ -148,7 +148,7 @@ export function* expandTemporalRule(
     const pastRuleEnd = until !== null && temporal.PlainDate.compare(periodStart, until) > 0;
     if (pastWindow || pastRuleEnd) return;
     if (++visitedPeriods > maxPeriods)
-      throw new RangeError('[meucalendario] orçamento de expansão RRULE excedido; reduza a janela');
+      throw new RangeError('[calendara] orçamento de expansão RRULE excedido; reduza a janela');
     let periodEnd: PlainDate;
     let nextPeriodStart: PlainDate;
     switch (frequency) {

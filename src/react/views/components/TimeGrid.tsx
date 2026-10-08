@@ -13,6 +13,7 @@ import { GUTTER_PX, toPx, segmentStyle, timedEventWidth } from '../layout/geomet
 import { usePageStickyHeaders } from '../hooks/usePageStickyHeaders.js';
 import { EventOverflow } from './EventOverflow.js';
 import { formatDraftInterval } from '../formatting/timeLabels.js';
+import { getViewLabels } from '../formatting/viewLabels.js';
 import { isNestedInteractiveTarget } from '../../../core/interaction/interactiveTarget.js';
 import { SlotCells } from './SlotCells.js';
 import { packDateSpans } from '../layout/spanLayout.js';
@@ -21,6 +22,7 @@ import { calendarDayOffset } from '../../../core/interaction/model.js';
 export function TimeGrid(props: { vm: GridVM }): JSX.Element {
   const scrollRef = usePageStickyHeaders();
   const vm = props.vm;
+  const labels = getViewLabels(vm.context?.options.locale);
   const gridTopMin = vm.startHour * 60;
   const bodyHeight = (vm.endHour - vm.startHour) * 60 * vm.pxPerMinute;
   const minuteToY = (minuteOfDay: number): number => (minuteOfDay - gridTopMin) * vm.pxPerMinute;
@@ -83,7 +85,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
             className="mc-gutter-label mc-allday-label"
             style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}
           >
-            dia inteiro
+            {labels.allDay}
           </div>
           {vm.columns.map((column) => (
             <div
@@ -116,7 +118,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
                     {formatDraftInterval(vm.draft, vm.context?.options.locale)}
                   </span>
                   {' · '}
-                  <span className="mc-draft-title">{vm.draft.title ?? 'Novo intervalo'}</span>
+                  <span className="mc-draft-title">{vm.draft.title ?? labels.newInterval}</span>
                 </div>
               )}
               {allDaySegments
@@ -270,6 +272,7 @@ function DayColumn(props: {
   fullDraft?: DraftVM;
 }): JSX.Element {
   const { column, bodyHeight, hourMinutes, minuteToY, pxPerMinute, draft } = props;
+  const labels = getViewLabels(props.context?.options.locale);
   return (
     <div
       className={`mc-day-col${column.isToday ? ' mc-today' : ''}`}
@@ -432,7 +435,7 @@ function DayColumn(props: {
           </span>
           {' · '}
           <span className="mc-draft-title">
-            {draft.title ?? (draft.kind === 'select' ? 'Novo intervalo' : 'Alterando evento')}
+            {draft.title ?? (draft.kind === 'select' ? labels.newInterval : labels.changingEvent)}
           </span>
         </div>
       )}

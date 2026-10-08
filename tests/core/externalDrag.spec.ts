@@ -88,6 +88,45 @@ function fixture(
 }
 
 describe('external pointer drag lifecycle', () => {
+  it('exports a list card without inventing a timed destination or deleting its event', () => {
+    const outside = vi.fn();
+    const { surface, eventNode, callbacks } = fixture({ dropOutside: outside });
+    surface.removeAttribute('data-mc-day');
+    surface.setAttribute('data-mc-list-day', DATE);
+    eventNode.setAttribute('data-mc-event-date', DATE);
+    eventNode.setAttribute('data-mc-drag-source', '');
+    (eventNode as HTMLElement).getBoundingClientRect = () => surface.getBoundingClientRect();
+
+    pointer(eventNode, 'pointerdown', 50, 100);
+    pointer(document, 'pointerup', 50, 100);
+    expect(callbacks.clickEvent).toHaveBeenCalledOnce();
+
+    pointer(eventNode, 'pointerdown', 50, 100);
+    pointer(document, 'pointermove', 100, 180);
+    pointer(document, 'pointerup', 100, 180);
+    expect(callbacks.commitMove).not.toHaveBeenCalled();
+    expect(outside).not.toHaveBeenCalled();
+    expect(callbacks.clickEvent).toHaveBeenCalledOnce();
+
+    pointer(eventNode, 'pointerdown', 50, 100);
+    pointer(document, 'pointermove', 300, 180);
+    pointer(document, 'pointerup', 300, 180);
+    expect(outside).toHaveBeenCalledOnce();
+    expect(outside.mock.calls[0][0].occurrence).toEqual(origin.occurrence);
+    expect(callbacks.commitMove).not.toHaveBeenCalled();
+
+    pointer(eventNode, 'pointerdown', 50, 100);
+    pointer(document, 'pointermove', 300, 180);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    pointer(document, 'pointerup', 300, 180);
+    expect(outside).toHaveBeenCalledOnce();
+
+    eventNode.setAttribute('data-mc-editable', 'false');
+    pointer(eventNode, 'pointerdown', 50, 100);
+    pointer(document, 'pointermove', 300, 180);
+    pointer(document, 'pointerup', 300, 180);
+    expect(outside).toHaveBeenCalledOnce();
+  });
   it('previews and commits at the first incoming pointer position without requiring another move', () => {
     const receive = vi.fn();
     const { engine, callbacks } = fixture({ commitExternal: receive });

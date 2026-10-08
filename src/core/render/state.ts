@@ -172,21 +172,19 @@ export function validateCalendarOptions(options: CalendarOptions): void {
     resolveHour(options.endHour) > resolveHour(options.startHour);
   if (!validRange)
     throw new RangeError(
-      '[meucalendario] startHour/endHour devem formar um intervalo dentro de 00:00–24:00.',
+      '[calendara] startHour/endHour devem formar um intervalo dentro de 00:00–24:00.',
     );
   const validSlot =
     Number.isFinite(options.slotMinutes) && options.slotMinutes > 0 && options.slotMinutes <= 1440;
   if (!validSlot)
-    throw new RangeError('[meucalendario] slotMinutes deve ser maior que zero e no máximo 1440.');
+    throw new RangeError('[calendara] slotMinutes deve ser maior que zero e no máximo 1440.');
   if (
     options.timeLabelInterval !== undefined &&
     (!Number.isFinite(options.timeLabelInterval) ||
       options.timeLabelInterval <= 0 ||
       options.timeLabelInterval > 1440)
   )
-    throw new RangeError(
-      '[meucalendario] timeLabelInterval deve ser maior que zero e no máximo 1440.',
-    );
+    throw new RangeError('[calendara] timeLabelInterval deve ser maior que zero e no máximo 1440.');
   if (
     options.timedEventOverflow !== undefined &&
     !['shrink', 'scroll', 'more'].includes(options.timedEventOverflow)
@@ -209,20 +207,18 @@ export function validateCalendarOptions(options: CalendarOptions): void {
   )
     throw new RangeError('defaultResourceCapacity must be a positive integer or false');
   const validScale = Number.isFinite(options.pxPerMinute) && options.pxPerMinute > 0;
-  if (!validScale) throw new RangeError('[meucalendario] pxPerMinute deve ser maior que zero.');
+  if (!validScale) throw new RangeError('[calendara] pxPerMinute deve ser maior que zero.');
   const validMinimum =
     Number.isFinite(options.minEventMinutes) &&
     options.minEventMinutes > 0 &&
     options.minEventMinutes <= 1440;
   if (!validMinimum)
-    throw new RangeError('[meucalendario] minEventMinutes deve estar entre zero e 1440.');
+    throw new RangeError('[calendara] minEventMinutes deve estar entre zero e 1440.');
   if (
     options.monthMaxEvents !== undefined &&
     options.monthMaxEvents !== false &&
     (!Number.isInteger(options.monthMaxEvents) || options.monthMaxEvents < 0)
   ) {
-    throw new RangeError(
-      '[meucalendario] monthMaxEvents deve ser um inteiro não negativo ou false.',
-    );
+    throw new RangeError('[calendara] monthMaxEvents deve ser um inteiro não negativo ou false.');
   }
 }

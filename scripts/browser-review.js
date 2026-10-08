@@ -202,10 +202,13 @@ async (page) => {
     'View React personalizada: hooks funcionam',
   );
   await page.getByRole('button', { name: 'Mostrar eventos' }).click();
-  await page.getByRole('button', { name: 'Consulta inicial', exact: true }).click();
+  await page.locator('.demo-summary-list button').filter({ hasText: 'Consulta inicial' }).click();
   await page.getByRole('textbox', { name: 'Título', exact: true }).fill('Consulta revisada');
   await page.getByRole('button', { name: 'Salvar evento' }).click();
-  await page.getByRole('button', { name: 'Consulta revisada', exact: true }).waitFor();
+  await page
+    .locator('.demo-summary-list button')
+    .filter({ hasText: 'Consulta revisada' })
+    .waitFor();
   results.push('Edição controlada React: título sincronizado');
   await page.getByRole('button', { name: 'Semana', exact: true }).click();
   const day = page.locator('[data-mc-day="2026-10-07"]');

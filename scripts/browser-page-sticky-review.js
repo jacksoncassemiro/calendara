@@ -1,5 +1,5 @@
 async (page) => {
-  await page.setViewportSize({ width: 375, height: 900 });
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.reload();
   await page.locator('[data-mc-root]').waitFor();
   await page.evaluate(async () => {
@@ -66,6 +66,14 @@ async (page) => {
     await scroller.waitFor();
     const result = await scroller.evaluate(async (scroll) => {
       scroll.scrollLeft = 220;
+      const allDayBefore = scroll.querySelector('.mc-allday-row,.mc-resource-allday-row');
+      const eventBefore = scroll.querySelector('[data-mc-event^="long"]');
+      const before = {
+        width: scroll.scrollWidth,
+        allDayWidth: allDayBefore?.getBoundingClientRect().width,
+        eventLeft: eventBefore?.getBoundingClientRect().left,
+        eventWidth: eventBefore?.getBoundingClientRect().width,
+      };
       window.scrollTo(0, scroll.getBoundingClientRect().top + window.scrollY + 200);
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const overlay = scroll.nextElementSibling;
@@ -99,6 +107,10 @@ async (page) => {
           .length,
         allDayFixed: !allDay || getComputedStyle(allDay).position === 'fixed',
         allDayDelta: allRect ? allRect.top - o.bottom : 0,
+        scrollWidthDelta: scroll.scrollWidth - before.width,
+        allDayWidthDelta: allRect ? allRect.width - before.allDayWidth : 0,
+        eventLeftDelta: event ? event.left - before.eventLeft : 0,
+        eventWidthDelta: event ? event.width - before.eventWidth : 0,
         contentOffset: content
           ? parseFloat(content.style.getPropertyValue('--mc-content-offset'))
           : 0,
@@ -121,7 +133,15 @@ async (page) => {
       result.clonedData !== 0
     )
       throw new Error(`Cabeçalho de página inválido: ${JSON.stringify(result)}`);
-    if (!result.allDayFixed || Math.abs(result.allDayDelta) > 1 || !result.textWithinEvent)
+    if (
+      !result.allDayFixed ||
+      Math.abs(result.allDayDelta) > 1 ||
+      Math.abs(result.allDayWidthDelta) > 1 ||
+      Math.abs(result.eventLeftDelta) > 1 ||
+      Math.abs(result.eventWidthDelta) > 1 ||
+      Math.abs(result.scrollWidthDelta) > 1 ||
+      !result.textWithinEvent
+    )
       throw new Error(`Faixa/conteúdo inválido: ${JSON.stringify(result)}`);
     if (view === 'week') {
       await page.locator('#sticky-fixture [data-mc-allday-event^="all"]').click();
@@ -137,5 +157,92 @@ async (page) => {
     });
     if (!hidden) throw new Error(`Cabeçalho escapou do calendário ${view}`);
   }
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    window.stickyApp.changeView('week');
+  });
+  const narrowAlignment = await page
+    .locator('#sticky-fixture [data-mc-hscroll]')
+    .evaluate(async (scroll) => {
+      scroll.scrollLeft = 310;
+      const original = scroll.querySelector('.mc-allday-row');
+      const before = original.children[3].getBoundingClientRect();
+      window.scrollTo(0, scroll.getBoundingClientRect().top + window.scrollY + 200);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const body = scroll.querySelectorAll('.mc-day-col')[2].getBoundingClientRect();
+      const fixed = original.children[3].getBoundingClientRect();
+      return {
+        columnDelta: fixed.left - body.left,
+        fixedWidthDelta: fixed.width - before.width,
+        scrollLeft: scroll.scrollLeft,
+      };
+    });
+  if (
+    Math.abs(narrowAlignment.columnDelta) > 1 ||
+    Math.abs(narrowAlignment.fixedWidthDelta) > 1 ||
+    narrowAlignment.scrollLeft <= 0
+  )
+    throw new Error(`Narrow all-day alignment changed: ${JSON.stringify(narrowAlignment)}`);
+  results.push({ narrowAlignment });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    window.stickyApp.changeView('month');
+    document.querySelectorAll('#sticky-fixture .mc-month-day').forEach((day) => {
+      day.style.minHeight = '220px';
+    });
+  });
+  const monthHeader = await page
+    .locator('#sticky-fixture .mc-month-weekdays')
+    .evaluate(async (header) => {
+      window.scrollTo(0, header.getBoundingClientRect().top + window.scrollY + 160);
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      return header.getBoundingClientRect().top;
+    });
+  if (Math.abs(monthHeader) > 1) throw new Error('Month weekday header did not follow page scroll');
+
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    const events = Array.from({ length: 30 }, (_, index) => {
+      const day = index < 15 ? '07' : '08';
+      return {
+        id: `list-${index}`,
+        calendarId: 'c',
+        title: `Agenda ${index}`,
+        time: {
+          allDay: false,
+          start: { dateTime: `2026-10-${day}T09:00:00`, timeZone: 'UTC' },
+          end: { dateTime: `2026-10-${day}T10:00:00`, timeZone: 'UTC' },
+        },
+      };
+    });
+    window.stickyApp.setEvents(events);
+    window.stickyApp.changeView('list');
+  });
+  const listHeaders = page.locator('#sticky-fixture .mc-list-day-header');
+  const firstListHeader = await listHeaders.first().evaluate(async (header) => {
+    window.scrollTo(0, header.getBoundingClientRect().top + window.scrollY + 100);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    return header.getBoundingClientRect().top;
+  });
+  if (Math.abs(firstListHeader) > 1)
+    throw new Error('Agenda day header did not follow page scroll');
+  const secondListHeader = await listHeaders.nth(1).evaluate(async (header) => {
+    window.scrollTo(0, header.getBoundingClientRect().top + window.scrollY + 100);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const previous =
+      header.parentElement.previousElementSibling.querySelector('.mc-list-day-header');
+    return {
+      top: header.getBoundingClientRect().top,
+      previousBottom: previous.getBoundingClientRect().bottom,
+    };
+  });
+  if (Math.abs(secondListHeader.top) > 1 || secondListHeader.previousBottom > 1)
+    throw new Error(
+      `Agenda day header did not yield to next section: ${JSON.stringify(secondListHeader)}`,
+    );
+  results.push({ monthHeader, firstListHeader, secondListHeader });
   return results;
 };

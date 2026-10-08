@@ -13,19 +13,19 @@ const DEFAULT_WEEK_START = 'MO';
 
 function integer(value: string): number {
   if (!/^[+-]?\d+$/.test(value))
-    throw new RangeError(`[meucalendario] inteiro RRULE inválido: ${value}`);
+    throw new RangeError(`[calendara] inteiro RRULE inválido: ${value}`);
   const result = Number(value);
   if (!Number.isSafeInteger(result))
-    throw new RangeError('[meucalendario] inteiro RRULE fora da faixa segura');
+    throw new RangeError('[calendara] inteiro RRULE fora da faixa segura');
   return result;
 }
 
 /** Reject malformed or unsupported rules instead of silently changing their meaning. */
 export function validateRRuleModel(model: RRuleModel): void {
-  if (!FREQUENCIES.includes(model.freq)) throw new RangeError('[meucalendario] FREQ não suportada');
+  if (!FREQUENCIES.includes(model.freq)) throw new RangeError('[calendara] FREQ não suportada');
   for (const value of [model.interval, model.count]) {
     if (value !== undefined && (!Number.isSafeInteger(value) || value <= 0))
-      throw new RangeError('[meucalendario] COUNT/INTERVAL devem ser inteiros positivos');
+      throw new RangeError('[calendara] COUNT/INTERVAL devem ser inteiros positivos');
   }
   for (const [values, bound] of [
     [model.byMonth, 12],
@@ -40,12 +40,12 @@ export function validateRRuleModel(model: RRuleModel): void {
           (value) => !Number.isSafeInteger(value) || value === 0 || Math.abs(value) > bound,
         ))
     )
-      throw new RangeError('[meucalendario] filtro RRULE inválido');
+      throw new RangeError('[calendara] filtro RRULE inválido');
   }
   if (model.byMonth?.some((value) => value < 1))
-    throw new RangeError('[meucalendario] BYMONTH inválido');
+    throw new RangeError('[calendara] BYMONTH inválido');
   if (model.byYearDay?.length && model.freq !== 'YEARLY')
-    throw new RangeError('[meucalendario] BYYEARDAY exige YEARLY');
+    throw new RangeError('[calendara] BYYEARDAY exige YEARLY');
   if (
     model.byDay &&
     (model.byDay.length > 366 ||
@@ -58,23 +58,23 @@ export function validateRRuleModel(model: RRuleModel): void {
               Math.abs(entry.ordinal) > 53)),
       ))
   )
-    throw new RangeError('[meucalendario] BYDAY inválido');
+    throw new RangeError('[calendara] BYDAY inválido');
   if (model.weekStart !== undefined && !WEEKDAY_CODE_SET.has(model.weekStart))
-    throw new RangeError('[meucalendario] WKST inválido');
+    throw new RangeError('[calendara] WKST inválido');
   if (
     model.until !== undefined &&
     !/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})?)?$/.test(model.until)
   )
-    throw new RangeError('[meucalendario] UNTIL inválido');
+    throw new RangeError('[calendara] UNTIL inválido');
 }
 
 function parseByDay(value: string): ByDayEntry[] {
   const entries: ByDayEntry[] = [];
   for (const rawToken of value.split(',')) {
     const match = rawToken.trim().match(/^([+-]?\d+)?([A-Z]{2})$/);
-    if (!match) throw new RangeError('[meucalendario] BYDAY inválido');
+    if (!match) throw new RangeError('[calendara] BYDAY inválido');
     const code = match[2] as WeekdayCode;
-    if (!WEEKDAY_CODE_SET.has(code)) throw new RangeError('[meucalendario] BYDAY inválido');
+    if (!WEEKDAY_CODE_SET.has(code)) throw new RangeError('[calendara] BYDAY inválido');
     const entry: ByDayEntry = { weekday: code };
     if (match[1]) entry.ordinal = integer(match[1]);
     entries.push(entry);
@@ -84,7 +84,7 @@ function parseByDay(value: string): ByDayEntry[] {
 
 /** UNTIL do RFC pode ser 'YYYYMMDD' ou 'YYYYMMDDTHHMMSSZ'. Normaliza para ISO. */
 function parseUntil(value: string): string {
-  if (!/^\d{8}(?:T\d{6}Z?)?$/.test(value)) throw new RangeError('[meucalendario] UNTIL inválido');
+  if (!/^\d{8}(?:T\d{6}Z?)?$/.test(value)) throw new RangeError('[calendara] UNTIL inválido');
   const date = `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
   if (value.length <= 8) return date;
   const time = `${value.slice(9, 11)}:${value.slice(11, 13)}:${value.slice(13, 15)}`;
@@ -96,7 +96,7 @@ function parseUntil(value: string): string {
  * Ignora linhas DTSTART/EXDATE/RDATE — essas vivem em `Recurrence`, não na regra.
  */
 export function parseRRule(input: string): RRuleModel {
-  if (input.length > 4096) throw new RangeError('[meucalendario] RRULE excede 4096 caracteres');
+  if (input.length > 4096) throw new RangeError('[calendara] RRULE excede 4096 caracteres');
   let body = input.trim();
   // aceita bloco multi-linha; pega só a linha RRULE (ou a própria string se já for a regra)
   for (const line of body.split(/\r?\n/)) {
@@ -113,15 +113,15 @@ export function parseRRule(input: string): RRuleModel {
   for (const part of body.split(';')) {
     const [rawKey, value] = part.split('=');
     if (!rawKey || value === undefined || part.split('=').length !== 2)
-      throw new RangeError('[meucalendario] RRULE inválida');
+      throw new RangeError('[calendara] RRULE inválida');
     const key = rawKey.toUpperCase();
-    if (seen.has(key)) throw new RangeError(`[meucalendario] campo RRULE duplicado: ${key}`);
+    if (seen.has(key)) throw new RangeError(`[calendara] campo RRULE duplicado: ${key}`);
     seen.add(key);
     switch (key) {
       case 'FREQ': {
         const frequency = value.toUpperCase() as Frequency;
         if (!FREQUENCIES.includes(frequency))
-          throw new RangeError(`[meucalendario] FREQ não suportada: ${frequency}`);
+          throw new RangeError(`[calendara] FREQ não suportada: ${frequency}`);
         model.freq = frequency;
         break;
       }
@@ -149,16 +149,16 @@ export function parseRRule(input: string): RRuleModel {
       case 'WKST':
         if (WEEKDAY_CODE_SET.has(value.toUpperCase())) {
           model.weekStart = value.toUpperCase() as WeekdayCode;
-        } else throw new RangeError('[meucalendario] WKST inválido');
+        } else throw new RangeError('[calendara] WKST inválido');
         break;
       case 'BYYEARDAY':
         model.byYearDay = value.split(',').map(integer);
         break;
       default:
-        throw new RangeError(`[meucalendario] campo RRULE não suportado: ${key}`);
+        throw new RangeError(`[calendara] campo RRULE não suportado: ${key}`);
     }
   }
-  if (!seen.has('FREQ')) throw new RangeError('[meucalendario] RRULE exige FREQ');
+  if (!seen.has('FREQ')) throw new RangeError('[calendara] RRULE exige FREQ');
   validateRRuleModel(model);
   return model;
 }
