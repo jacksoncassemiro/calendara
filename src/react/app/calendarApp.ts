@@ -29,11 +29,7 @@ import type { CalendarResource } from '../../core/index.js';
 import { expandRange, occurrenceKey } from '../../core/index.js';
 import { resourceBusyIntervals } from '../../core/render/derive.js';
 import { occurrencesForResource, resourceConstraintSet } from '../../core/index.js';
-import {
-  InteractionEngine,
-  type EvaluationInput,
-  type DraftEvaluation,
-} from '../../core/index.js';
+import { InteractionEngine, type EvaluationInput, type DraftEvaluation } from '../../core/index.js';
 import {
   applyEventTimeChange,
   reassignResource,
@@ -55,10 +51,13 @@ import {
   type CalendarState,
 } from '../../core/index.js';
 
-import { BUILTIN_VIEWS } from '../views/registry/defaultViews.js';
 import { createViewRegistry } from '../views/registry/createViewRegistry.js';
 import { CalendarShell } from '../components/CalendarShell.js';
-import { registerExternalDragReceiver, type ExternalEventDropHandler, type EventDropOutsideInfo } from '../externalDrag.js';
+import {
+  registerExternalDragReceiver,
+  type ExternalEventDropHandler,
+  type EventDropOutsideInfo,
+} from '../externalDrag.js';
 import type {
   CalendarView,
   ViewContext,
@@ -74,7 +73,8 @@ import type {
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
-export type CalendarEventName = 'render' | 'dateChange' | 'viewChange' | 'rangeChange' | 'loadingChange' | 'error';
+export type CalendarEventName =
+  'render' | 'dateChange' | 'viewChange' | 'rangeChange' | 'loadingChange' | 'error';
 
 export interface RangeChange {
   start: string;
@@ -102,8 +102,8 @@ export interface CalendarConfig {
   events?: CalendarEvent[];
   constraints?: ConstraintSet;
   options?: Partial<CalendarOptions>;
-  /** Complete available views; omitted uses BUILTIN_VIEWS. */
-  views?: readonly CalendarView[];
+  /** Complete, nonempty available view selection. @remarks Português: Seleção explícita, não vazia. */
+  views: readonly CalendarView[];
   /** Injeta Temporal já resolvido (testes/SSR). Ausente → carrega via ensureTemporal(). */
   temporal?: TemporalLike;
   /** Busca eventos por range visível (dispara em cada mudança de range). */
@@ -142,11 +142,18 @@ function padTwo(value: number): string {
 function validateResources(resources: readonly CalendarResource[] | undefined): void {
   const ids = new Set<string>();
   for (const resource of resources ?? []) {
-    if (typeof resource.id !== 'string' || resource.id.length === 0 || ids.has(resource.id)) throw new RangeError('[meucalendario] id de recurso vazio ou duplicado');
+    if (typeof resource.id !== 'string' || resource.id.length === 0 || ids.has(resource.id))
+      throw new RangeError('[meucalendario] id de recurso vazio ou duplicado');
     ids.add(resource.id);
-    if (resource.capacity !== undefined && resource.capacity!==false && (!Number.isSafeInteger(resource.capacity) || resource.capacity <= 0)) throw new RangeError('[meucalendario] capacity deve ser inteiro positivo');
+    if (
+      resource.capacity !== undefined &&
+      resource.capacity !== false &&
+      (!Number.isSafeInteger(resource.capacity) || resource.capacity <= 0)
+    )
+      throw new RangeError('[meucalendario] capacity deve ser inteiro positivo');
     for (const buffer of [resource.bufferBefore, resource.bufferAfter]) {
-      if (buffer !== undefined && (!Number.isFinite(buffer) || buffer < 0)) throw new RangeError('[meucalendario] buffer deve ser finito e não negativo');
+      if (buffer !== undefined && (!Number.isFinite(buffer) || buffer < 0))
+        throw new RangeError('[meucalendario] buffer deve ser finito e não negativo');
     }
   }
 }
@@ -174,9 +181,14 @@ function cancelFrame(handle: number): void {
 }
 
 /** Compare immutable plain data, retaining callback and class-instance identity. */
-function equivalentData(left: unknown, right: unknown, seen = new WeakMap<object, WeakSet<object>>()): boolean {
+function equivalentData(
+  left: unknown,
+  right: unknown,
+  seen = new WeakMap<object, WeakSet<object>>(),
+): boolean {
   if (Object.is(left, right)) return true;
-  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
+  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object')
+    return false;
   const prototype = Object.getPrototypeOf(left);
   if (prototype !== Object.getPrototypeOf(right)) return false;
   if (prototype !== Object.prototype && prototype !== null && !Array.isArray(left)) return false;
@@ -189,8 +201,11 @@ function equivalentData(left: unknown, right: unknown, seen = new WeakMap<object
   if (keys.length !== Object.keys(right).length) return false;
   const leftProperties = left as Record<string, unknown>;
   const rightProperties = right as Record<string, unknown>;
-  return keys.every((key) => Object.prototype.hasOwnProperty.call(rightProperties, key)
-    && equivalentData(leftProperties[key], rightProperties[key], seen));
+  return keys.every(
+    (key) =>
+      Object.prototype.hasOwnProperty.call(rightProperties, key) &&
+      equivalentData(leftProperties[key], rightProperties[key], seen),
+  );
 }
 
 export class CalendarApp {
@@ -228,7 +243,6 @@ export class CalendarApp {
   /** Índice das ocorrências do render atual (id do bloco → ocorrência), para a interação. */
   private occurrenceIndex = new Map<string, EventOccurrence>();
   /** Ocorrências do render atual (base da validação de ocupação). */
-  private currentOccurrences: readonly EventOccurrence[] = [];
   /** Rascunho vivo do gesto (desenhado como fantasma). */
   private draft: InteractionDraft | null = null;
 
@@ -236,7 +250,9 @@ export class CalendarApp {
   private root: Root | null = null;
   private snapshot: ReactNode = null;
 
-  getSnapshot(): ReactNode { return this.snapshot; }
+  getSnapshot(): ReactNode {
+    return this.snapshot;
+  }
   private unsubscribe: (() => void) | null = null;
   private temporal: TemporalLike | null = null;
   private dateUtils: DateUtils | null = null;
@@ -253,21 +269,21 @@ export class CalendarApp {
   /** rAF pendente do render de rascunho (throttle do fantasma durante drag — ver scheduleDraftRender). */
   private draftRenderHandle: number | null = null;
 
-  constructor(config: CalendarConfig = {}) {
+  constructor(config: CalendarConfig) {
+    const viewRegistry = createViewRegistry(config.views);
     validateResources(config.resources);
     const options: CalendarOptions = { ...DEFAULT_OPTIONS, ...config.options };
     validateCalendarOptions(options);
     this.needsInitialDateResolution = config.date === undefined && config.initialDate === undefined;
     const initialState: CalendarState = {
       date: config.date ?? config.initialDate ?? this.localTodayISO(options.nowMs ?? Date.now()),
-      viewName: config.view ?? config.initialView ?? (config.views ?? BUILTIN_VIEWS)[0]?.name ?? 'week',
+      viewName: config.view ?? config.initialView ?? config.views[0]!.name,
       events: config.events ?? [],
       constraints: config.constraints ?? {},
       options,
     };
     this.store = createStore(initialState);
-    const configuredViews = config.views ?? BUILTIN_VIEWS;
-    for (const [name, view] of createViewRegistry(configuredViews)) this.views.set(name, view);
+    for (const [name, view] of viewRegistry) this.views.set(name, view);
     if (!this.views.has(initialState.viewName)) {
       throw new Error(`[meucalendario] view não registrada: ${initialState.viewName}`);
     }
@@ -294,9 +310,7 @@ export class CalendarApp {
     this.hasResourceConfig = config.resources !== undefined;
     this.interaction = this.createInteractionEngine();
 
-    const temporalPromise = config.temporal
-      ? Promise.resolve(config.temporal)
-      : ensureTemporal();
+    const temporalPromise = config.temporal ? Promise.resolve(config.temporal) : ensureTemporal();
     this.readyPromise = temporalPromise.then((resolvedTemporal) => {
       if (this.destroyed) return;
       this.temporal = resolvedTemporal;
@@ -330,16 +344,22 @@ export class CalendarApp {
     this.interaction.attach(container);
     this.unregisterExternalReceiver?.();
     this.unregisterExternalReceiver = registerExternalDragReceiver(container, {
-      canReceive: (clientX, clientY) => Boolean(this.onExternalEventDrop && this.temporal
-        && this.interaction.locatePointerSlot(clientX, clientY)),
+      canReceive: (clientX, clientY) =>
+        Boolean(
+          this.onExternalEventDrop &&
+          this.temporal &&
+          this.interaction.locatePointerSlot(clientX, clientY),
+        ),
       start: (event, pointer) => this.startExternalEvent(event, pointer),
       cancel: () => this.interaction.cancelDrag(),
     });
-    void this.readyPromise.then(() => {
-      if (this.snapshot === null) this.renderNow();
-    }).catch((error: unknown) => {
-      if (!this.destroyed) this.emit('error', error);
-    });
+    void this.readyPromise
+      .then(() => {
+        if (this.snapshot === null) this.renderNow();
+      })
+      .catch((error: unknown) => {
+        if (!this.destroyed) this.emit('error', error);
+      });
   }
 
   /** Resolve quando Temporal + fetch inicial estão prontos e um primeiro render (se montado) ocorreu. */
@@ -401,7 +421,11 @@ export class CalendarApp {
     this.renderNow();
   }
 
-  setRenderEventMore(slot: MonthMoreRenderSlot | undefined): void { if(this.renderEventMore===slot)return;this.renderEventMore=slot;this.renderNow(); }
+  setRenderEventMore(slot: MonthMoreRenderSlot | undefined): void {
+    if (this.renderEventMore === slot) return;
+    this.renderEventMore = slot;
+    this.renderNow();
+  }
 
   setRenderMonthMore(slot: MonthMoreRenderSlot | undefined): void {
     if (this.renderMonthMore === slot) return;
@@ -482,7 +506,10 @@ export class CalendarApp {
     if (equivalentData(this.store.getState().options, options)) return;
     this.store.setState({ options });
     const nextRange = this.temporal ? this.getVisibleRange() : null;
-    if (previousOptions.timeZone !== options.timeZone || !equivalentData(previousRange, nextRange)) {
+    if (
+      previousOptions.timeZone !== options.timeZone ||
+      !equivalentData(previousRange, nextRange)
+    ) {
       this.emitRange();
       this.refetch();
     }
@@ -503,12 +530,15 @@ export class CalendarApp {
     this.refetchChangedRange(previousRange);
   }
 
-  /** Replace all available views; undefined restores the standard set. */
-  setViews(views: readonly CalendarView[] | undefined): void {
-    const configuredViews = views ?? BUILTIN_VIEWS;
+  /** Replace the complete, nonempty available view selection. */
+  setViews(configuredViews: readonly CalendarView[]): void {
     const next = createViewRegistry(configuredViews);
     const previousViews = [...this.views.values()];
-    if (next.size === this.views.size && configuredViews.every((view, index) => equivalentData(previousViews[index], view))) return;
+    if (
+      next.size === this.views.size &&
+      configuredViews.every((view, index) => equivalentData(previousViews[index], view))
+    )
+      return;
     const previousRange = this.temporal ? this.getVisibleRange() : null;
     const previousViewName = this.store.getState().viewName;
     this.views.clear();
@@ -586,11 +616,11 @@ export class CalendarApp {
     const candidateOccurrence: EventOccurrence = occurrence
       ? { ...occurrence, event }
       : {
-        event,
-        masterId: event.id,
-        isMaster: true,
-        originalStart: event.time.allDay ? event.time.start.date! : event.time.start.dateTime!,
-      };
+          event,
+          masterId: event.id,
+          isMaster: true,
+          originalStart: event.time.allDay ? event.time.start.date! : event.time.start.dateTime!,
+        };
     const span = this.resolveOccurrenceSpan(candidateOccurrence);
     return this.evaluateDraft({
       ...span,
@@ -644,11 +674,16 @@ export class CalendarApp {
     const startISO = range.startDate.toString();
     const endISO = range.endDate.toString();
     // Memoizada por (temporal, events, start, end): trocar constraints não recomputa ocorrências.
-    const occurrences: EventOccurrence[] = this.memoExpand(temporal, state.events, startISO, endISO, state.options.timeZone);
+    const occurrences: EventOccurrence[] = this.memoExpand(
+      temporal,
+      state.events,
+      startISO,
+      endISO,
+      state.options.timeZone,
+    );
     const nowMs = state.options.nowMs ?? Date.now();
 
     // Índice para a interação (id do bloco → ocorrência) e base da validação de ocupação.
-    this.currentOccurrences = occurrences;
     this.occurrenceIndex = new Map(
       occurrences.map((occurrence) => [occurrenceKey(occurrence), occurrence]),
     );
@@ -664,25 +699,46 @@ export class CalendarApp {
       nowMs,
     };
     if (this.hasResourceConfig) context.resources = this.resources;
-    const bufferPaddingDays=Math.ceil(Math.max(0,...this.resources.map(resource=>
-      (resource.bufferBefore ?? 0)+(resource.bufferAfter ?? 0)))/1440);
-    if(bufferPaddingDays>0)context.resourceBufferOccurrences=this.memoBufferExpand(temporal,state.events,
-      range.startDate.subtract({days:bufferPaddingDays}).toString(),range.endDate.add({days:bufferPaddingDays}).toString(),state.options.timeZone);
+    const bufferPaddingDays = Math.ceil(
+      Math.max(
+        0,
+        ...this.resources.map(
+          (resource) => (resource.bufferBefore ?? 0) + (resource.bufferAfter ?? 0),
+        ),
+      ) / 1440,
+    );
+    if (bufferPaddingDays > 0)
+      context.resourceBufferOccurrences = this.memoBufferExpand(
+        temporal,
+        state.events,
+        range.startDate.subtract({ days: bufferPaddingDays }).toString(),
+        range.endDate.add({ days: bufferPaddingDays }).toString(),
+        state.options.timeZone,
+      );
     if (this.draft) context.draft = this.draft;
     if (this.renderEvent) context.renderEvent = this.renderEvent;
-    context.viewName=state.viewName;
-    if(this.getDayStyle)context.getDayStyle=this.getDayStyle;
-    if (this.renderEventMore) context.renderEventMore=this.renderEventMore;
-    if (this.onEventMoreClick) context.onEventMoreClick=this.onEventMoreClick;
+    context.viewName = state.viewName;
+    if (this.getDayStyle) context.getDayStyle = this.getDayStyle;
+    if (this.renderEventMore) context.renderEventMore = this.renderEventMore;
+    if (this.onEventMoreClick) context.onEventMoreClick = this.onEventMoreClick;
     if (this.renderMonthMore) context.renderMonthMore = this.renderMonthMore;
     if (this.onMonthMoreClick) context.onMonthMoreClick = this.onMonthMoreClick;
-    context.openDateView = (dateISO,viewName) => this.batchUpdate(() => { this.setDate(dateISO); this.changeView(viewName); });
+    context.openDateView = (dateISO, viewName) =>
+      this.batchUpdate(() => {
+        this.setDate(dateISO);
+        this.changeView(viewName);
+      });
     if (this.onEventClick) context.onEventClick = this.onEventClick;
-    if (this.onDateClick) context.onDateClick = (dateISO, minuteOfDay) => this.clickDate(dateISO, minuteOfDay);
+    if (this.onDateClick)
+      context.onDateClick = (dateISO, minuteOfDay) => this.clickDate(dateISO, minuteOfDay);
     return context;
   }
 
-  private buildToolbarContext(view: CalendarView, range: ViewRange, context: ViewContext): ToolbarContext {
+  private buildToolbarContext(
+    view: CalendarView,
+    range: ViewRange,
+    context: ViewContext,
+  ): ToolbarContext {
     return {
       title: view.getTitle(range, context),
       viewName: this.store.getState().viewName,
@@ -696,17 +752,20 @@ export class CalendarApp {
 
   private renderNow(): void {
     if (this.destroyed) return;
-    if (this.updateDepth > 0) { this.renderPending = true; return; }
+    if (this.updateDepth > 0) {
+      this.renderPending = true;
+      return;
+    }
     if (!this.temporal || !this.dateUtils || !this.container) return;
     const { view, range, context } = this.resolveView();
     const renderContext = this.buildRenderContext(range);
     const body = view.render(renderContext);
     const toolbar = this.buildToolbarContext(view, range, context);
     const tree = createElement(CalendarShell, {
-        toolbar,
-        body,
-        ...(this.renderToolbar ? { renderToolbar: this.renderToolbar } : {}),
-      });
+      toolbar,
+      body,
+      ...(this.renderToolbar ? { renderToolbar: this.renderToolbar } : {}),
+    });
     this.snapshot = tree;
     if (this.root) flushSync(() => this.root!.render(tree));
     this.emit('render', renderContext);
@@ -730,19 +789,30 @@ export class CalendarApp {
 
   // ---- interação (Fase 4) ----------------------------------------------------
 
-  setExternalDragCallbacks(receive: ExternalEventDropHandler | undefined, outside: CalendarConfig['onEventDropOutside']): void {
+  setExternalDragCallbacks(
+    receive: ExternalEventDropHandler | undefined,
+    outside: CalendarConfig['onEventDropOutside'],
+  ): void {
     this.onExternalEventDrop = receive;
     this.onEventDropOutside = outside;
   }
 
   private startExternalEvent(event: CalendarEvent, pointer: PointerEvent): boolean {
-    if (!this.temporal || !this.onExternalEventDrop || event.recurrence || event.editable === false) return false;
+    if (!this.temporal || !this.onExternalEventDrop || event.recurrence || event.editable === false)
+      return false;
     if (this.store.getState().events.some((existing) => existing.id === event.id)) return false;
-    const occurrence: EventOccurrence = { event, masterId: event.id, isMaster: true,
-      originalStart: event.time.allDay ? event.time.start.date! : event.time.start.dateTime! };
+    const occurrence: EventOccurrence = {
+      event,
+      masterId: event.id,
+      isMaster: true,
+      originalStart: event.time.allDay ? event.time.start.date! : event.time.start.dateTime!,
+    };
     try {
       const span = this.resolveOccurrenceSpan(occurrence);
-      return this.interaction.startExternalDrag({ ...span, occurrence, eventId: occurrenceKey(occurrence), editable: true }, pointer);
+      return this.interaction.startExternalDrag(
+        { ...span, occurrence, eventId: occurrenceKey(occurrence), editable: true },
+        pointer,
+      );
     } catch (error) {
       this.emit('error', error);
       return false;
@@ -751,13 +821,28 @@ export class CalendarApp {
 
   private resolveOccurrenceSpan(occurrence: EventOccurrence) {
     const { time } = occurrence.event;
-    if (time.allDay) return { dateISO: time.start.date!, startMin: 0, endDateISO: time.end.date!, endMin: 0, allDay: true };
+    if (time.allDay)
+      return {
+        dateISO: time.start.date!,
+        startMin: 0,
+        endDateISO: time.end.date!,
+        endMin: 0,
+        allDay: true,
+      };
     const zone = this.store.getState().options.timeZone;
-    const start = this.temporal!.PlainDateTime.from(time.start.dateTime!).toZonedDateTime(time.start.timeZone ?? zone).withTimeZone(zone);
-    const end = this.temporal!.PlainDateTime.from(time.end.dateTime!).toZonedDateTime(time.end.timeZone ?? zone).withTimeZone(zone);
-    return { dateISO: start.toPlainDate().toString(), startMin: start.hour * 60 + start.minute,
-      endDateISO: end.toPlainDate().toString(), endMin: end.hour * 60 + end.minute,
-      durationMinutes: Number(end.epochMilliseconds - start.epochMilliseconds) / 60000 };
+    const start = this.temporal!.PlainDateTime.from(time.start.dateTime!)
+      .toZonedDateTime(time.start.timeZone ?? zone)
+      .withTimeZone(zone);
+    const end = this.temporal!.PlainDateTime.from(time.end.dateTime!)
+      .toZonedDateTime(time.end.timeZone ?? zone)
+      .withTimeZone(zone);
+    return {
+      dateISO: start.toPlainDate().toString(),
+      startMin: start.hour * 60 + start.minute,
+      endDateISO: end.toPlainDate().toString(),
+      endMin: end.hour * 60 + end.minute,
+      durationMinutes: Number(end.epochMilliseconds - start.epochMilliseconds) / 60000,
+    };
   }
 
   private notifyExternalDrop(change: EventChange): void {
@@ -773,7 +858,9 @@ export class CalendarApp {
       Promise.resolve(callback()).catch((error: unknown) => {
         if (!this.destroyed) this.emit('error', error);
       });
-    } catch (error) { this.emit('error', error); }
+    } catch (error) {
+      this.emit('error', error);
+    }
   }
 
   /** Constrói o InteractionEngine ligado a este app (dados vivos + política de avaliação). */
@@ -781,10 +868,14 @@ export class CalendarApp {
     return new InteractionEngine({
       getGridBounds: () => {
         const { options } = this.store.getState();
-        return { startMin: resolveHour(options.startHour) * 60, endMin: resolveHour(options.endHour) * 60 };
+        return {
+          startMin: resolveHour(options.startHour) * 60,
+          endMin: resolveHour(options.endHour) * 60,
+        };
       },
       getSlotMinutes: () => this.store.getState().options.slotMinutes,
-      allowEventTypeChange:()=>this.store.getState().options.allowEventTypeChange===true,
+      allowEventTypeChange: () => this.store.getState().options.allowEventTypeChange === true,
+      autoScroll: () => this.store.getState().options.autoScroll !== false,
       allowOutsideDrop: () => Boolean(this.onEventDropOutside),
       getMinDurationMin: () => this.store.getState().options.minEventMinutes,
       evaluate: (input) => this.evaluateDraft(input),
@@ -792,8 +883,10 @@ export class CalendarApp {
       resolveSpan: (occurrence) => this.resolveOccurrenceSpan(occurrence),
       normalizeDraft: (draft, origin, kind) => {
         if (kind !== 'move' || draft.allDay || origin.durationMinutes === undefined) return draft;
-        const start = this.temporal!.PlainDate.from(draft.dateISO).toPlainDateTime()
-          .add({ minutes: draft.startMin }).toZonedDateTime(this.store.getState().options.timeZone);
+        const start = this.temporal!.PlainDate.from(draft.dateISO)
+          .toPlainDateTime()
+          .add({ minutes: draft.startMin })
+          .toZonedDateTime(this.store.getState().options.timeZone);
         const end = start.add({ milliseconds: origin.durationMinutes * 60000 });
         const endDateISO = end.toPlainDate().toString();
         return { ...draft, endDateISO, endMin: end.hour * 60 + end.minute };
@@ -818,13 +911,23 @@ export class CalendarApp {
         commitMove: (change) => this.applyEventChange(change, this.onEventDrop),
         commitExternal: (change) => this.notifyExternalDrop(change),
         dropOutside: (placement, target) => {
-          if (this.onEventDropOutside) this.runTransferCallback(() => this.onEventDropOutside?.({ ...target, occurrence: placement.occurrence }));
+          if (this.onEventDropOutside)
+            this.runTransferCallback(() =>
+              this.onEventDropOutside?.({ ...target, occurrence: placement.occurrence }),
+            );
         },
         commitResize: (change) => this.applyEventChange(change, this.onEventResize),
         commitSelect: (selection) => this.onDateSelect?.(selection),
         clickEvent: (placement) => this.onEventClick?.(placement.occurrence),
         clickEmpty: (slot: PointerSlot) =>
-          this.clickDate(slot.dateISO, slot.dateOnly || slot.allDay ? undefined : Math.floor(slot.minuteOfDay / this.store.getState().options.slotMinutes) * this.store.getState().options.slotMinutes, slot.resourceId),
+          this.clickDate(
+            slot.dateISO,
+            slot.dateOnly || slot.allDay
+              ? undefined
+              : Math.floor(slot.minuteOfDay / this.store.getState().options.slotMinutes) *
+                  this.store.getState().options.slotMinutes,
+            slot.resourceId,
+          ),
         blocked: (info: BlockedInfo) => {
           const isSelection = info.kind === 'select';
           if (isSelection) this.onClickBlocked?.(info);
@@ -852,26 +955,56 @@ export class CalendarApp {
 
   private clickDate(dateISO: string, minuteOfDay?: number, resourceId?: string): void {
     const startMin = minuteOfDay ?? 0;
-    const endMin = minuteOfDay === undefined ? 1440 : Math.min(1440, startMin + this.store.getState().options.slotMinutes);
-    const input: EvaluationInput = {kind:'select', dateISO, startMin, endMin,
-      ...(minuteOfDay === undefined ? {allDay:true} : {}), ...(resourceId ? {resourceId} : {})};
+    const endMin =
+      minuteOfDay === undefined
+        ? 1440
+        : Math.min(1440, startMin + this.store.getState().options.slotMinutes);
+    const input: EvaluationInput = {
+      kind: 'select',
+      dateISO,
+      startMin,
+      endMin,
+      ...(minuteOfDay === undefined ? { allDay: true } : {}),
+      ...(resourceId ? { resourceId } : {}),
+    };
     const evaluation = this.evaluateDraft(input);
-    if (!evaluation.valid) { this.onClickBlocked?.({...input, reason:evaluation.reason}); return; }
-    if (resourceId && this.onDateSelect) this.onDateSelect({dateISO,startMin,endMin:minuteOfDay === undefined ? 0 : endMin,resourceId,...(minuteOfDay === undefined ? {allDay:true,endDateISO:this.temporal!.PlainDate.from(dateISO).add({days:1}).toString()} : {})});
-    else this.onDateClick?.(dateISO,minuteOfDay);
+    if (!evaluation.valid) {
+      this.onClickBlocked?.({ ...input, reason: evaluation.reason });
+      return;
+    }
+    if (resourceId && this.onDateSelect)
+      this.onDateSelect({
+        dateISO,
+        startMin,
+        endMin: minuteOfDay === undefined ? 0 : endMin,
+        resourceId,
+        ...(minuteOfDay === undefined
+          ? {
+              allDay: true,
+              endDateISO: this.temporal!.PlainDate.from(dateISO).add({ days: 1 }).toString(),
+            }
+          : {}),
+      });
+    else this.onDateClick?.(dateISO, minuteOfDay);
   }
   private evaluateDraft(input: EvaluationInput): DraftEvaluation {
     if (input.endDateISO !== undefined && this.temporal) {
       const start = this.temporal.PlainDate.from(input.dateISO);
       const end = this.temporal.PlainDate.from(input.endDateISO);
       const days = end.since(start).days;
-      if (days < 0 || days > 3660 || (days === 0 && input.endMin <= input.startMin)) return { valid: false, reason: 'outside-allowed' };
+      if (days < 0 || days > 3660 || (days === 0 && input.endMin <= input.startMin))
+        return { valid: false, reason: 'outside-allowed' };
       for (let index = 0; index <= days; index++) {
         const startMin = index === 0 ? input.startMin : 0;
         const endMin = index === days ? input.endMin : 1440;
         if (endMin <= startMin) continue;
-        const evaluation = this.evaluateDay({ ...input, dateISO: start.add({ days: index }).toString(),
-          endDateISO: undefined, startMin, endMin });
+        const evaluation = this.evaluateDay({
+          ...input,
+          dateISO: start.add({ days: index }).toString(),
+          endDateISO: undefined,
+          startMin,
+          endMin,
+        });
         if (!evaluation.valid) return evaluation;
       }
       return { valid: true, reason: 'ok' };
@@ -880,21 +1013,29 @@ export class CalendarApp {
   }
 
   private evaluateDay(input: EvaluationInput): DraftEvaluation {
-    const slot: Slot = input.allDay ? { date: input.dateISO }
+    const slot: Slot = input.allDay
+      ? { date: input.dateISO }
       : { date: input.dateISO, startMin: input.startMin, endMin: input.endMin };
     const occurrence = input.occurrence;
-    const resourceIds = occurrence ? this.resourceIdsAfterDrop(occurrence, input)
-      : input.resourceId === undefined ? [] : [input.resourceId];
-    const applicableResources = resourceIds.length > 0
-      ? resourceIds.map((resourceId) => this.resources.find((resource) => resource.id === resourceId))
-      : [undefined];
+    const resourceIds = occurrence
+      ? this.resourceIdsAfterDrop(occurrence, input)
+      : input.resourceId === undefined
+        ? []
+        : [input.resourceId];
+    const applicableResources =
+      resourceIds.length > 0
+        ? resourceIds.map((resourceId) =>
+            this.resources.find((resource) => resource.id === resourceId),
+          )
+        : [undefined];
     for (const resource of applicableResources) {
       const evaluation = this.constraintEngineFor(resource).evaluate(slot);
       if (!evaluation.valid) {
         return { valid: false, reason: (evaluation.reason ?? 'blocked') as DraftReason };
       }
     }
-    const canCheckOccupancy = this.temporal !== null && (occurrence !== undefined || input.resourceId !== undefined);
+    const canCheckOccupancy =
+      this.temporal !== null && (occurrence !== undefined || input.resourceId !== undefined);
     if (canCheckOccupancy) {
       for (const resourceId of resourceIds) {
         const resource = this.resources.find((candidate) => candidate.id === resourceId);
@@ -929,9 +1070,7 @@ export class CalendarApp {
    */
   private constraintEngineFor(resource: CalendarResource | undefined): ConstraintEngine {
     if (!resource) return this.engine;
-    return new ConstraintEngine(
-      resourceConstraintSet(resource, this.store.getState().constraints),
-    );
+    return new ConstraintEngine(resourceConstraintSet(resource, this.store.getState().constraints));
   }
 
   /** Ocupação de UM recurso: concorrência (lotação) + buffers na nova posição do candidato. */
@@ -943,9 +1082,12 @@ export class CalendarApp {
     const state = this.store.getState();
     // Both the existing reservation and candidate acquire buffers. Fetch the
     // neighbouring dates before clipping; a 23:50 end can occupy tomorrow.
-    const bufferDays = Math.ceil(((resource.bufferBefore ?? 0) + (resource.bufferAfter ?? 0)) / 1440);
+    const bufferDays = Math.ceil(
+      ((resource.bufferBefore ?? 0) + (resource.bufferAfter ?? 0)) / 1440,
+    );
     const candidates = this.memoOccupancyExpand(
-      temporal, state.events,
+      temporal,
+      state.events,
       dayPlain.subtract({ days: bufferDays }).toString(),
       dayPlain.add({ days: bufferDays }).toString(),
       state.options.timeZone,
@@ -953,9 +1095,20 @@ export class CalendarApp {
     const resourceOccurrences = occurrencesForResource(candidates, resourceId).filter(
       (occurrence) => occurrenceKey(occurrence) !== movedId,
     );
-    const busy = resourceBusyIntervals(temporal,dayPlain,resourceOccurrences,state.options.timeZone);
+    const busy = resourceBusyIntervals(
+      temporal,
+      dayPlain,
+      resourceOccurrences,
+      state.options.timeZone,
+    );
     const occupancy: ResourceOccupancy = {
-      capacity: resource.capacity===false ? Infinity : resource.capacity ?? (state.options.defaultResourceCapacity===false ? Infinity : state.options.defaultResourceCapacity ?? 1),
+      capacity:
+        resource.capacity === false
+          ? Infinity
+          : (resource.capacity ??
+            (state.options.defaultResourceCapacity === false
+              ? Infinity
+              : (state.options.defaultResourceCapacity ?? 1))),
       bufferBefore: resource.bufferBefore ?? 0,
       bufferAfter: resource.bufferAfter ?? 0,
       busy,
@@ -984,7 +1137,8 @@ export class CalendarApp {
     });
     const rollback = (): void => {
       if (this.destroyed) return;
-      for (const [optimistic, original] of originals) this.rejectedOptimistic.set(optimistic, original);
+      for (const [optimistic, original] of originals)
+        this.rejectedOptimistic.set(optimistic, original);
       const current = this.store.getState().events;
       const restored = current.map((event) => {
         let restoredEvent = originals.get(event) ?? event;
@@ -1019,7 +1173,10 @@ export class CalendarApp {
 
   /** Refetch the final visible range, cancelling any superseded request. */
   refetch(): void {
-    if (this.updateDepth > 0) { this.fetchPending = true; return; }
+    if (this.updateDepth > 0) {
+      this.fetchPending = true;
+      return;
+    }
     void this.fetchEvents();
   }
 
@@ -1046,20 +1203,28 @@ export class CalendarApp {
     this.setLoading(true);
     const isCurrentRequest = (): boolean =>
       !this.destroyed && token === this.fetchToken && !controller.signal.aborted;
-    return Promise.resolve().then(() => {
-      if (!isCurrentRequest()) return undefined;
-      return source(range, { signal: controller.signal });
-    }).then((events) => {
-      if (isCurrentRequest() && events !== undefined && !equivalentData(this.store.getState().events, events)) {
-        this.store.setState({ events });
-      }
-    }).catch((error: unknown) => {
-      if (isCurrentRequest()) this.emit('error', error);
-    }).finally(() => {
-      if (!isCurrentRequest()) return;
-      this.fetchController = null;
-      this.setLoading(false);
-    });
+    return Promise.resolve()
+      .then(() => {
+        if (!isCurrentRequest()) return undefined;
+        return source(range, { signal: controller.signal });
+      })
+      .then((events) => {
+        if (
+          isCurrentRequest() &&
+          events !== undefined &&
+          !equivalentData(this.store.getState().events, events)
+        ) {
+          this.store.setState({ events });
+        }
+      })
+      .catch((error: unknown) => {
+        if (isCurrentRequest()) this.emit('error', error);
+      })
+      .finally(() => {
+        if (!isCurrentRequest()) return;
+        this.fetchController = null;
+        this.setLoading(false);
+      });
   }
 
   private emit(eventName: CalendarEventName, payload: unknown): void {
@@ -1069,7 +1234,10 @@ export class CalendarApp {
   }
 
   private emitRange(): void {
-    if (this.updateDepth > 0) { this.rangePending = true; return; }
+    if (this.updateDepth > 0) {
+      this.rangePending = true;
+      return;
+    }
     if (!this.temporal) return;
     this.emit('rangeChange', this.getVisibleRange());
   }
@@ -1078,7 +1246,8 @@ export class CalendarApp {
     const options = this.store.getState().options;
     const nowMs = options.nowMs ?? Date.now();
     if (this.temporal) {
-      return this.temporal.Instant.fromEpochMilliseconds(nowMs).toZonedDateTimeISO(options.timeZone)
+      return this.temporal.Instant.fromEpochMilliseconds(nowMs)
+        .toZonedDateTimeISO(options.timeZone)
         .toPlainDate()
         .toString();
     }

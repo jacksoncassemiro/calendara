@@ -110,6 +110,6 @@ export interface Recurrence {
 /** Check whether an occurrence patch cancels its instance.
  * @remarks Português: Verifica se a alteração cancela a ocorrência.
  */
-export function isCancelledOverride(o: OccurrenceOverride): o is CancelledOverride {
-  return (o as CancelledOverride).cancelled === true;
+export function isCancelledOverride(override: OccurrenceOverride): override is CancelledOverride {
+  return (override as CancelledOverride).cancelled === true;
 }

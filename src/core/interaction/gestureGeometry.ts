@@ -16,8 +16,8 @@ import { calendarDayOffset, normalizeCalendarMinute, shiftCalendarDate } from '.
 
 /** Copia o recurso para a geometria só quando existe (views de data ficam sem a chave). */
 function withResource(geometry: DraftGeometry, resourceId: string | undefined): DraftGeometry {
-	if (resourceId === undefined) return geometry;
-	return { ...geometry, resourceId };
+  if (resourceId === undefined) return geometry;
+  return { ...geometry, resourceId };
 }
 
 /** Modo de arredondamento ao snap. */
@@ -25,21 +25,25 @@ export type SnapRounding = 'nearest' | 'floor' | 'ceil';
 
 /** Arredonda um minuto à grade de `slotMinutes`. */
 export function snapMinute(
-	minute: number,
-	slotMinutes: number,
-	rounding: SnapRounding = 'nearest',
+  minute: number,
+  slotMinutes: number,
+  rounding: SnapRounding = 'nearest',
 ): number {
-	const hasGrid = slotMinutes > 0;
-	if (!hasGrid) return Math.round(minute);
-	const ratio = minute / slotMinutes;
-	const snappedRatio =
-		rounding === 'floor' ? Math.floor(ratio) : rounding === 'ceil' ? Math.ceil(ratio) : Math.round(ratio);
-	return snappedRatio * slotMinutes;
+  const hasGrid = slotMinutes > 0;
+  if (!hasGrid) return Math.round(minute);
+  const ratio = minute / slotMinutes;
+  const snappedRatio =
+    rounding === 'floor'
+      ? Math.floor(ratio)
+      : rounding === 'ceil'
+        ? Math.ceil(ratio)
+        : Math.round(ratio);
+  return snappedRatio * slotMinutes;
 }
 
 /** Limita um valor a [lowerBound, upperBound]. */
 function clamp(value: number, lowerBound: number, upperBound: number): number {
-	return Math.max(lowerBound, Math.min(value, upperBound));
+  return Math.max(lowerBound, Math.min(value, upperBound));
 }
 
 /**
@@ -47,16 +51,16 @@ function clamp(value: number, lowerBound: number, upperBound: number): number {
  * desliza a janela para dentro em vez de cortá-la (comportamento esperado ao arrastar).
  */
 export function clampSpanToGrid(
-	startMin: number,
-	endMin: number,
-	bounds: GridBounds,
+  startMin: number,
+  endMin: number,
+  bounds: GridBounds,
 ): { startMin: number; endMin: number } {
-	const duration = Math.max(0, endMin - startMin);
-	const maxStart = bounds.endMin - duration;
-	const overflowsBottom = startMin > maxStart;
-	const clampedStart = overflowsBottom ? maxStart : Math.max(startMin, bounds.startMin);
-	const finalStart = Math.max(bounds.startMin, clampedStart);
-	return { startMin: finalStart, endMin: finalStart + duration };
+  const duration = Math.max(0, endMin - startMin);
+  const maxStart = bounds.endMin - duration;
+  const overflowsBottom = startMin > maxStart;
+  const clampedStart = overflowsBottom ? maxStart : Math.max(startMin, bounds.startMin);
+  const finalStart = Math.max(bounds.startMin, clampedStart);
+  return { startMin: finalStart, endMin: finalStart + duration };
 }
 
 /**
@@ -64,56 +68,103 @@ export function clampSpanToGrid(
  * `grabOffsetMin` = quanto abaixo do topo do evento o usuário agarrou (mantém o agarre no lugar).
  */
 export function computeMoveDraft(
-	origin: PlacementInfo,
-	pointer: PointerSlot,
-	grabOffsetMin: number,
-	slotMinutes: number,
-	bounds: GridBounds,
-	allowTypeChange = false,
+  origin: PlacementInfo,
+  pointer: PointerSlot,
+  grabOffsetMin: number,
+  slotMinutes: number,
+  bounds: GridBounds,
+  allowTypeChange = false,
 ): DraftGeometry {
-	if (allowTypeChange && !pointer.dateOnly && Boolean(pointer.allDay) !== Boolean(origin.allDay)) {
-		const resourceId = pointer.resourceId ?? origin.resourceId;
-		if (pointer.allDay) {
-			const civilDuration = calendarDayOffset(origin.dateISO, origin.endDateISO ?? origin.dateISO) * 1440
-				+ origin.endMin - origin.startMin;
-			const durationDays = Math.max(1, Math.ceil((origin.durationMinutes ?? civilDuration) / 1440));
-			return withResource({ dateISO: pointer.dateISO, startMin: 0, endMin: 0,
-				endDateISO: shiftCalendarDate(pointer.dateISO, durationDays), allDay: true }, resourceId);
-		}
-		const durationDays = Math.max(1, calendarDayOffset(origin.dateISO, origin.endDateISO!));
-		const start = normalizeCalendarMinute(pointer.dateISO, snapMinute(pointer.minuteOfDay, slotMinutes));
-		const end = normalizeCalendarMinute(start.dateISO, start.minute + durationDays * 1440);
-		return withResource({ dateISO: start.dateISO, startMin: start.minute,
-			endDateISO: end.dateISO, endMin: end.minute, allDay: false }, resourceId);
-	}
-	if (pointer.dateOnly && !origin.allDay) {
-		const grabbedDays = Math.round((grabOffsetMin + origin.startMin) / 1440);
-		const dateISO = shiftCalendarDate(pointer.dateISO, -grabbedDays);
-		return { dateISO, startMin: origin.startMin, endMin: origin.endMin,
-			endDateISO: shiftCalendarDate(dateISO, calendarDayOffset(origin.dateISO, origin.endDateISO ?? origin.dateISO)) };
-	}
-	if (origin.allDay) {
-		const durationDays = Math.max(1, calendarDayOffset(origin.dateISO, origin.endDateISO!));
-		const start = normalizeCalendarMinute(pointer.dateISO, -grabOffsetMin).dateISO;
-		return withResource({ dateISO: start, startMin: 0, endMin: 0,
-			endDateISO: shiftCalendarDate(start, durationDays), allDay: true }, pointer.resourceId);
-	}
-	if (origin.endDateISO && origin.endDateISO !== origin.dateISO) {
-		const duration = calendarDayOffset(origin.dateISO, origin.endDateISO) * 1440 + origin.endMin - origin.startMin;
-		const start = normalizeCalendarMinute(pointer.dateISO, snapMinute(pointer.minuteOfDay - grabOffsetMin, slotMinutes));
-		const end = normalizeCalendarMinute(start.dateISO, start.minute + duration);
-		return withResource({ dateISO: start.dateISO, startMin: start.minute,
-			endDateISO: end.dateISO, endMin: end.minute }, pointer.resourceId);
-	}
-	const duration = Math.max(0, origin.endMin - origin.startMin);
-	const rawStart = pointer.minuteOfDay - grabOffsetMin;
-	const snappedStart = snapMinute(rawStart, slotMinutes, 'nearest');
-	const clamped = clampSpanToGrid(snappedStart, snappedStart + duration, bounds);
-	// Recurso vem do PONTEIRO (não da origem): arrastar para outra coluna reatribui o recurso.
-	return withResource(
-		{ dateISO: pointer.dateISO, startMin: clamped.startMin, endMin: clamped.endMin },
-		pointer.resourceId,
-	);
+  if (allowTypeChange && !pointer.dateOnly && Boolean(pointer.allDay) !== Boolean(origin.allDay)) {
+    const resourceId = pointer.resourceId ?? origin.resourceId;
+    if (pointer.allDay) {
+      const civilDuration =
+        calendarDayOffset(origin.dateISO, origin.endDateISO ?? origin.dateISO) * 1440 +
+        origin.endMin -
+        origin.startMin;
+      const durationDays = Math.max(1, Math.ceil((origin.durationMinutes ?? civilDuration) / 1440));
+      return withResource(
+        {
+          dateISO: pointer.dateISO,
+          startMin: 0,
+          endMin: 0,
+          endDateISO: shiftCalendarDate(pointer.dateISO, durationDays),
+          allDay: true,
+        },
+        resourceId,
+      );
+    }
+    const durationDays = Math.max(1, calendarDayOffset(origin.dateISO, origin.endDateISO!));
+    const start = normalizeCalendarMinute(
+      pointer.dateISO,
+      snapMinute(pointer.minuteOfDay, slotMinutes),
+    );
+    const end = normalizeCalendarMinute(start.dateISO, start.minute + durationDays * 1440);
+    return withResource(
+      {
+        dateISO: start.dateISO,
+        startMin: start.minute,
+        endDateISO: end.dateISO,
+        endMin: end.minute,
+        allDay: false,
+      },
+      resourceId,
+    );
+  }
+  if (pointer.dateOnly && !origin.allDay) {
+    const grabbedDays = Math.round((grabOffsetMin + origin.startMin) / 1440);
+    const dateISO = shiftCalendarDate(pointer.dateISO, -grabbedDays);
+    return {
+      dateISO,
+      startMin: origin.startMin,
+      endMin: origin.endMin,
+      endDateISO: shiftCalendarDate(
+        dateISO,
+        calendarDayOffset(origin.dateISO, origin.endDateISO ?? origin.dateISO),
+      ),
+    };
+  }
+  if (origin.allDay) {
+    const durationDays = Math.max(1, calendarDayOffset(origin.dateISO, origin.endDateISO!));
+    const start = normalizeCalendarMinute(pointer.dateISO, -grabOffsetMin).dateISO;
+    return withResource(
+      {
+        dateISO: start,
+        startMin: 0,
+        endMin: 0,
+        endDateISO: shiftCalendarDate(start, durationDays),
+        allDay: true,
+      },
+      pointer.resourceId,
+    );
+  }
+  if (origin.endDateISO && origin.endDateISO !== origin.dateISO) {
+    const duration =
+      calendarDayOffset(origin.dateISO, origin.endDateISO) * 1440 + origin.endMin - origin.startMin;
+    const start = normalizeCalendarMinute(
+      pointer.dateISO,
+      snapMinute(pointer.minuteOfDay - grabOffsetMin, slotMinutes),
+    );
+    const end = normalizeCalendarMinute(start.dateISO, start.minute + duration);
+    return withResource(
+      {
+        dateISO: start.dateISO,
+        startMin: start.minute,
+        endDateISO: end.dateISO,
+        endMin: end.minute,
+      },
+      pointer.resourceId,
+    );
+  }
+  const duration = Math.max(0, origin.endMin - origin.startMin);
+  const rawStart = pointer.minuteOfDay - grabOffsetMin;
+  const snappedStart = snapMinute(rawStart, slotMinutes, 'nearest');
+  const clamped = clampSpanToGrid(snappedStart, snappedStart + duration, bounds);
+  // Recurso vem do PONTEIRO (não da origem): arrastar para outra coluna reatribui o recurso.
+  return withResource(
+    { dateISO: pointer.dateISO, startMin: clamped.startMin, endMin: clamped.endMin },
+    pointer.resourceId,
+  );
 }
 
 /**
@@ -121,57 +172,112 @@ export function computeMoveDraft(
  * Pode atravessar dias; o recurso de origem é preservado em ambos os sentidos.
  */
 export function computeResizeDraft(
-	origin: PlacementInfo,
-	pointer: PointerSlot,
-	slotMinutes: number,
-	minDurationMin: number,
-	bounds: GridBounds,
-	edge: ResizeEdge = 'end',
+  origin: PlacementInfo,
+  pointer: PointerSlot,
+  slotMinutes: number,
+  minDurationMin: number,
+  bounds: GridBounds,
+  edge: ResizeEdge = 'end',
 ): DraftGeometry {
-	if (edge === 'start') {
-		const endDate = origin.endDateISO ?? origin.dateISO;
-		if (origin.allDay) {
-			const latestStart = shiftCalendarDate(endDate, -1);
-			return withResource({ dateISO: pointer.dateISO < latestStart ? pointer.dateISO : latestStart,
-				startMin: 0, endMin: 0, endDateISO: endDate, allDay: true }, origin.resourceId);
-		}
-		const endAbsolute = calendarDayOffset(origin.dateISO, endDate) * 1440 + origin.endMin;
-		const requestedStart = calendarDayOffset(origin.dateISO, pointer.dateISO) * 1440
-			+ (pointer.dateOnly ? origin.startMin : snapMinute(pointer.minuteOfDay, slotMinutes));
-		const minimumDuration = pointer.dateOnly ? minDurationMin : Math.max(minDurationMin, slotMinutes);
-		let startAbsolute = Math.min(requestedStart, endAbsolute - minimumDuration);
-		// A same-day time grid clips its start edge to its visible upper boundary.
-		if (!pointer.dateOnly && pointer.dateISO === origin.dateISO && endDate === origin.dateISO) {
-			startAbsolute = Math.min(Math.max(startAbsolute, bounds.startMin), endAbsolute - minimumDuration);
-		}
-		const start = normalizeCalendarMinute(origin.dateISO, startAbsolute);
-		return withResource({ dateISO: start.dateISO, startMin: start.minute,
-			endMin: origin.endMin, ...(origin.endDateISO || start.dateISO !== endDate ? { endDateISO: endDate } : {}) }, origin.resourceId);
-	}
-	if (pointer.dateOnly && !origin.allDay) {
-		const endDate = shiftCalendarDate(pointer.dateISO, origin.endMin === 0 ? 1 : 0);
-		const requestedEnd = calendarDayOffset(origin.dateISO, endDate) * 1440 + origin.endMin;
-		const end = normalizeCalendarMinute(origin.dateISO, Math.max(requestedEnd, origin.startMin + minDurationMin));
-		return withResource({ dateISO: origin.dateISO, startMin: origin.startMin, endDateISO: end.dateISO, endMin: end.minute }, origin.resourceId);
-	}
-	if (origin.allDay) {
-		const days = Math.max(1, calendarDayOffset(origin.dateISO, pointer.dateISO) + 1);
-		return withResource({ dateISO: origin.dateISO, startMin: 0, endMin: 0,
-			endDateISO: shiftCalendarDate(origin.dateISO, days), allDay: true }, origin.resourceId);
-	}
-	if (pointer.dateISO !== origin.dateISO || (origin.endDateISO && origin.endDateISO !== origin.dateISO)) {
-		const requestedEnd = calendarDayOffset(origin.dateISO, pointer.dateISO) * 1440 + snapMinute(pointer.minuteOfDay, slotMinutes);
-		const end = normalizeCalendarMinute(origin.dateISO, Math.max(requestedEnd, origin.startMin + Math.max(minDurationMin, slotMinutes)));
-		return withResource({ dateISO: origin.dateISO, startMin: origin.startMin,
-			endDateISO: end.dateISO, endMin: end.minute }, origin.resourceId);
-	}
-	const snappedEnd = snapMinute(pointer.minuteOfDay, slotMinutes, 'nearest');
-	const minimumEnd = origin.startMin + Math.max(minDurationMin, slotMinutes);
-	const boundedEnd = clamp(Math.max(snappedEnd, minimumEnd), minimumEnd, bounds.endMin);
-	return withResource(
-		{ dateISO: origin.dateISO, startMin: origin.startMin, endMin: boundedEnd },
-		origin.resourceId,
-	);
+  if (edge === 'start') {
+    const endDate = origin.endDateISO ?? origin.dateISO;
+    if (origin.allDay) {
+      const latestStart = shiftCalendarDate(endDate, -1);
+      return withResource(
+        {
+          dateISO: pointer.dateISO < latestStart ? pointer.dateISO : latestStart,
+          startMin: 0,
+          endMin: 0,
+          endDateISO: endDate,
+          allDay: true,
+        },
+        origin.resourceId,
+      );
+    }
+    const endAbsolute = calendarDayOffset(origin.dateISO, endDate) * 1440 + origin.endMin;
+    const requestedStart =
+      calendarDayOffset(origin.dateISO, pointer.dateISO) * 1440 +
+      (pointer.dateOnly ? origin.startMin : snapMinute(pointer.minuteOfDay, slotMinutes));
+    const minimumDuration = pointer.dateOnly
+      ? minDurationMin
+      : Math.max(minDurationMin, slotMinutes);
+    let startAbsolute = Math.min(requestedStart, endAbsolute - minimumDuration);
+    // A same-day time grid clips its start edge to its visible upper boundary.
+    if (!pointer.dateOnly && pointer.dateISO === origin.dateISO && endDate === origin.dateISO) {
+      startAbsolute = Math.min(
+        Math.max(startAbsolute, bounds.startMin),
+        endAbsolute - minimumDuration,
+      );
+    }
+    const start = normalizeCalendarMinute(origin.dateISO, startAbsolute);
+    return withResource(
+      {
+        dateISO: start.dateISO,
+        startMin: start.minute,
+        endMin: origin.endMin,
+        ...(origin.endDateISO || start.dateISO !== endDate ? { endDateISO: endDate } : {}),
+      },
+      origin.resourceId,
+    );
+  }
+  if (pointer.dateOnly && !origin.allDay) {
+    const endDate = shiftCalendarDate(pointer.dateISO, origin.endMin === 0 ? 1 : 0);
+    const requestedEnd = calendarDayOffset(origin.dateISO, endDate) * 1440 + origin.endMin;
+    const end = normalizeCalendarMinute(
+      origin.dateISO,
+      Math.max(requestedEnd, origin.startMin + minDurationMin),
+    );
+    return withResource(
+      {
+        dateISO: origin.dateISO,
+        startMin: origin.startMin,
+        endDateISO: end.dateISO,
+        endMin: end.minute,
+      },
+      origin.resourceId,
+    );
+  }
+  if (origin.allDay) {
+    const days = Math.max(1, calendarDayOffset(origin.dateISO, pointer.dateISO) + 1);
+    return withResource(
+      {
+        dateISO: origin.dateISO,
+        startMin: 0,
+        endMin: 0,
+        endDateISO: shiftCalendarDate(origin.dateISO, days),
+        allDay: true,
+      },
+      origin.resourceId,
+    );
+  }
+  if (
+    pointer.dateISO !== origin.dateISO ||
+    (origin.endDateISO && origin.endDateISO !== origin.dateISO)
+  ) {
+    const requestedEnd =
+      calendarDayOffset(origin.dateISO, pointer.dateISO) * 1440 +
+      snapMinute(pointer.minuteOfDay, slotMinutes);
+    const end = normalizeCalendarMinute(
+      origin.dateISO,
+      Math.max(requestedEnd, origin.startMin + Math.max(minDurationMin, slotMinutes)),
+    );
+    return withResource(
+      {
+        dateISO: origin.dateISO,
+        startMin: origin.startMin,
+        endDateISO: end.dateISO,
+        endMin: end.minute,
+      },
+      origin.resourceId,
+    );
+  }
+  const snappedEnd = snapMinute(pointer.minuteOfDay, slotMinutes, 'nearest');
+  const minimumEnd = origin.startMin + Math.max(minDurationMin, slotMinutes);
+  const boundedEnd = clamp(Math.max(snappedEnd, minimumEnd), minimumEnd, bounds.endMin);
+  return withResource(
+    { dateISO: origin.dateISO, startMin: origin.startMin, endMin: boundedEnd },
+    origin.resourceId,
+  );
 }
 
 /**
@@ -180,24 +286,32 @@ export function computeResizeDraft(
  * (floor no início, ceil no fim), garante duração mínima e recorta ao grid.
  */
 export function computeSelectDraft(
-	anchor: PointerSlot,
-	cursor: PointerSlot,
-	slotMinutes: number,
-	minDurationMin: number,
-	bounds: GridBounds,
+  anchor: PointerSlot,
+  cursor: PointerSlot,
+  slotMinutes: number,
+  minDurationMin: number,
+  bounds: GridBounds,
 ): DraftGeometry {
-	if (anchor.allDay) {
-		const start = anchor.dateISO < cursor.dateISO ? anchor.dateISO : cursor.dateISO;
-		const last = anchor.dateISO > cursor.dateISO ? anchor.dateISO : cursor.dateISO;
-		return withResource({ dateISO: start, startMin: 0, endMin: 0,
-			endDateISO: shiftCalendarDate(last, 1), allDay: true }, anchor.resourceId);
-	}
-	const lowerMinute = Math.min(anchor.minuteOfDay, cursor.minuteOfDay);
-	const upperMinute = Math.max(anchor.minuteOfDay, cursor.minuteOfDay);
-	const snappedStart = snapMinute(lowerMinute, slotMinutes, 'floor');
-	const snappedEnd = snapMinute(upperMinute, slotMinutes, 'ceil');
-	const minimumSpan = Math.max(minDurationMin, slotMinutes);
-	const start = clamp(snappedStart, bounds.startMin, bounds.endMin - minimumSpan);
-	const end = clamp(Math.max(snappedEnd, start + minimumSpan), start + minimumSpan, bounds.endMin);
-	return withResource({ dateISO: anchor.dateISO, startMin: start, endMin: end }, anchor.resourceId);
+  if (anchor.allDay) {
+    const start = anchor.dateISO < cursor.dateISO ? anchor.dateISO : cursor.dateISO;
+    const last = anchor.dateISO > cursor.dateISO ? anchor.dateISO : cursor.dateISO;
+    return withResource(
+      {
+        dateISO: start,
+        startMin: 0,
+        endMin: 0,
+        endDateISO: shiftCalendarDate(last, 1),
+        allDay: true,
+      },
+      anchor.resourceId,
+    );
+  }
+  const lowerMinute = Math.min(anchor.minuteOfDay, cursor.minuteOfDay);
+  const upperMinute = Math.max(anchor.minuteOfDay, cursor.minuteOfDay);
+  const snappedStart = snapMinute(lowerMinute, slotMinutes, 'floor');
+  const snappedEnd = snapMinute(upperMinute, slotMinutes, 'ceil');
+  const minimumSpan = Math.max(minDurationMin, slotMinutes);
+  const start = clamp(snappedStart, bounds.startMin, bounds.endMin - minimumSpan);
+  const end = clamp(Math.max(snappedEnd, start + minimumSpan), start + minimumSpan, bounds.endMin);
+  return withResource({ dateISO: anchor.dateISO, startMin: start, endMin: end }, anchor.resourceId);
 }

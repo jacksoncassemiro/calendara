@@ -5,7 +5,10 @@
  * jsdom. A integração real com Preact/DOM fica em `interactionApp.spec.ts` (jsdom, CI).
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InteractionEngine, type InteractionDeps } from '../../src/core/interaction/interactionEngine.js';
+import {
+  InteractionEngine,
+  type InteractionDeps,
+} from '../../src/core/interaction/interactionEngine.js';
 import type {
   PointerSlot,
   EventChange,
@@ -187,9 +190,21 @@ interface Calls {
 
 function makeEngine(
   dom: Harness,
-  options: { injectLocator?: boolean; allowEventTypeChange?: boolean; span?: ReturnType<NonNullable<InteractionDeps['resolveSpan']>> } = {},
+  options: {
+    injectLocator?: boolean;
+    allowEventTypeChange?: boolean;
+    span?: ReturnType<NonNullable<InteractionDeps['resolveSpan']>>;
+  } = {},
 ): { engine: InteractionEngine; calls: Calls } {
-  const calls: Calls = { move: [], resize: [], select: [], blocked: [], clickEvent: [], clickEmpty: [], drafts: [] };
+  const calls: Calls = {
+    move: [],
+    resize: [],
+    select: [],
+    blocked: [],
+    clickEvent: [],
+    clickEmpty: [],
+    drafts: [],
+  };
   const deps: InteractionDeps = {
     getGridBounds: () => ({ startMin: 360, endMin: 1200 }),
     getSlotMinutes: () => 30,
@@ -374,16 +389,33 @@ describe('InteractionEngine — localizador padrão por retângulos', () => {
     dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 180));
     dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, -25));
     dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, -25));
-    expect(calls.move[0]).toMatchObject({ allDay: true, dateISO: '2026-07-22', endDateISO: '2026-07-23' });
+    expect(calls.move[0]).toMatchObject({
+      allDay: true,
+      dateISO: '2026-07-22',
+      endDateISO: '2026-07-23',
+    });
 
     const reverse = setup();
     reverse.cell.appendChild(reverse.dom.eventNode);
-    const result = makeEngine(reverse.dom, { injectLocator: false, allowEventTypeChange: true,
-      span: { dateISO: '2026-07-22', startMin: 0, endDateISO: '2026-07-24', endMin: 0, allDay: true } });
+    const result = makeEngine(reverse.dom, {
+      injectLocator: false,
+      allowEventTypeChange: true,
+      span: {
+        dateISO: '2026-07-22',
+        startMin: 0,
+        endDateISO: '2026-07-24',
+        endMin: 0,
+        allDay: true,
+      },
+    });
     reverse.dom.container.emit('pointerdown', makeEvent(reverse.dom.eventNode, 5, -25));
     reverse.dom.documentRef.emit('pointermove', makeEvent(reverse.dom.documentRef, 5, 120));
     reverse.dom.documentRef.emit('pointerup', makeEvent(reverse.dom.documentRef, 5, 120));
-    expect(result.calls.move[0]).toMatchObject({ allDay: false, startDateTime: '2026-07-22T08:00:00', endDateTime: '2026-07-24T08:00:00' });
+    expect(result.calls.move[0]).toMatchObject({
+      allDay: false,
+      startDateTime: '2026-07-22T08:00:00',
+      endDateTime: '2026-07-24T08:00:00',
+    });
   });
 
   it('alça start redimensiona início, mantém fim e entrega preview e commit de resize', () => {
@@ -397,7 +429,10 @@ describe('InteractionEngine — localizador padrão por retângulos', () => {
     dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 480));
     expect(calls.move).toHaveLength(0);
     expect(calls.resize).toHaveLength(1);
-    expect(calls.resize[0]).toMatchObject({ startDateTime: '2026-07-22T08:00:00', endDateTime: '2026-07-22T10:00:00' });
+    expect(calls.resize[0]).toMatchObject({
+      startDateTime: '2026-07-22T08:00:00',
+      endDateTime: '2026-07-22T10:00:00',
+    });
   });
 
   it('projeta clientY na coluna via getBoundingClientRect (sem locateSlot injetado)', () => {

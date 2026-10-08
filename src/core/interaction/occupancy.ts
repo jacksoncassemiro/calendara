@@ -1,81 +1,72 @@
-/**
- * Validação DURA de ocupação de recurso (Fase 4) — recusa drop/resize por LOTAÇÃO ou BUFFER.
- *
- * Até a Fase 3B `capacity`/`bufferBefore`/`bufferAfter` eram só visuais/informativos. Aqui viram
- * regra: ao mover/redimensionar um evento sobre um recurso, a nova posição precisa caber na
- * lotação e respeitar os buffers do recurso.
- *
- * Ideia central (genérica, sem regra de negócio — ADR-006): o buffer apenas ESTENDE o intervalo
- * ocupado de cada evento (`[start - bufferBefore, end + bufferAfter]`). Assim UMA varredura de
- * concorrência sobre os intervalos estendidos captura lotação e buffer de uma vez. Se a
- * concorrência já estoura SEM os buffers, o motivo é `over-capacity`; se só estoura COM eles,
- * é `buffer-conflict`.
- */
+/** Validate capacity first, then repeat with preparation buffers added to each interval. */
 import type { DraftReason } from './model.js';
 
 /** Um intervalo ocupado (minutos-do-dia), já sem o evento em movimento. */
 export interface BusyInterval {
-	startMin: number;
-	endMin: number;
+  startMin: number;
+  endMin: number;
 }
 
 /** Parâmetros de ocupação de um recurso para o dia avaliado. */
 export interface ResourceOccupancy {
-	/** Lotação simultânea permitida (default 1). */
-	capacity: number;
-	/** Minutos de buffer antes de cada evento. */
-	bufferBefore: number;
-	/** Minutos de buffer depois de cada evento. */
-	bufferAfter: number;
-	/** Ocupações existentes no MESMO dia/recurso, JÁ excluindo o evento em movimento. */
-	busy: readonly BusyInterval[];
+  /** Lotação simultânea permitida (default 1). */
+  capacity: number;
+  /** Minutos de buffer antes de cada evento. */
+  bufferBefore: number;
+  /** Minutos de buffer depois de cada evento. */
+  bufferAfter: number;
+  /** Ocupações existentes no MESMO dia/recurso, JÁ excluindo o evento em movimento. */
+  busy: readonly BusyInterval[];
 }
 
 /** Resultado da validação de ocupação. */
 export interface OccupancyResult {
-	valid: boolean;
-	reason: Extract<DraftReason, 'ok' | 'over-capacity' | 'buffer-conflict'>;
+  valid: boolean;
+  reason: Extract<DraftReason, 'ok' | 'over-capacity' | 'buffer-conflict'>;
 }
 
 /** Pico de concorrência (nº de intervalos simultâneos) por varredura de fronteiras. */
 function peakConcurrency(intervals: readonly BusyInterval[]): number {
-	const boundaries: { minute: number; delta: number }[] = [];
-	for (const interval of intervals) {
-		// Fim == início não conta como sobreposição (fecha antes de abrir no mesmo minuto).
-		boundaries.push({ minute: interval.startMin, delta: 1 });
-		boundaries.push({ minute: interval.endMin, delta: -1 });
-	}
-	boundaries.sort((first, second) => first.minute - second.minute || first.delta - second.delta);
-	let current = 0;
-	let peak = 0;
-	for (const boundary of boundaries) {
-		current += boundary.delta;
-		if (current > peak) peak = current;
-	}
-	return peak;
+  const boundaries: { minute: number; delta: number }[] = [];
+  for (const interval of intervals) {
+    // Fim == início não conta como sobreposição (fecha antes de abrir no mesmo minuto).
+    boundaries.push({ minute: interval.startMin, delta: 1 });
+    boundaries.push({ minute: interval.endMin, delta: -1 });
+  }
+  boundaries.sort((first, second) => first.minute - second.minute || first.delta - second.delta);
+  let current = 0;
+  let peak = 0;
+  for (const boundary of boundaries) {
+    current += boundary.delta;
+    if (current > peak) peak = current;
+  }
+  return peak;
 }
 
 /** Extend full intervals; negative minutes intentionally reach the preceding date. */
 function expandByBuffer(
-	interval: BusyInterval,
-	bufferBefore: number,
-	bufferAfter: number,
+  interval: BusyInterval,
+  bufferBefore: number,
+  bufferAfter: number,
 ): BusyInterval {
-	return {
-		startMin: interval.startMin - bufferBefore,
-		endMin: interval.endMin + bufferAfter,
-	};
+  return {
+    startMin: interval.startMin - bufferBefore,
+    endMin: interval.endMin + bufferAfter,
+  };
 }
 
 /** Mesma varredura, restrita ao intervalo em que o candidato está ocupando o recurso. */
-function concurrencyDuringCandidate(candidate: BusyInterval, busy: readonly BusyInterval[]): number {
-	const overlapping = busy
-		.map((interval) => ({
-			startMin: Math.max(interval.startMin, candidate.startMin),
-			endMin: Math.min(interval.endMin, candidate.endMin),
-		}))
-		.filter((interval) => interval.startMin < interval.endMin);
-	return peakConcurrency([...overlapping, candidate]);
+function concurrencyDuringCandidate(
+  candidate: BusyInterval,
+  busy: readonly BusyInterval[],
+): number {
+  const overlapping = busy
+    .map((interval) => ({
+      startMin: Math.max(interval.startMin, candidate.startMin),
+      endMin: Math.min(interval.endMin, candidate.endMin),
+    }))
+    .filter((interval) => interval.startMin < interval.endMin);
+  return peakConcurrency([...overlapping, candidate]);
 }
 
 /**
@@ -83,27 +74,31 @@ function concurrencyDuringCandidate(candidate: BusyInterval, busy: readonly Busy
  * `valid=false` com `reason` explicando LOTAÇÃO ('over-capacity') ou BUFFER ('buffer-conflict').
  */
 export function validateOccupancy(
-	candidate: BusyInterval,
-	occupancy: ResourceOccupancy,
+  candidate: BusyInterval,
+  occupancy: ResourceOccupancy,
 ): OccupancyResult {
-	const capacity = occupancy.capacity > 0 ? occupancy.capacity : 1;
+  const capacity = occupancy.capacity > 0 ? occupancy.capacity : 1;
 
-	// 1) Concorrência SEM buffers → lotação pura.
-	const bareConcurrency = concurrencyDuringCandidate(candidate, occupancy.busy);
-	const exceedsCapacity = bareConcurrency > capacity;
-	if (exceedsCapacity) return { valid: false, reason: 'over-capacity' };
+  // 1) Concorrência SEM buffers → lotação pura.
+  const bareConcurrency = concurrencyDuringCandidate(candidate, occupancy.busy);
+  const exceedsCapacity = bareConcurrency > capacity;
+  if (exceedsCapacity) return { valid: false, reason: 'over-capacity' };
 
-	// 2) Concorrência COM buffers estendidos → conflito de buffer.
-	const hasBuffer = occupancy.bufferBefore > 0 || occupancy.bufferAfter > 0;
-	if (hasBuffer) {
-		const expanded = occupancy.busy.map((interval) =>
-			expandByBuffer(interval, occupancy.bufferBefore, occupancy.bufferAfter),
-		);
-		const bufferedCandidate = expandByBuffer(candidate, occupancy.bufferBefore, occupancy.bufferAfter);
-		const bufferedConcurrency = concurrencyDuringCandidate(bufferedCandidate, expanded);
-		const violatesBuffer = bufferedConcurrency > capacity;
-		if (violatesBuffer) return { valid: false, reason: 'buffer-conflict' };
-	}
+  // 2) Concorrência COM buffers estendidos → conflito de buffer.
+  const hasBuffer = occupancy.bufferBefore > 0 || occupancy.bufferAfter > 0;
+  if (hasBuffer) {
+    const expanded = occupancy.busy.map((interval) =>
+      expandByBuffer(interval, occupancy.bufferBefore, occupancy.bufferAfter),
+    );
+    const bufferedCandidate = expandByBuffer(
+      candidate,
+      occupancy.bufferBefore,
+      occupancy.bufferAfter,
+    );
+    const bufferedConcurrency = concurrencyDuringCandidate(bufferedCandidate, expanded);
+    const violatesBuffer = bufferedConcurrency > capacity;
+    if (violatesBuffer) return { valid: false, reason: 'buffer-conflict' };
+  }
 
-	return { valid: true, reason: 'ok' };
+  return { valid: true, reason: 'ok' };
 }

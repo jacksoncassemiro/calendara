@@ -17,8 +17,12 @@ type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
 /** Capacidade padrão de um recurso quando não especificada. */
 const DEFAULT_CAPACITY = 1;
-export function resourceCapacity(resource:CalendarResource,defaultCapacity:number|false=DEFAULT_CAPACITY):number {
- const configured=resource.capacity ?? defaultCapacity;return configured===false ? Infinity : configured;
+export function resourceCapacity(
+  resource: CalendarResource,
+  defaultCapacity: number | false = DEFAULT_CAPACITY,
+): number {
+  const configured = resource.capacity ?? defaultCapacity;
+  return configured === false ? Infinity : configured;
 }
 
 export interface ResourceColumnData {
@@ -104,7 +108,7 @@ export function buildResourceColumns(
   grid: { startHour: number; endHour: number },
   displayTimeZone: string,
   visibleResourceIds?: readonly string[],
-  defaultCapacity:number|false=DEFAULT_CAPACITY,
+  defaultCapacity: number | false = DEFAULT_CAPACITY,
 ): ResourceColumnData[] {
   const gridStartMin = grid.startHour * 60;
   const gridEndMin = grid.endHour * 60;
@@ -119,18 +123,33 @@ export function buildResourceColumns(
 
     const resourceOccurrences = occurrencesForResource(occurrences, resource.id);
     const constraints = resourceConstraintSet(resource, globalConstraints);
-    const dayData = buildDays(temporal, [day], resourceOccurrences, constraints, grid, displayTimeZone)[0]!;
+    const dayData = buildDays(
+      temporal,
+      [day],
+      resourceOccurrences,
+      constraints,
+      grid,
+      displayTimeZone,
+    )[0]!;
     dayData.nonBusiness = resourceSlotBands(constraints, day.toString(), gridStartMin, gridEndMin);
 
     const concurrency = maxConcurrency(dayData);
-    const capacity = resourceCapacity(resource,defaultCapacity);
+    const capacity = resourceCapacity(resource, defaultCapacity);
     columns.push({
       resource,
       capacity,
       day: dayData,
-      bufferSegments: bufferSegmentsFor(resource,
-        resourceBusyIntervals(temporal,day,resourceOccurrences.filter(occurrence=>!occurrence.event.time.allDay),displayTimeZone),
-        gridStartMin,gridEndMin),
+      bufferSegments: bufferSegmentsFor(
+        resource,
+        resourceBusyIntervals(
+          temporal,
+          day,
+          resourceOccurrences.filter((occurrence) => !occurrence.event.time.allDay),
+          displayTimeZone,
+        ),
+        gridStartMin,
+        gridEndMin,
+      ),
       maxConcurrency: concurrency,
       overCapacity: concurrency > capacity,
     });

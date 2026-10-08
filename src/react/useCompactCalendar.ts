@@ -14,7 +14,7 @@ export function useCompactCalendar(breakpoint = 640) {
       window.addEventListener('resize', onResize);
       return () => window.removeEventListener('resize', onResize);
     }
-    const observer = new ResizeObserver(entries => {
+    const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) update(entry.contentRect.width);
     });

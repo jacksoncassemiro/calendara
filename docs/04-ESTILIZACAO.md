@@ -4,7 +4,7 @@ Como o calendário é estilizado e como o app consumidor customiza a aparência.
 
 ## Princípio: geometria inline, aparência por classe
 
-O **core** só escreve **geometria** inline (posição/tamanho absolutos: `top`/`height`/`left`/`width`/`flex`) — isso precisa existir no DOM independentemente de qualquer CSS carregado, senão o calendário "desmonta" sem folha de estilo. Toda a **aparência** (cor, borda, tipografia, raio, espaçamento, estados) vem do pacote `@meucalendario/calendar/styles.css`, via classes `mc-*` que consomem **tokens** (CSS custom properties `--mc-*`).
+O **core** só escreve **geometria** inline (posição/tamanho absolutos: `top`/`height`/`left`/`width`/`flex`) — isso precisa existir no DOM independentemente de qualquer CSS carregado, senão o calendário "desmonta" sem folha de estilo. Toda a **aparência** (cor, borda, tipografia, raio, espaçamento, estados) vem do pacote `@jacksoncassemiro/calendara/styles.css`, via classes `mc-*` que consomem **tokens** (CSS custom properties `--mc-*`).
 
 Consequência prática: para trocar a cara do calendário, **quase nunca** se reescreve regra CSS — redefine-se os **tokens** sob `[data-mc-root]`. Tudo é escopado por `[data-mc-root]` para não colidir com o CSS do app (ex.: Tailwind).
 
@@ -15,7 +15,7 @@ No sentido inverso há **uma** exceção, só no tema: dentro de `.mc-hscroll`, 
 ## Uso
 
 ```ts
-import '@meucalendario/calendar/styles.css';          // ou '@meucalendario/calendar/styles.css/index.css'
+import '@jacksoncassemiro/calendara/styles.css';          // ou '@jacksoncassemiro/calendara/styles.css/index.css'
 ```
 
 ## Customização por tokens (recomendado)

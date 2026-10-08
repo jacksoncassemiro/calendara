@@ -14,12 +14,7 @@ export type {
   ToolbarContext,
   ToolbarRenderSlot,
 } from '../viewTypes.js';
-export {
-  weekView,
-  dayView,
-  createNDaysView,
-  BUILTIN_TIME_GRID_VIEWS,
-} from './timeGridViews.js';
+export { weekView, dayView, createNDaysView, BUILTIN_TIME_GRID_VIEWS } from './timeGridViews.js';
 export { monthView } from './MonthView.js';
 export { listView, createListView } from './ListView.js';
 export { createResourceDayView } from './ResourceDayView.js';

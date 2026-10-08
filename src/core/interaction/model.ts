@@ -26,167 +26,170 @@ export type ResizeEdge = 'start' | 'end';
  * derivados de recursos, não de constraints puros de calendário.
  */
 export type DraftReason =
-	| 'ok'
-	| 'blocked'
-	| 'outside-business-hours'
-	| 'outside-allowed'
-	| 'over-capacity'
-	| 'buffer-conflict';
+  | 'ok'
+  | 'blocked'
+  | 'outside-business-hours'
+  | 'outside-allowed'
+  | 'over-capacity'
+  | 'buffer-conflict';
 
 /** Ponto do cursor projetado numa coluna: data do dia + minuto-do-dia. */
 export interface PointerSlot {
-	/** Day-grid pointer: changes dates while preserving the event's clock time. */
-	dateOnly?: boolean;
-	dateISO: string;
-	minuteOfDay: number;
-	allDay?: boolean;
-	/** Recurso da coluna/linha sob o cursor (só views de recurso). */
-	resourceId?: string;
+  /** Day-grid pointer: changes dates while preserving the event's clock time. */
+  dateOnly?: boolean;
+  dateISO: string;
+  minuteOfDay: number;
+  allDay?: boolean;
+  /** Recurso da coluna/linha sob o cursor (só views de recurso). */
+  resourceId?: string;
 }
 
 /** Limites verticais do grid, em minutos-do-dia (startHour*60 .. endHour*60). */
 export interface GridBounds {
-	startMin: number;
-	endMin: number;
+  startMin: number;
+  endMin: number;
 }
 
 /** Colocação atual de um evento timed numa coluna (origem de um move/resize). */
 export interface PlacementInfo {
-	/** External source; received through commitExternal rather than a move in the store. */
-	external?: boolean;
-	/** Chave estável do bloco (`${masterId}@${originalStart}`). */
-	eventId: string;
-	dateISO: string;
-	startMin: number;
-	endMin: number;
-	endDateISO?: string;
-	allDay?: boolean;
-	durationMinutes?: number;
-	occurrence: EventOccurrence;
-	/** `event.editable !== false`. */
-	editable: boolean;
-	/**
-	 * Recurso da coluna/linha DE ONDE o bloco foi agarrado. Um evento multi-recurso aparece em
-	 * várias colunas; é este campo (não `event.resourceIds`) que diz qual delas o usuário pegou.
-	 */
-	resourceId?: string;
+  /** External source; received through commitExternal rather than a move in the store. */
+  external?: boolean;
+  /** Chave estável do bloco (`${masterId}@${originalStart}`). */
+  eventId: string;
+  dateISO: string;
+  startMin: number;
+  endMin: number;
+  endDateISO?: string;
+  allDay?: boolean;
+  durationMinutes?: number;
+  occurrence: EventOccurrence;
+  /** `event.editable !== false`. */
+  editable: boolean;
+  /**
+   * Recurso da coluna/linha DE ONDE o bloco foi agarrado. Um evento multi-recurso aparece em
+   * várias colunas; é este campo (não `event.resourceIds`) que diz qual delas o usuário pegou.
+   */
+  resourceId?: string;
 }
 
 /** Actual pointer destination, independent of pointer capture on the original card. */
 export interface OutsideDropTarget {
-	clientX: number;
-	clientY: number;
-	target: Element | null;
+  clientX: number;
+  clientY: number;
+  target: Element | null;
 }
 
 /** Geometria de um rascunho (posição tentativa em minutos-do-dia). */
 export interface DraftGeometry {
-	dateISO: string;
-	startMin: number;
-	endMin: number;
-	/** Date of the end; exclusive midnight/day for all-day intervals. */
-	endDateISO?: string;
-	allDay?: boolean;
-	/** Recurso-ALVO da posição tentativa (só views de recurso). */
-	resourceId?: string;
+  dateISO: string;
+  startMin: number;
+  endMin: number;
+  /** Date of the end; exclusive midnight/day for all-day intervals. */
+  endDateISO?: string;
+  allDay?: boolean;
+  /** Recurso-ALVO da posição tentativa (só views de recurso). */
+  resourceId?: string;
 }
 
 /** Rascunho vivo do gesto — desenhado como fantasma e reavaliado a cada movimento. */
 export interface InteractionDraft extends DraftGeometry {
-	/** Presentation for external cards that are absent from the calendar store. */
-	title?: string;
-	color?: string;
-	kind: InteractionKind;
-	/** Slot válido segundo o ConstraintEngine + ocupação de recurso (drop/click permitido). */
-	valid: boolean;
-	/** Motivo da (in)validade. */
-	reason: DraftReason;
-	/** Evento sendo movido/redimensionado (ausente em seleção). */
-	eventId?: string;
+  /** Presentation for external cards that are absent from the calendar store. */
+  title?: string;
+  color?: string;
+  kind: InteractionKind;
+  /** Slot válido segundo o ConstraintEngine + ocupação de recurso (drop/click permitido). */
+  valid: boolean;
+  /** Motivo da (in)validade. */
+  reason: DraftReason;
+  /** Evento sendo movido/redimensionado (ausente em seleção). */
+  eventId?: string;
 }
 
 /** Mudança concreta de um evento (mover ou redimensionar) entregue ao consumidor. */
 export interface EventChange {
-	kind: 'move' | 'resize';
-	occurrence: EventOccurrence;
-	event: CalendarEvent;
-	dateISO: string;
-	startMin: number;
-	endMin: number;
-	endDateISO?: string;
-	allDay?: boolean;
-	/** Novo início como wall-clock ISO na timezone de exibição ('YYYY-MM-DDTHH:mm:00'). */
-	startDateTime: string;
-	/** Novo fim como wall-clock ISO na timezone de exibição. */
-	endDateTime: string;
-	/** Timezone IANA dos novos horários wall-clock (normalmente a timezone de exibição). */
-	timeZone?: string;
-	/** Recurso-alvo do drop (só views de recurso). Igual a `fromResourceId` quando não trocou. */
-	resourceId?: string;
-	/** Recurso de origem do bloco arrastado (só views de recurso). */
-	fromResourceId?: string;
+  kind: 'move' | 'resize';
+  occurrence: EventOccurrence;
+  event: CalendarEvent;
+  dateISO: string;
+  startMin: number;
+  endMin: number;
+  endDateISO?: string;
+  allDay?: boolean;
+  /** Novo início como wall-clock ISO na timezone de exibição ('YYYY-MM-DDTHH:mm:00'). */
+  startDateTime: string;
+  /** Novo fim como wall-clock ISO na timezone de exibição. */
+  endDateTime: string;
+  /** Timezone IANA dos novos horários wall-clock (normalmente a timezone de exibição). */
+  timeZone?: string;
+  /** Recurso-alvo do drop (só views de recurso). Igual a `fromResourceId` quando não trocou. */
+  resourceId?: string;
+  /** Recurso de origem do bloco arrastado (só views de recurso). */
+  fromResourceId?: string;
 }
 
 /** Seleção de intervalo num dia (drag em área vazia). */
 export interface SelectionChange {
-	dateISO: string;
-	startMin: number;
-	endMin: number;
-	endDateISO?: string;
-	allDay?: boolean;
-	/** Recurso da coluna/linha onde a seleção foi feita (só views de recurso). */
-	resourceId?: string;
+  dateISO: string;
+  startMin: number;
+  endMin: number;
+  endDateISO?: string;
+  allDay?: boolean;
+  /** Recurso da coluna/linha onde a seleção foi feita (só views de recurso). */
+  resourceId?: string;
 }
 
 /** Payload de drop/click barrado pelo ConstraintEngine. */
 export interface BlockedInfo {
-	kind: InteractionKind;
-	dateISO: string;
-	startMin: number;
-	endMin: number;
-	endDateISO?: string;
-	allDay?: boolean;
-	reason: DraftReason;
-	/** Presente quando o gesto barrado envolvia um evento (move/resize). */
-	occurrence?: EventOccurrence;
-	/** Recurso-alvo do gesto barrado (só views de recurso). */
-	resourceId?: string;
+  kind: InteractionKind;
+  dateISO: string;
+  startMin: number;
+  endMin: number;
+  endDateISO?: string;
+  allDay?: boolean;
+  reason: DraftReason;
+  /** Presente quando o gesto barrado envolvia um evento (move/resize). */
+  occurrence?: EventOccurrence;
+  /** Recurso-alvo do gesto barrado (só views de recurso). */
+  resourceId?: string;
 }
 
 /** Retorno permitido dos callbacks de commit: `false`/rejeição ⇒ reverter. */
 export type CommitResult = void | boolean | Promise<void | boolean>;
 
 export function shiftCalendarDate(dateISO: string, days: number): string {
-	const [year, month, day] = dateISO.split('-').map(Number);
-	const date = new Date(0);
-	date.setUTCFullYear(year!, month! - 1, day! + days);
-	return date.toISOString().slice(0, 10);
+  const [year, month, day] = dateISO.split('-').map(Number);
+  const date = new Date(0);
+  date.setUTCFullYear(year!, month! - 1, day! + days);
+  return date.toISOString().slice(0, 10);
 }
 
 export function calendarDayOffset(from: string, to: string): number {
-	return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 }
 
-export function normalizeCalendarMinute(dateISO: string, minute: number): { dateISO: string; minute: number } {
-	const days = Math.floor(minute / 1440);
-	return { dateISO: shiftCalendarDate(dateISO, days), minute: minute - days * 1440 };
+export function normalizeCalendarMinute(
+  dateISO: string,
+  minute: number,
+): { dateISO: string; minute: number } {
+  const days = Math.floor(minute / 1440);
+  return { dateISO: shiftCalendarDate(dateISO, days), minute: minute - days * 1440 };
 }
 
 /** Formata data + minuto-do-dia como wall-clock ISO 'YYYY-MM-DDTHH:mm:00'. */
 export function minutesToDateTime(dateISO: string, minuteOfDay: number): string {
-	const clampedMinute = Math.max(0, Math.min(Math.floor(minuteOfDay), 24 * 60));
-	const isNextDay = clampedMinute === 24 * 60;
-	if (isNextDay) {
-		const [year, month, day] = dateISO.split('-').map(Number);
-		// setUTCFullYear evita a conversão de anos 0..99 para 1900..1999 do Date.UTC.
-		const nextDay = new Date(0);
-		nextDay.setUTCFullYear(year!, month! - 1, day! + 1);
-		return `${nextDay.toISOString().slice(0, 10)}T00:00:00`;
-	}
-	const hours = Math.floor(clampedMinute / 60);
-	const minutes = clampedMinute % 60;
-	const pad = (value: number): string => (value < 10 ? `0${value}` : `${value}`);
-	return `${dateISO}T${pad(hours)}:${pad(minutes)}:00`;
+  const clampedMinute = Math.max(0, Math.min(Math.floor(minuteOfDay), 24 * 60));
+  const isNextDay = clampedMinute === 24 * 60;
+  if (isNextDay) {
+    const [year, month, day] = dateISO.split('-').map(Number);
+    // setUTCFullYear evita a conversão de anos 0..99 para 1900..1999 do Date.UTC.
+    const nextDay = new Date(0);
+    nextDay.setUTCFullYear(year!, month! - 1, day! + 1);
+    return `${nextDay.toISOString().slice(0, 10)}T00:00:00`;
+  }
+  const hours = Math.floor(clampedMinute / 60);
+  const minutes = clampedMinute % 60;
+  const pad = (value: number): string => (value < 10 ? `0${value}` : `${value}`);
+  return `${dateISO}T${pad(hours)}:${pad(minutes)}:00`;
 }
 
 /**
@@ -199,14 +202,12 @@ export function minutesToDateTime(dateISO: string, minuteOfDay: number): string 
  * válido e o commit criaria uma lotação estourada. Exportada também para o consumidor persistir.
  */
 export function reassignResource(
-	resourceIds: readonly string[],
-	fromResourceId: string,
-	toResourceId: string,
+  resourceIds: readonly string[],
+  fromResourceId: string,
+  toResourceId: string,
 ): string[] {
-	const others = resourceIds.filter(
-		(id) => id !== fromResourceId && id !== toResourceId,
-	);
-	return [...others, toResourceId];
+  const others = resourceIds.filter((id) => id !== fromResourceId && id !== toResourceId);
+  return [...others, toResourceId];
 }
 
 /**
@@ -216,44 +217,64 @@ export function reassignResource(
  * colunas numa view de recurso (`fromResourceId` ≠ `resourceId`), também o `resourceIds`.
  */
 export function applyEventTimeChange(
-	events: readonly CalendarEvent[],
-	change: EventChange,
+  events: readonly CalendarEvent[],
+  change: EventChange,
 ): CalendarEvent[] {
-	const masterId = change.occurrence.masterId;
-	const { fromResourceId, resourceId } = change;
-	const crossedResource =
-		fromResourceId !== undefined && resourceId !== undefined && fromResourceId !== resourceId;
-	return events.map((event) => {
-		const isTargetMaster = event.id === masterId;
-		if (!isTargetMaster) return event;
-		const effective = change.occurrence.event;
-		const nextTime = change.allDay ? {
-			allDay: true,
-			start: { date: change.dateISO },
-			end: { date: change.endDateISO ?? change.endDateTime.slice(0, 10) },
-		} : {
-			...effective.time,
-			allDay: false,
-			start: { ...(effective.time.allDay ? {} : effective.time.start), dateTime: change.startDateTime, ...(change.timeZone ? { timeZone: change.timeZone } : {}) },
-			end: { ...(effective.time.allDay ? {} : effective.time.end), dateTime: change.endDateTime, ...(change.timeZone ? { timeZone: change.timeZone } : {}) },
-		};
-		const nextResources = crossedResource
-			? reassignResource(effective.resourceIds ?? [], fromResourceId!, resourceId!)
-			: effective.resourceIds;
-		if (event.recurrence) {
-			const override = event.recurrence.overrides?.[change.occurrence.originalStart];
-			return { ...event, recurrence: { ...event.recurrence, overrides: {
-				...event.recurrence.overrides,
-				[change.occurrence.originalStart]: { ...override, time: nextTime, ...(nextResources ? { resourceIds: nextResources } : {}) },
-			} } };
-		}
-		const next: CalendarEvent = {
-			...event,
-			time: nextTime,
-		};
-		if (crossedResource) {
-			next.resourceIds = reassignResource(event.resourceIds ?? [], fromResourceId!, resourceId!);
-		}
-		return next;
-	});
+  const masterId = change.occurrence.masterId;
+  const { fromResourceId, resourceId } = change;
+  const crossedResource =
+    fromResourceId !== undefined && resourceId !== undefined && fromResourceId !== resourceId;
+  return events.map((event) => {
+    const isTargetMaster = event.id === masterId;
+    if (!isTargetMaster) return event;
+    const effective = change.occurrence.event;
+    const nextTime = change.allDay
+      ? {
+          allDay: true,
+          start: { date: change.dateISO },
+          end: { date: change.endDateISO ?? change.endDateTime.slice(0, 10) },
+        }
+      : {
+          ...effective.time,
+          allDay: false,
+          start: {
+            ...(effective.time.allDay ? {} : effective.time.start),
+            dateTime: change.startDateTime,
+            ...(change.timeZone ? { timeZone: change.timeZone } : {}),
+          },
+          end: {
+            ...(effective.time.allDay ? {} : effective.time.end),
+            dateTime: change.endDateTime,
+            ...(change.timeZone ? { timeZone: change.timeZone } : {}),
+          },
+        };
+    const nextResources = crossedResource
+      ? reassignResource(effective.resourceIds ?? [], fromResourceId!, resourceId!)
+      : effective.resourceIds;
+    if (event.recurrence) {
+      const override = event.recurrence.overrides?.[change.occurrence.originalStart];
+      return {
+        ...event,
+        recurrence: {
+          ...event.recurrence,
+          overrides: {
+            ...event.recurrence.overrides,
+            [change.occurrence.originalStart]: {
+              ...override,
+              time: nextTime,
+              ...(nextResources ? { resourceIds: nextResources } : {}),
+            },
+          },
+        },
+      };
+    }
+    const next: CalendarEvent = {
+      ...event,
+      time: nextTime,
+    };
+    if (crossedResource) {
+      next.resourceIds = reassignResource(event.resourceIds ?? [], fromResourceId!, resourceId!);
+    }
+    return next;
+  });
 }

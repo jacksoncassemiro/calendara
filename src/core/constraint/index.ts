@@ -1,5 +1,1 @@
-export {
-	ConstraintEngine,
-	jsDayOfWeek,
-	type Slot,
-} from "./constraintEngine.js";
+export { ConstraintEngine, jsDayOfWeek, type Slot } from './constraintEngine.js';

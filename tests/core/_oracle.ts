@@ -1,7 +1,4 @@
-/**
- * Helpers de teste: oráculo rrule.js + runner do nosso motor.
- * rrule fica FORA do runtime da lib — só aqui, como oráculo (ADR-003).
- */
+/** Test-only rrule.js oracle and calendar recurrence runner. */
 import rrulePackage from 'rrule';
 import type { TemporalLike } from '../../src/core/date/temporal.js';
 import { parseRRule } from '../../src/core/recurrence/parser.js';
@@ -29,7 +26,8 @@ export function expandRRuleOracle(
   const referenceRule = new RRule(ruleOptions);
   const excludedDatesLine = recurrenceText.split('\n').find((line) => line.startsWith('EXDATE:'));
   if (!excludedDatesLine) {
-    return referenceRule.all((_occurrenceDate, occurrenceIndex) => occurrenceIndex < occurrenceLimit)
+    return referenceRule
+      .all((_occurrenceDate, occurrenceIndex) => occurrenceIndex < occurrenceLimit)
       .map(formatUTCDateISO);
   }
   const referenceSet = new RRuleSet();
@@ -39,18 +37,21 @@ export function expandRRuleOracle(
     .split(',')
     .forEach((compactDate) =>
       referenceSet.exdate(
-        new Date(Date.UTC(
-          Number(compactDate.substring(0, 4)),
-          Number(compactDate.substring(4, 6)) - 1,
-          Number(compactDate.substring(6, 8)),
-        )),
+        new Date(
+          Date.UTC(
+            Number(compactDate.substring(0, 4)),
+            Number(compactDate.substring(4, 6)) - 1,
+            Number(compactDate.substring(6, 8)),
+          ),
+        ),
       ),
     );
-  return referenceSet.all((_occurrenceDate, occurrenceIndex) => occurrenceIndex < occurrenceLimit)
+  return referenceSet
+    .all((_occurrenceDate, occurrenceIndex) => occurrenceIndex < occurrenceLimit)
     .map(formatUTCDateISO);
 }
 
-/** Roda o NOSSO motor sobre uma string RRULE (+ EXDATE opcional). Retorna 'YYYY-MM-DD'. */
+/** Expand RRULE and optional EXDATE into YYYY-MM-DD dates. */
 export function expandCalendarRule(
   temporal: TemporalLike,
   startDateISO: string,
@@ -65,10 +66,13 @@ export function expandCalendarRule(
       .replace('EXDATE:', '')
       .split(',')
       .forEach((compactDate) =>
-        excludedDateISOs.add(`${compactDate.substring(0, 4)}-${compactDate.substring(4, 6)}-${compactDate.substring(6, 8)}`),
+        excludedDateISOs.add(
+          `${compactDate.substring(0, 4)}-${compactDate.substring(4, 6)}-${compactDate.substring(6, 8)}`,
+        ),
       );
   }
   const startDate = temporal.PlainDate.from(startDateISO);
-  return expandRuleAll(temporal, recurrenceRule, startDate, excludedDateISOs, occurrenceLimit)
-    .map((occurrenceDate) => occurrenceDate.toString());
+  return expandRuleAll(temporal, recurrenceRule, startDate, excludedDateISOs, occurrenceLimit).map(
+    (occurrenceDate) => occurrenceDate.toString(),
+  );
 }

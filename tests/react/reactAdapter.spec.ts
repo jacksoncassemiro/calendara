@@ -22,9 +22,17 @@ describe('createHandle — delega ao CalendarApp', () => {
       getState: () => ({ date: '2026-07-22' }),
       listViews: () => [{ name: 'week', label: 'Semana' }],
       evaluateSlot: () => ({ valid: true, reason: 'ok' as const }),
-      evaluatePlacement: (input: { dateISO: string; startMin: number; endMin: number; resourceId?: string; kind: string }) => {
+      evaluatePlacement: (input: {
+        dateISO: string;
+        startMin: number;
+        endMin: number;
+        resourceId?: string;
+        kind: string;
+      }) => {
         expect(input.kind).toBe('select');
-        calls.push(`placement:${input.dateISO}:${input.startMin}:${input.endMin}:${input.resourceId}`);
+        calls.push(
+          `placement:${input.dateISO}:${input.startMin}:${input.endMin}:${input.resourceId}`,
+        );
         return { valid: false, reason: 'over-capacity' as const };
       },
       refetch: () => calls.push('refetch'),
@@ -38,13 +46,26 @@ describe('createHandle — delega ao CalendarApp', () => {
     handle.changeView('day');
     handle.refetch();
 
-    expect(calls).toEqual(['prev', 'next', 'today', 'setDate:2026-01-01', 'changeView:day', 'refetch']);
+    expect(calls).toEqual([
+      'prev',
+      'next',
+      'today',
+      'setDate:2026-01-01',
+      'changeView:day',
+      'refetch',
+    ]);
     expect(handle.getTitle()).toBe('Título');
     expect(handle.getVisibleRange()).toEqual({ start: '2026-07-20', end: '2026-07-26' });
     expect(handle.listViews()).toEqual([{ name: 'week', label: 'Semana' }]);
     expect(handle.evaluateSlot({ date: '2026-07-22' }).valid).toBe(true);
-    expect(handle.evaluatePlacement({ dateISO: '2026-07-22', startMin: 540, endMin: 600, resourceId: 'r1' }))
-      .toEqual({ valid: false, reason: 'over-capacity' });
+    expect(
+      handle.evaluatePlacement({
+        dateISO: '2026-07-22',
+        startMin: 540,
+        endMin: 600,
+        resourceId: 'r1',
+      }),
+    ).toEqual({ valid: false, reason: 'over-capacity' });
     expect(calls[calls.length - 1]).toBe('placement:2026-07-22:540:600:r1');
   });
 });

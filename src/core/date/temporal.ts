@@ -26,14 +26,16 @@ export function ensureTemporal(): Promise<TemporalLike> {
     return Promise.resolve(cachedTemporal);
   }
 
-  loadingPromise = import('@js-temporal/polyfill').then((polyfillModule) => {
-    cachedTemporal = polyfillModule.Temporal as unknown as TemporalLike;
-    return cachedTemporal;
-  }).catch((error: unknown) => {
-    // A transient chunk/network error must allow a later initialization retry.
-    loadingPromise = null;
-    throw error;
-  });
+  loadingPromise = import('@js-temporal/polyfill')
+    .then((polyfillModule) => {
+      cachedTemporal = polyfillModule.Temporal as unknown as TemporalLike;
+      return cachedTemporal;
+    })
+    .catch((error: unknown) => {
+      // A transient chunk/network error must allow a later initialization retry.
+      loadingPromise = null;
+      throw error;
+    });
   return loadingPromise;
 }
 

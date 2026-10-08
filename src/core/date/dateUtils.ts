@@ -73,10 +73,7 @@ export interface DateUtils {
     ordinal: number,
   ): InstanceType<TemporalLike['PlainDate']> | null;
   /** Instante UTC (epoch ms) de um PlainDateTime numa timezone — para comparar em DST. */
-  epochMsInZone(
-    dateTime: InstanceType<TemporalLike['PlainDateTime']>,
-    timeZone: string,
-  ): number;
+  epochMsInZone(dateTime: InstanceType<TemporalLike['PlainDateTime']>, timeZone: string): number;
 }
 
 export function createDateUtils(temporal: TemporalLike): DateUtils {
@@ -116,12 +113,7 @@ export function createDateUtils(temporal: TemporalLike): DateUtils {
     return days;
   };
 
-  const nthWeekdayInMonth = (
-    year: number,
-    month: number,
-    dayOfWeek: number,
-    ordinal: number,
-  ) => {
+  const nthWeekdayInMonth = (year: number, month: number, dayOfWeek: number, ordinal: number) => {
     const firstOfMonth = temporal.PlainDate.from({ year, month, day: 1 });
     const daysInMonth = firstOfMonth.daysInMonth;
     const matches: InstanceType<TemporalLike['PlainDate']>[] = [];

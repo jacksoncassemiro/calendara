@@ -1,62 +1,66 @@
-# Meu Calendário
+# Calendara
 
-Biblioteca React nativa de calendário e agenda. **Um único pacote**, com motores TypeScript internos e CSS personalizável por tokens. Versão 0.0.0 em desenvolvimento; publicação no registry ainda não efetuada.
+A native React calendar and scheduler with resources, recurring events, configurable views and a customizable theme. One TypeScript package. MIT licensed.
 
-## Consumo
+A personal, experimental project developed with assistance from OpenAI Codex. APIs may change before 1.0; test the scenarios your application depends on.
+
+[Português](README.pt-BR.md) · [Getting started](docs/en/getting-started.md) · [API](docs/en/api.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+
+## Install
+
+Calendara is distributed as a `.tgz` asset attached to a GitHub Release. It is not published to npm. After a release is published, copy its asset URL from [Releases](https://github.com/jacksoncassemiro/calendara/releases), then run:
 
 ```sh
-yarn add @meucalendario/calendar react react-dom
+yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.1.0/calendara-0.1.0.tgz
+yarn add react react-dom
 ```
 
-```tsx
-import {Calendar, useCalendar, type CalendarEvent} from '@meucalendario/calendar';
-import '@meucalendario/calendar/styles.css';
+This URL shows the planned first-release format; it does not mean the asset already exists. Choose an available tag and matching asset. React and React DOM 18 or 19 are peers; use matching versions. The [installation guide](docs/en/getting-started.md) covers a new React project and local installation.
 
+## Render
+
+```tsx
+import { Calendar, dayView, monthView, type CalendarEvent } from '@jacksoncassemiro/calendara';
+import '@jacksoncassemiro/calendara/styles.css';
+
+const views = [dayView, monthView];
 const events: CalendarEvent[] = [{
-  id:'consulta', calendarId:'agenda', title:'Consulta',
-  time:{allDay:false,
-    start:{dateTime:'2026-10-07T09:00:00',timeZone:'America/Sao_Paulo'},
-    end:{dateTime:'2026-10-07T10:00:00',timeZone:'America/Sao_Paulo'}}
+  id: 'appointment-1', calendarId: 'appointments', title: 'Initial appointment',
+  time: {
+    allDay: false,
+    start: { dateTime: '2026-10-08T09:00:00', timeZone: 'America/Sao_Paulo' },
+    end: { dateTime: '2026-10-08T10:00:00', timeZone: 'America/Sao_Paulo' },
+  },
 }];
-export function Agenda() {
-  const {ref,api}=useCalendar();
-  return <><button onClick={()=>api.today()}>Hoje</button>
-    <Calendar apiRef={ref} events={events} date="2026-10-07" view="week"
-      options={{timeZone:'America/Sao_Paulo'}} /></>;
+
+export function App() {
+  return <Calendar views={views} events={events} initialView="day"
+    initialDate="2026-10-08" options={{ timeZone: 'America/Sao_Paulo' }} />;
 }
 ```
 
-Props devem ser imutáveis. Mudanças são agrupadas e dados equivalentes deduplicados. Para persistir movimentos controlados, use onEventDrop/onEventResize e applyEventTimeChange no seu estado; retornar false/rejeitar reverte o commit otimista. A biblioteca não grava no servidor.
+`views` selects the complete available set. Omit it for week, day, month and list; use `BUILTIN_VIEWS` to extend that set. `initialView` and `initialDate` apply only at mount. Your application creates and persists events. The [API guide](docs/en/api.md) shows drag/resize persistence and custom forms.
 
-## Recursos atuais
+## Included
 
-Para escolher exatamente quais views oferecer, importe suas definições e passe `views={[dayView, monthView]}` ao `<Calendar>`. Sem `view`, a primeira da lista será a inicial. Omitir `views` oferece Semana, Dia, Mês e Agenda; uma lista vazia é inválida. Para acrescentar views ao conjunto padrão, passe `[...BUILTIN_VIEWS, minhaView]`. Recursos podem ser definidos apenas em `resources`, com `createResourceDayView()` e `createTimelineView()` na lista. Veja a [auditoria de API e organização](docs/09-AUDITORIA-API-E-VIEWS.md).
+- Day, week, month, agenda, N-day, resource-day and resource-timeline views; custom React views.
+- Drag, resize, multi-day events, external drag callbacks and overlap/overflow display modes.
+- Capacity, buffers, business hours and blocked intervals, including per-resource rules.
+- Daily, weekly, monthly and yearly recurrence, exceptions and overrides.
+- Optional event editor, render slots, CSS tokens, compact layouts and keyboard slot activation.
 
-- Dia, semana, mês, agenda, N dias, recursos e timeline; createReactView para views próprias com hooks/providers React.
-- Drag/resize de eventos timed entre dias e de intervalos all-day na faixa de dias; transferência entre recursos, constraints, capacidade/buffers e rollback concorrente.
-- CalendarEventEditor opcional para criação/edição/reagendamento/exclusão, ocorrência/esta e seguintes/série, recursos e validação assíncrona. Forneça validate/onSave/onDelete; monte com key da ocorrência ao trocar de evento. splitEventSeries divide o mestre em passado e nova série futura; veja examples/react-playground.tsx.
-- Mês compacto com lista do dia, toolbar compacta, useCompactCalendar e rolagem interna. O editor oferece alternativa ao gesto de arrastar.
-- Mês desktop com drag/resize, limite de três eventos por dia e botão “+N mais” que abre a lista completa. Configure `options.monthMaxEvents` com um inteiro (inclusive zero) ou `false` para mostrar todos; no celular a lista permanece completa.
-- Setas e Home/End navegam pelos horários em dia/semana/recursos/timeline e pelos dias do mês. Enter/Espaço selecionam um horário respeitando constraints e capacidade; eventos podem ser ativados pelo teclado.
-- Recorrência com rrule-temporal 2.2.8 integrada a RDATE, EXDATE, cancelamentos e overrides. Contrato público: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST e BYYEARDAY (YEARLY). Não expõe ainda todos os campos/frequências suportados pela dependência.
-- CSS público em styles.css com tokens --mc-*. Não é necessário instalar Tailwind.
+This developing library does not offer complete scheduler parity. Recurrence uses `rrule-temporal`; Temporal loads a fallback when necessary. Physical Safari/mobile and assistive-technology checks remain separate from automated Edge validation. See [features and limits](docs/en/api.md#features-and-limits).
 
-O motor sem interface pode ser importado por **@meucalendario/calendar/core**, entrada do mesmo pacote. iterateCivilDates(model,dtStart,window) permanece como utilitário independente de datas ISO sem Temporal. A expansão dos eventos usa rrule-temporal; a composição de duração/overrides e o restante do calendário ainda usam Temporal, com polyfill carregado sob demanda. A dependência contém também seu fallback interno; esta migração não elimina polyfills nem reduz o bundle. Início de série num gap DST é rejeitado explicitamente.
-
-## Desenvolvimento e validação
+## Develop
 
 ```sh
-yarn install
-yarn dev                     # /examples/react.html
-yarn verify                  # tipos, testes, builds e consumo do tarball
-yarn test:browser            # fluxos e layouts no Edge
-yarn audit:dependencies
-node scripts/compare-recurrence.mjs
-node scripts/compare-recurrence-events.mjs
+corepack enable
+yarn install --frozen-lockfile
+yarn dev
+yarn verify
+yarn test:browser
 ```
 
-React/React DOM ^18 ou ^19 são peers; a validação atual executou React 19. Compatibilidade física Safari/iOS/Android não foi comprovada. SSR gera o container inicial. Ainda faltam subdiárias, ICS, virtualização, undo/redo, RTL e impressão; não há paridade completa com concorrentes. “Esta e seguintes” exige corte numa ocorrência ativa gerada pela RRULE, mesmo tipo de horário e timezone; mudanças incompatíveis com filtros são rejeitadas.
+Use Node 22.12+, 24 or 26+, according to `package.json`, and Yarn 1.22.22. Open the server URL; `examples/react.html` is not a standalone file. Browser review uses Microsoft Edge. [Contribution and release instructions](CONTRIBUTING.md) describe branches, checks and packaging.
 
-Leia [estado vigente](docs/00-STATUS.md), [API](docs/05-API.md), [estilização](docs/04-ESTILIZACAO.md), [comparação de concorrentes](docs/06-REVISAO-COMPETITIVA.md), [adoção de recorrência](experiments/civil-recurrence/ADOPTION.md) e [auditoria](docs/security_best_practices_report.md).
-
-O mês oferece barras contínuas, popover de “mais” customizável por renderMonthMore, callback onMonthMoreClick ou navegação por monthMoreView. Espaçamento é configurado com pxPerMinute; timeLabelInterval controla somente os rótulos. Veja a [auditoria de layout e interação](docs/07-AUDITORIA-LAYOUT.md) e a [API](docs/05-API.md).
+The [bilingual documentation](docs/en/README.md) is the current public guide. Root-level `docs/`, `specs/` and `experiments/` files preserve architecture decisions and audit history; they may describe previous states.

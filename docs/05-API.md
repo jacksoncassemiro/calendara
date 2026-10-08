@@ -7,7 +7,7 @@ Guia prático: para cada conceito, **um exemplo preenchido**, o **propósito** d
 ## Escolher as views no React
 
 ```tsx
-import { Calendar, dayView, monthView, createResourceDayView, type CalendarEvent } from '@meucalendario/calendar';
+import { Calendar, dayView, monthView, createResourceDayView, type CalendarEvent } from '@jacksoncassemiro/calendara';
 
 const views = [dayView, monthView, createResourceDayView()];
 const resources = [{ id: 'triagem', title: 'Triagem', capacity: 3 }];
@@ -19,7 +19,7 @@ export function Agenda() {
 }
 ```
 
-`views` define a lista completa e a ordem dos botões. `initialView` escolhe somente a view inicial; omitida, usa a primeira da lista. `initialDate` escolhe somente a data inicial. Mudanças nessas duas props depois da montagem não navegam. Omitir `views` usa o conjunto padrão; `[]` é inválido. Para acrescentar views aos defaults, use `[...BUILTIN_VIEWS, minhaView]`. `CalendarApp.setViews` substitui o conjunto; `registerView` acrescenta ou substitui uma definição individual. Uma view inicial precisa estar registrada. Nomes duplicados são recusados.
+`views` define a lista completa e a ordem dos botões. `initialView` escolhe somente a view inicial; omitida, usa a primeira da lista. `initialDate` escolhe somente a data inicial. Mudanças nessas duas props depois da montagem não navegam. `views` é obrigatória; `[]` é inválido. Para acrescentar views aos defaults, use `[...BUILTIN_VIEWS, minhaView]`. `CalendarApp.setViews` substitui o conjunto; `registerView` acrescenta ou substitui uma definição individual. Uma view inicial precisa estar registrada. Nomes duplicados são recusados.
 
 `view` e `date` continuam aceitos: têm precedência sobre `initialView`/`initialDate` na montagem e solicitam navegação quando seu valor muda. Não são props controlled estritas: a navegação interna não é desfeita por um rerender com o mesmo valor. Para acompanhar o estado real, use `onViewChange`, `onDateChange` e `onRangeChange`, ou o handle. Prefira as props `initial*` quando desejar somente configurar a montagem.
 
@@ -276,7 +276,7 @@ onDropBlocked: (info) => toast(`Não pode: ${traduz(info.reason)}`), // 'blocked
 ```ts
 app.changeView('day');   // internas: 'week' | 'day' | 'month' | 'list'
 
-import { createNDaysView, createResourceDayView, createTimelineView } from '@meucalendario/calendar';
+import { createNDaysView, createResourceDayView, createTimelineView } from '@jacksoncassemiro/calendara';
 app.registerView(createNDaysView(3));                 // escala de 3 dias corridos → view 'ndays-3'
 app.registerView(createResourceDayView(resources));   // Multiagenda (1 dia, N colunas) → 'resources'
 app.registerView(createTimelineView(resources));      // Timeline (recursos em linhas) → 'timeline'
@@ -296,9 +296,9 @@ app.registerView({
 
 ---
 
-## 8. React (`@meucalendario/calendar`)
+## 8. React (`@jacksoncassemiro/calendara`)
 
-O pacote único exporta motor, componentes e tipos. Importe os estilos por `@meucalendario/calendar/styles.css`; `/core` é uma entrada opcional do mesmo pacote sem renderer.
+O pacote único exporta motor, componentes e tipos. Importe os estilos por `@jacksoncassemiro/calendara/styles.css`; `/core` é uma entrada opcional do mesmo pacote sem renderer.
 
 `CalendarEventEditor` é um formulário opcional para criação, edição e exclusão. Recebe `event`, `occurrence` opcional, `resources`, `timeZone`, `validate`, `onSave`, `onDelete` e `onCancel`. `validate` retorna uma mensagem de erro ou undefined; callbacks podem ser assíncronos e retornar false para rejeitar. O consumidor aplica as mudanças ao estado/servidor. `context.scope` informa occurrence/series; `context.occurrence.originalStart` identifica a exceção. Monte com key da ocorrência ao trocar de evento. A interface all-day pede o último dia inclusivo e converte para fim exclusivo nos dados.
 
@@ -326,7 +326,7 @@ const { ref, api } = useCalendar();
 api.next(); api.changeView('day'); api.getTitle();
 ```
 
-A instância acompanha a montagem; trocar `events`/`view`/`date` entra pela API imperativa. As extensões `renderEvent`, `customToolbar` e `createReactView` pertencem à árvore React do consumidor e compartilham seus providers. Props imutáveis equivalentes são deduplicadas; mudanças de dados/view/date são agrupadas. `CalendarApp` e as fábricas de views são exportados por @meucalendario/calendar. SSR renderiza inicialmente apenas o container.
+A instância acompanha a montagem; trocar `events`/`view`/`date` entra pela API imperativa. As extensões `renderEvent`, `customToolbar` e `createReactView` pertencem à árvore React do consumidor e compartilham seus providers. Props imutáveis equivalentes são deduplicadas; mudanças de dados/view/date são agrupadas. `CalendarApp` e as fábricas de views são exportados por @jacksoncassemiro/calendara. SSR renderiza inicialmente apenas o container.
 
 `evaluateSlot` consulta constraints globais. Para criação/edição com recursos, use `api.evaluatePlacement({ dateISO, startMin, endMin, resourceId, occurrence? })`: considera expediente do recurso, capacidade e buffers. A ocorrência original opcional evita contar a própria reserva durante a edição. Para eventos atravessando dias, avalie cada segmento diário e cada recurso antes de persistir; a biblioteca não grava no servidor.
 

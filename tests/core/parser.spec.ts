@@ -18,7 +18,9 @@ describe('parseRRule', () => {
   });
 
   it('faz parse de negativos, BYSETPOS lista e WKST', () => {
-    const recurrenceRule = parseRRule('FREQ=MONTHLY;BYMONTHDAY=-1,-2;BYSETPOS=1,-1;WKST=SU;BYDAY=-1SU');
+    const recurrenceRule = parseRRule(
+      'FREQ=MONTHLY;BYMONTHDAY=-1,-2;BYSETPOS=1,-1;WKST=SU;BYDAY=-1SU',
+    );
     expect(recurrenceRule.byMonthDay).toEqual([-1, -2]);
     expect(recurrenceRule.bySetPos).toEqual([1, -1]);
     expect(recurrenceRule.weekStart).toBe('SU');

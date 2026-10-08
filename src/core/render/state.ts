@@ -43,6 +43,10 @@ export interface CalendarOptions {
    * @remarks Português: Passo da grade e dos gestos em minutos; padrão 30.
    */
   slotMinutes: number;
+  /** Scroll near viewport/container edges during drag; default true.
+   * @remarks Português: Rola nas bordas durante o gesto; false desativa.
+   */
+  autoScroll?: boolean;
   /** Label interval in minutes; omitted adapts to scale.
    * @remarks Português: Intervalo dos rótulos em minutos; ausente adapta à escala, sem mudar o
    * snap.
@@ -154,27 +158,71 @@ export const DEFAULT_OPTIONS: CalendarOptions = {
  */
 export function validateCalendarOptions(options: CalendarOptions): void {
   const validHour = (value: GridHour): boolean => {
-    if (typeof value === 'string' && !/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$|^24:00(?::00)?$/.test(value)) return false;
+    if (
+      typeof value === 'string' &&
+      !/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$|^24:00(?::00)?$/.test(value)
+    )
+      return false;
     const hours = resolveHour(value);
     return Number.isFinite(hours) && hours >= 0 && hours <= 24;
   };
-  const validRange = validHour(options.startHour) && validHour(options.endHour)
-    && resolveHour(options.endHour) > resolveHour(options.startHour);
-  if (!validRange) throw new RangeError('[meucalendario] startHour/endHour devem formar um intervalo dentro de 00:00–24:00.');
-  const validSlot = Number.isFinite(options.slotMinutes) && options.slotMinutes > 0 && options.slotMinutes <= 1440;
-  if (!validSlot) throw new RangeError('[meucalendario] slotMinutes deve ser maior que zero e no máximo 1440.');
-  if(options.timeLabelInterval!==undefined && (!Number.isFinite(options.timeLabelInterval) || options.timeLabelInterval<=0 || options.timeLabelInterval>1440))
-    throw new RangeError('[meucalendario] timeLabelInterval deve ser maior que zero e no máximo 1440.');
-  if (options.timedEventOverflow!==undefined && !['shrink','scroll','more'].includes(options.timedEventOverflow)) throw new RangeError('Invalid timedEventOverflow');
-  if (options.eventMaxStack!==undefined && (!Number.isInteger(options.eventMaxStack) || options.eventMaxStack<2)) throw new RangeError('eventMaxStack must be an integer >= 2');
-  if (options.minEventWidth!==undefined && (!Number.isFinite(options.minEventWidth) || options.minEventWidth<=0)) throw new RangeError('minEventWidth must be positive');
-  if(options.defaultResourceCapacity!==undefined && options.defaultResourceCapacity!==false && (!Number.isSafeInteger(options.defaultResourceCapacity) || options.defaultResourceCapacity<=0)) throw new RangeError('defaultResourceCapacity must be a positive integer or false');
+  const validRange =
+    validHour(options.startHour) &&
+    validHour(options.endHour) &&
+    resolveHour(options.endHour) > resolveHour(options.startHour);
+  if (!validRange)
+    throw new RangeError(
+      '[meucalendario] startHour/endHour devem formar um intervalo dentro de 00:00–24:00.',
+    );
+  const validSlot =
+    Number.isFinite(options.slotMinutes) && options.slotMinutes > 0 && options.slotMinutes <= 1440;
+  if (!validSlot)
+    throw new RangeError('[meucalendario] slotMinutes deve ser maior que zero e no máximo 1440.');
+  if (
+    options.timeLabelInterval !== undefined &&
+    (!Number.isFinite(options.timeLabelInterval) ||
+      options.timeLabelInterval <= 0 ||
+      options.timeLabelInterval > 1440)
+  )
+    throw new RangeError(
+      '[meucalendario] timeLabelInterval deve ser maior que zero e no máximo 1440.',
+    );
+  if (
+    options.timedEventOverflow !== undefined &&
+    !['shrink', 'scroll', 'more'].includes(options.timedEventOverflow)
+  )
+    throw new RangeError('Invalid timedEventOverflow');
+  if (
+    options.eventMaxStack !== undefined &&
+    (!Number.isInteger(options.eventMaxStack) || options.eventMaxStack < 2)
+  )
+    throw new RangeError('eventMaxStack must be an integer >= 2');
+  if (
+    options.minEventWidth !== undefined &&
+    (!Number.isFinite(options.minEventWidth) || options.minEventWidth <= 0)
+  )
+    throw new RangeError('minEventWidth must be positive');
+  if (
+    options.defaultResourceCapacity !== undefined &&
+    options.defaultResourceCapacity !== false &&
+    (!Number.isSafeInteger(options.defaultResourceCapacity) || options.defaultResourceCapacity <= 0)
+  )
+    throw new RangeError('defaultResourceCapacity must be a positive integer or false');
   const validScale = Number.isFinite(options.pxPerMinute) && options.pxPerMinute > 0;
   if (!validScale) throw new RangeError('[meucalendario] pxPerMinute deve ser maior que zero.');
-  const validMinimum = Number.isFinite(options.minEventMinutes) && options.minEventMinutes > 0 && options.minEventMinutes <= 1440;
-  if (!validMinimum) throw new RangeError('[meucalendario] minEventMinutes deve estar entre zero e 1440.');
-  if (options.monthMaxEvents !== undefined && options.monthMaxEvents !== false &&
-    (!Number.isInteger(options.monthMaxEvents) || options.monthMaxEvents < 0)) {
-    throw new RangeError('[meucalendario] monthMaxEvents deve ser um inteiro não negativo ou false.');
+  const validMinimum =
+    Number.isFinite(options.minEventMinutes) &&
+    options.minEventMinutes > 0 &&
+    options.minEventMinutes <= 1440;
+  if (!validMinimum)
+    throw new RangeError('[meucalendario] minEventMinutes deve estar entre zero e 1440.');
+  if (
+    options.monthMaxEvents !== undefined &&
+    options.monthMaxEvents !== false &&
+    (!Number.isInteger(options.monthMaxEvents) || options.monthMaxEvents < 0)
+  ) {
+    throw new RangeError(
+      '[meucalendario] monthMaxEvents deve ser um inteiro não negativo ou false.',
+    );
   }
 }
