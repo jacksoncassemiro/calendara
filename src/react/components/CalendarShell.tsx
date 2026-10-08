@@ -10,6 +10,7 @@ import type { ReactNode } from 'react';
 
 export interface ShellProps {
   toolbar: ToolbarContext;
+  locale?: string;
   renderToolbar?: ToolbarRenderSlot;
   body: ReactNode;
 }
@@ -17,7 +18,7 @@ export interface ShellProps {
 export function CalendarShell(props: ShellProps): JSX.Element {
   const toolbar = props.renderToolbar
     ? props.renderToolbar(props.toolbar)
-    : createElement(DefaultToolbar, { toolbar: props.toolbar });
+    : createElement(DefaultToolbar, { toolbar: props.toolbar, locale: props.locale });
   return (
     <div className="mc-calendar" data-mc-root data-mc-view={props.toolbar.viewName}>
       {toolbar}
@@ -28,16 +29,22 @@ export function CalendarShell(props: ShellProps): JSX.Element {
   );
 }
 
-function DefaultToolbar(props: { toolbar: ToolbarContext }): JSX.Element {
+function DefaultToolbar(props: { toolbar: ToolbarContext; locale?: string }): JSX.Element {
   const { toolbar } = props;
+  const english = props.locale?.startsWith('en') ?? false;
   return (
-    <div className="mc-toolbar" data-mc-toolbar role="group" aria-label="Navegação do calendário">
+    <div
+      className="mc-toolbar"
+      data-mc-toolbar
+      role="group"
+      aria-label={english ? 'Calendar navigation' : 'Navegação do calendário'}
+    >
       <div className="mc-toolbar-nav">
         <button
           type="button"
           className="mc-nav-prev"
           data-mc-nav-prev
-          aria-label="Período anterior"
+          aria-label={english ? 'Previous period' : 'Período anterior'}
           onClick={() => toolbar.goPrev()}
         >
           ‹
@@ -48,13 +55,13 @@ function DefaultToolbar(props: { toolbar: ToolbarContext }): JSX.Element {
           data-mc-nav-today
           onClick={() => toolbar.goToday()}
         >
-          Hoje
+          {english ? 'Today' : 'Hoje'}
         </button>
         <button
           type="button"
           className="mc-nav-next"
           data-mc-nav-next
-          aria-label="Próximo período"
+          aria-label={english ? 'Next period' : 'Próximo período'}
           onClick={() => toolbar.goNext()}
         >
           ›
@@ -65,7 +72,11 @@ function DefaultToolbar(props: { toolbar: ToolbarContext }): JSX.Element {
         {toolbar.title}
       </span>
 
-      <div className="mc-toolbar-views" role="group" aria-label="Trocar visualização">
+      <div
+        className="mc-toolbar-views"
+        role="group"
+        aria-label={english ? 'Change view' : 'Trocar visualização'}
+      >
         {toolbar.views.map((view) => {
           const isActive = view.name === toolbar.viewName;
           return (
@@ -84,7 +95,7 @@ function DefaultToolbar(props: { toolbar: ToolbarContext }): JSX.Element {
       </div>
       <select
         className="mc-view-select"
-        aria-label="Visualização"
+        aria-label={english ? 'View' : 'Visualização'}
         value={toolbar.viewName}
         onChange={(event) => toolbar.changeView(event.currentTarget.value)}
       >

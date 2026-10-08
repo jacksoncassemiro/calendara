@@ -25,15 +25,15 @@
   },
   "devDependencies": {
     "@playwright/cli": "0.1.22",
-    "@testing-library/dom": "10.4.0",
+    "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.1.0",
-    "@types/react": "19.1.0",
-    "@types/react-dom": "19.1.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "ical.js": "^2.2.1",
-    "jsdom": "24.1.1",
+    "jsdom": "30.1.2",
     "prettier": "3.9.9",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "rrule": "2.8.1",
     "typescript": "5.5.4",
     "vite": "8.3.3",
@@ -57,7 +57,7 @@
     "recurrence",
     "typescript"
   ],
-  "description": "Calendário React nativo com recursos, recorrência, constraints e views personalizáveis.",
+  "description": "Experimental React calendar with configurable views, recurrence and resource scheduling.",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
@@ -86,7 +86,7 @@
   ],
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
-    "@js-temporal/polyfill": "0.4.4",
+    "@js-temporal/polyfill": "0.5.1",
     "rrule-temporal": "2.2.8"
   },
   "peerDependencies": {

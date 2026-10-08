@@ -19,6 +19,9 @@ Initial release candidate; not published yet.
 - Responsive layouts, page sticky headers, default theme and bilingual public API documentation.
 - GitHub CI and manual draft-release packaging with SHA-256 checksums; MIT license.
 - Bilingual searchable API/demo site for GitHub Pages, project review skill and Prettier checks.
+- Persistent light/dark/system themes for the documentation site and playground, with English/Portuguese playground and editor labels.
+- Live feature scenarios and visible reproducible competitor bundle comparisons; improved custom Summary demonstration.
+- Incoming template and outgoing archive demo panels with consumer-controlled persistence.
 - Gesture auto-scroll using existing page/container scrolling; disable with `autoScroll: false`.
 
 ### Fixed
@@ -27,6 +30,9 @@ Initial release candidate; not published yet.
 - Unnecessary remote refetches when changing inactive views or their order.
 - Declarative options reset, resource-rule composition and validation of all assigned resources.
 - External drag preview on first entry into an all-day target.
+- Sticky date/all-day/time/resource geometry and clearer separators while scrolling.
+- External template pointer initiation and outgoing drop target access in the playground.
+- Dependency compatibility updates: Temporal fallback 0.5.1, development React 19.3.0 and jsdom 30.1.2.
 - Explicit required views remove automatic registration and improve tree shaking.
 
 ### Known limits

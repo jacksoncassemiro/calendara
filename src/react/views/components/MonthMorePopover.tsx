@@ -11,6 +11,7 @@ import {
   useRole,
 } from '@floating-ui/react';
 import { useRef, type ReactNode } from 'react';
+import { getViewLabels } from '../formatting/viewLabels.js';
 
 export function MonthMorePopover({
   anchor,
@@ -19,6 +20,7 @@ export function MonthMorePopover({
   id,
   onClose,
   children,
+  locale,
 }: {
   anchor: HTMLElement;
   container: HTMLElement;
@@ -26,6 +28,7 @@ export function MonthMorePopover({
   id: string;
   onClose: () => void;
   children: ReactNode;
+  locale?: string;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { refs, floatingStyles, context } = useFloating({
@@ -60,7 +63,7 @@ export function MonthMorePopover({
               type="button"
               className="mc-view-btn"
               onClick={onClose}
-              aria-label="Fechar lista de eventos"
+              aria-label={getViewLabels(locale).closeEvents}
             >
               ×
             </button>

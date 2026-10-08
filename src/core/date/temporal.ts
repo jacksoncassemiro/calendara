@@ -46,7 +46,7 @@ export function ensureTemporal(): Promise<TemporalLike> {
 export function getTemporal(): TemporalLike {
   if (!cachedTemporal) {
     throw new Error(
-      '[meucalendario] Temporal não inicializado. Chame `await ensureTemporal()` no bootstrap antes de usar os engines.',
+      '[calendara] Temporal não inicializado. Chame `await ensureTemporal()` no bootstrap antes de usar os engines.',
     );
   }
   return cachedTemporal;

@@ -157,6 +157,23 @@ async (page) => {
       view + ': entrada com preview, horário/recurso e persistência; saída sem exclusão automática',
     );
   }
+  await page.evaluate(() => {
+    window.externalFixture.app.changeView('list');
+    window.externalExported = null;
+    window.scrollTo(0, 0);
+  });
+  const listEvent = root.locator('[data-mc-list-item]').first();
+  await listEvent.scrollIntoViewIfNeeded();
+  const listRect = await listEvent.boundingBox();
+  const listOutsideRect = await page.locator('#external-destination').boundingBox();
+  await page.mouse.move(listRect.x + listRect.width / 2, listRect.y + listRect.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(listOutsideRect.x + 10, listOutsideRect.y + 10, { steps: 15 });
+  await page.mouse.up();
+  await page.waitForFunction(() => window.externalExported !== null, null, { timeout: 3000 });
+  if ((await root.locator('[data-mc-list-item]').count()) !== 1)
+    throw new Error('Agenda outgoing transfer removed the event');
+  results.push('Agenda exports a typed occurrence without changing its time or deleting it');
   for (const view of ['resources', 'timeline']) {
     await page.evaluate((view) => {
       const { app, event } = window.externalFixture;
@@ -258,13 +275,15 @@ async (page) => {
   await page.screenshot({ path: 'output/layout-review/external-drag-blocked.png', fullPage: true });
   results.push('Bloqueio recusa entrada externa sem inserção');
   await page.reload();
-  await page.setViewportSize({ width: 1280, height: 1600 });
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByRole('button', { name: 'Dia', exact: true }).click();
   const demoSource = page.getByRole('button', {
     name: 'Arrastar agendamento externo · 30 minutos',
   });
+  const demoSlotElement = page.locator('[data-mc-cell-start="480"]');
+  await demoSlotElement.scrollIntoViewIfNeeded();
   const demoCard = await demoSource.boundingBox();
-  const demoSlot = await page.locator('[data-mc-cell-start="480"]').boundingBox();
+  const demoSlot = await demoSlotElement.boundingBox();
   await page.mouse.move(demoCard.x + 20, demoCard.y + 15);
   await page.mouse.down();
   await page.mouse.move(demoSlot.x + demoSlot.width / 2, demoSlot.y + 1, { steps: 15 });
@@ -280,6 +299,7 @@ async (page) => {
     .waitFor();
   const demoReceived = page.locator('[data-mc-event]').filter({ hasText: 'Agendamento externo' });
   await demoReceived.waitFor();
+  await demoReceived.scrollIntoViewIfNeeded();
   const demoReceivedRect = await demoReceived.boundingBox();
   const demoOutsideRect = await page.locator('[data-demo-drop-zone]').boundingBox();
   await page.mouse.move(
@@ -289,9 +309,28 @@ async (page) => {
   await page.mouse.down();
   await page.mouse.move(demoOutsideRect.x + 15, demoOutsideRect.y + 15, { steps: 15 });
   await page.mouse.up();
-  await page.getByRole('status').filter({ hasText: 'saída recebida' }).waitFor();
-  if ((await demoReceived.count()) !== 1)
-    throw new Error('Demo removed outgoing event automatically');
-  results.push('Playground React usa o hook real e recebe saída sem excluir o evento');
+  await page
+    .getByRole('status')
+    .filter({ hasText: 'removido da agenda e enviado para a área externa' })
+    .waitFor();
+  if ((await demoReceived.count()) !== 0)
+    throw new Error('Demo did not persist its explicit outgoing removal');
+  if ((await page.locator('[data-demo-drop-zone] .demo-outside-event').count()) !== 1)
+    throw new Error('Demo did not archive the outgoing event in its external panel');
+  const archived = page.locator('[data-demo-drop-zone] .demo-outside-event');
+  const returnSlotElement = page.locator('[data-mc-cell-start="510"]');
+  await returnSlotElement.scrollIntoViewIfNeeded();
+  const archivedRect = await archived.boundingBox();
+  const returnSlot = await returnSlotElement.boundingBox();
+  await page.mouse.move(archivedRect.x + 15, archivedRect.y + 15);
+  await page.mouse.down();
+  await page.mouse.move(returnSlot.x + returnSlot.width / 2, returnSlot.y + 1, { steps: 15 });
+  await page.locator('[data-mc-draft]').waitFor();
+  await page.mouse.up();
+  await demoReceived.waitFor();
+  await archived.waitFor({ state: 'detached' });
+  if ((await demoReceived.getAttribute('data-mc-start-min')) !== '510')
+    throw new Error('Returned external event used the wrong time');
+  results.push('Playground React remove, arquiva e reinsere o evento usando o hook real');
   return results;
 };

@@ -132,7 +132,7 @@ export function* iterateCivilDates(
   }
   while (periodStartDay <= windowEndDay) {
     if (++visitedPeriods > maxPeriods)
-      throw new RangeError('[meucalendario] orçamento de expansão RRULE excedido; reduza a janela');
+      throw new RangeError('[calendara] orçamento de expansão RRULE excedido; reduza a janela');
     const periodFields = civilDateFields(periodStartDay);
     const end =
       model.freq === 'YEARLY'

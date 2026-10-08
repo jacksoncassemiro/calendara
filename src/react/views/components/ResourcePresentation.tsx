@@ -7,6 +7,7 @@ import type { InteractionDraft } from '../../../core/index.js';
 import { type ResourceColumnData } from '../../../core/index.js';
 import { type GeoGrid } from '../../../core/index.js';
 import { formatDraftInterval } from '../formatting/timeLabels.js';
+import { getViewLabels } from '../formatting/viewLabels.js';
 import { occurrenceEdges } from '../layout/occurrenceDays.js';
 import { resolveHour } from '../../../core/index.js';
 
@@ -60,7 +61,7 @@ export function ResourceAllDay({
     draft?.title ??
     context.occurrences.find((occurrence) => occurrenceKey(occurrence) === draft?.eventId)?.event
       .title ??
-    'Novo intervalo';
+    getViewLabels(context.options.locale).newInterval;
   return (
     <div
       className="mc-resource-allday"

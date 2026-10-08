@@ -47,6 +47,10 @@ class FakeElement {
     this.attributes.set(name, value);
   }
 
+  hasAttribute(name: string): boolean {
+    return this.attributes.has(name);
+  }
+
   appendChild(child: FakeElement): FakeElement {
     child.parentNode = this;
     child.ownerDocument = this.ownerDocument;

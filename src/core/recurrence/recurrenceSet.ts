@@ -49,7 +49,7 @@ function ruleModel(recurrence: Recurrence): RRuleModel | null {
 function startPlainDate(temporal: TemporalLike, event: CalendarEvent): PlainDate {
   const start = event.time.start;
   const isoString = event.time.allDay ? start.date : start.dateTime;
-  if (!isoString) throw new Error(`[meucalendario] evento ${event.id} sem start válido`);
+  if (!isoString) throw new Error(`[calendara] evento ${event.id} sem start válido`);
   return temporal.PlainDate.from(isoString.slice(0, 10));
 }
 
@@ -140,7 +140,7 @@ function extraOccurrenceTimes(temporal: TemporalLike, shape: TimeShape, iso: str
   const isGap = isNonexistentStart(temporal, start.toString(), shape.timeZone);
   if (isGap)
     throw new RangeError(
-      '[meucalendario] RDATE contém horário local inexistente na timezone do evento',
+      '[calendara] RDATE contém horário local inexistente na timezone do evento',
     );
   const hasUnrepresentableFold =
     OFFSET_PATTERN.test(iso) &&
@@ -150,7 +150,7 @@ function extraOccurrenceTimes(temporal: TemporalLike, shape: TimeShape, iso: str
     ) !== 0;
   if (hasUnrepresentableFold)
     throw new RangeError(
-      '[meucalendario] RDATE no segundo instante de horário repetido não pode ser representado pelo contrato wall-clock',
+      '[calendara] RDATE no segundo instante de horário repetido não pode ser representado pelo contrato wall-clock',
     );
   const end = start.add(shape.durationForTimed!);
   return {
@@ -219,7 +219,7 @@ export function expandEvent(
     (model.count === undefined || !Number.isFinite(model.count));
   if (isUnbounded)
     throw new Error(
-      '[meucalendario] expandEvent exige window.end, COUNT ou UNTIL para uma recorrência infinita.',
+      '[calendara] expandEvent exige window.end, COUNT ou UNTIL para uma recorrência infinita.',
     );
   const dtStart = startPlainDate(temporal, event);
   const masterStart = occurrenceTimes(temporal, shape, dtStart).originalStart;

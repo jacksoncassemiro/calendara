@@ -10,6 +10,7 @@ import type { EventOccurrence, TemporalLike } from '../../core/index.js';
 import { occurrenceStart } from '../../core/index.js';
 import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
 import { formatDate, formatHourLabel } from './formatting/timeLabels.js';
+import { getViewLabels } from './formatting/viewLabels.js';
 import { occurrenceDays } from './layout/occurrenceDays.js';
 import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from '../viewTypes.js';
 
@@ -73,6 +74,7 @@ export const listView: CalendarView = createListView(7);
 
 function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
   const { temporal, options, range, occurrences } = props.context;
+  const labels = getViewLabels(options.locale);
 
   const itemsByDay = new Map<string, AgendaItem[]>();
   for (const occurrence of occurrences) {
@@ -85,7 +87,7 @@ function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
         isAllDay: start.isAllDay,
         epochMs: start.epochMs,
         timeLabel: start.isAllDay
-          ? 'dia inteiro'
+          ? labels.allDay
           : formatHourLabel(dayISO === start.dayISO ? start.minuteOfDay : 0, options.locale),
       });
       itemsByDay.set(dayISO, list);
@@ -98,7 +100,7 @@ function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
   if (daysWithItems.length === 0) {
     return (
       <div className="mc-list mc-list-empty" data-mc-view="list" data-mc-list-empty>
-        Nenhum evento neste período.
+        {labels.noEventsPeriod}
       </div>
     );
   }
@@ -130,10 +132,17 @@ function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
                 key={item.id}
                 className="mc-list-item"
                 data-mc-list-item={item.id}
+                data-mc-event={item.id}
+                data-mc-event-date={dayISO}
+                data-mc-editable={item.occurrence.event.editable !== false ? 'true' : 'false'}
+                data-mc-drag-source
                 role={props.context.onEventClick ? 'button' : undefined}
                 tabIndex={props.context.onEventClick ? 0 : undefined}
                 onClick={(event) => {
-                  if (!isNestedInteractiveTarget(event.target, event.currentTarget))
+                  if (
+                    event.detail === 0 &&
+                    !isNestedInteractiveTarget(event.target, event.currentTarget)
+                  )
                     props.context.onEventClick?.(item.occurrence);
                 }}
                 onKeyDown={(event) => {
@@ -143,11 +152,11 @@ function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
                     props.context.onEventClick(item.occurrence);
                   }
                 }}
-                style={
-                  item.occurrence.event.color
+                style={{
+                  ...(item.occurrence.event.color
                     ? { borderLeft: `3px solid ${item.occurrence.event.color}` }
-                    : undefined
-                }
+                    : {}),
+                }}
               >
                 {props.context.renderEvent ? (
                   props.context.renderEvent({

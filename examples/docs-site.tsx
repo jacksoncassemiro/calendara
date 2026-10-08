@@ -4,6 +4,7 @@ import apiModel from './generated/api-model.json';
 import './docs-site.css';
 
 type Language = 'pt-BR' | 'en';
+type Theme = 'system' | 'light' | 'dark';
 const repository = 'https://github.com/jacksoncassemiro/calendara';
 const installCommand =
   'yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.1.0/calendara-0.1.0.tgz';
@@ -23,6 +24,18 @@ export function Agenda() {
 
 const content = {
   'pt-BR': {
+    theme: 'Tema',
+    themeOptions: ['Sistema', 'Claro', 'Escuro'],
+    catalog: 'Explorar recursos',
+    tryFeature: 'Abrir demonstração',
+    bundle: 'Tamanho e organização do pacote',
+    bundleNote:
+      'Mês + dia: 142,4 kB gzip no ensaio de produção, excluindo React e CSS e incluindo todos os chunks. FullCalendar: 70,6 kB; Schedule-X: 68,7 kB; Mantine: 85,1 kB; React Big Calendar: 54,9 kB. Os recursos e runtimes não são equivalentes. Mantemos um pacote: separar instalações não elimina o custo compartilhado de recorrência e datas.',
+    bundleLink: 'Metodologia, versões e resultados reproduzíveis',
+    distribution: 'Distribuição no GitHub',
+    distributionNote:
+      'A biblioteca ainda não tem release publicada. O fluxo preparado cria uma release em rascunho com .tgz e checksum; publicar o site não publica o pacote. GitHub Packages público é gratuito, mas o registro npm do GitHub exige autenticação até para instalar pacotes públicos. Escolhemos assets de GitHub Releases para evitar essa configuração no consumidor.',
+    distributionLink: 'Como preparar e instalar uma release',
     title: 'Uma agenda que se adapta ao seu trabalho.',
     introduction:
       'Calendário React com recorrência, salas e views configuráveis. Escolha o que mostrar; mantenha os dados e as decisões no seu aplicativo.',
@@ -45,7 +58,7 @@ const content = {
     release: 'Ver releases',
     render: 'Escolha as views e renderize',
     exampleNote:
-      'A lista views é o conjunto completo. Se omitida, oferece semana, dia, mês e agenda. initialView configura somente a montagem; a primeira view é o default.',
+      'views é obrigatória e define o conjunto completo. Use BUILTIN_VIEWS como atalho ou importe somente as views desejadas. initialView configura a montagem; a primeira view é o padrão.',
     apiIntro:
       'Campos gerados diretamente dos contratos TypeScript e de seu JSDoc. Os guias explicam os fluxos; os tipos abaixo descrevem propriedades e métodos.',
     search: 'Buscar campo ou descrição',
@@ -62,7 +75,7 @@ const content = {
     limitsList: [
       'Recorrência diária, semanal, mensal e anual com exceções; não oferece todo o RFC 5545.',
       'Recursos e editor são MIT. Não há virtualização, ICS, impressão, undo/redo ou RTL completo.',
-      'Editor padrão em português; formulários próprios podem usar outros idiomas.',
+      'Editor padrão em português e inglês; formulários próprios podem usar outros idiomas.',
       'Testes automatizados usam Edge/Chrome. Safari, toque físico e leitores de tela precisam de validação específica.',
       'Validação cliente não substitui autorização nem reserva transacional no servidor.',
     ],
@@ -113,6 +126,18 @@ const content = {
     ],
   },
   en: {
+    theme: 'Theme',
+    themeOptions: ['System', 'Light', 'Dark'],
+    catalog: 'Explore features',
+    tryFeature: 'Open demonstration',
+    bundle: 'Bundle size and package structure',
+    bundleNote:
+      'Month + Day: 142.4 kB gzip in the production fixture, excluding React and CSS and including every chunk. FullCalendar: 70.6 kB; Schedule-X: 68.7 kB; Mantine: 85.1 kB; React Big Calendar: 54.9 kB. Features and runtimes differ. We retain one package: separate installations do not remove shared recurrence and date costs.',
+    bundleLink: 'Methodology, versions and reproducible results',
+    distribution: 'GitHub distribution',
+    distributionNote:
+      'No library release is published yet. The prepared workflow creates a draft release containing a .tgz and checksum; publishing the site does not publish the package. Public GitHub Packages are free, but its npm registry requires authentication even when installing public packages. We chose GitHub Release assets to avoid that consumer setup.',
+    distributionLink: 'Preparing and installing a release',
     title: 'A schedule that fits the way you work.',
     introduction:
       'A React calendar with recurrence, rooms and configurable views. Choose what to display; keep data and business decisions in your application.',
@@ -135,7 +160,7 @@ const content = {
     release: 'Browse releases',
     render: 'Choose views and render',
     exampleNote:
-      'views is the complete set. Omission includes week, day, month and agenda. initialView only configures mount; the first view is the default.',
+      'views is required and defines the complete set. Use BUILTIN_VIEWS as a shortcut or import only selected views. initialView configures mount; the first view is the default.',
     apiIntro:
       'Fields generated directly from TypeScript contracts and their JSDoc. Guides explain workflows; the types below describe properties and methods.',
     search: 'Search fields or descriptions',
@@ -152,7 +177,7 @@ const content = {
     limitsList: [
       'Daily, weekly, monthly and yearly recurrence with exceptions; not the whole RFC 5545.',
       'Resource views and editor are MIT. No virtualization, ICS, printing, undo/redo or full RTL.',
-      'The built-in editor is Portuguese; custom forms can use other languages.',
+      'The built-in editor supports Portuguese and English; custom forms can use other languages.',
       'Automated tests use Edge/Chrome. Safari, physical touch and screen readers require separate validation.',
       'Client validation does not replace server authorization or transactional reservations.',
     ],
@@ -204,6 +229,93 @@ const content = {
   },
 };
 
+const featureCatalog = [
+  {
+    view: 'week',
+    title: ['Semana, dia e períodos personalizados', 'Week, day and custom periods'],
+    detail: [
+      'Slots, snapping, escala e rótulos independentes. Altere as opções de tempo no playground.',
+      'Independent slots, snapping, scale and labels. Change time options in the playground.',
+    ],
+  },
+  {
+    view: 'month',
+    title: ['Mês e eventos entre dias', 'Month and multi-day events'],
+    detail: [
+      'Eventos contínuos por semana e +mais com popover, componente próprio ou outra view.',
+      'Continuous events within each week and +more with a popover, custom component or another view.',
+    ],
+  },
+  {
+    view: 'list',
+    title: ['Agenda e telas menores', 'Agenda and narrow screens'],
+    detail: [
+      'Lista por data; a aplicação pode trocar para modo compacto e abrir seu formulário.',
+      'Date-grouped list; applications can choose compact mode and open their own form.',
+    ],
+  },
+  {
+    view: 'resources',
+    scenario: 'capacity',
+    title: ['Salas e disponibilidade', 'Rooms and availability'],
+    detail: [
+      'Capacidade global, por sala ou ilimitada; bloqueios e buffers separados da sobreposição visual.',
+      'Global, per-room or unlimited capacity; blocks and buffers are separate from visual overlap.',
+    ],
+  },
+  {
+    view: 'timeline',
+    title: ['Linha de tempo por recurso', 'Resource timeline'],
+    detail: [
+      'Horários na horizontal, recursos na vertical; escala configurável e scroll horizontal.',
+      'Horizontal time, vertical resources; configurable scale and horizontal scrolling.',
+    ],
+  },
+  {
+    view: 'day',
+    title: ['Mover, redimensionar e salvar', 'Move, resize and save'],
+    detail: [
+      'Prévia do gesto, horários atualizados, rejeição assíncrona e cancelamento. Dados desta demo ficam em memória.',
+      'Gesture preview, updated times, async rejection and cancellation. Demo data stays in memory.',
+    ],
+  },
+  {
+    view: 'day',
+    scenario: 'recurrence',
+    title: ['Recorrência e seu editor', 'Recurrence and your editor'],
+    detail: [
+      'Abra um evento para editar repetições e exceções. O editor padrão é opcional; seus callbacks controlam o fluxo.',
+      'Open an event to edit repetitions and exceptions. The built-in editor is optional; callbacks control the flow.',
+    ],
+  },
+  {
+    view: 'day',
+    scenario: 'external-drag',
+    title: ['Transferências de eventos', 'Event transfers'],
+    detail: [
+      'Arraste um modelo para dentro e um evento para a área externa. A aplicação decide inserir, salvar ou remover.',
+      'Drag a template in and an event to the outside area. The application decides insertion, persistence or removal.',
+    ],
+  },
+  {
+    view: 'day',
+    scenario: 'overflow',
+    title: ['Eventos próximos e sobreposição', 'Dense events and overlap'],
+    detail: [
+      'Compare lado a lado, sobreposição parcial e +mais. Capacidade continua independente do layout.',
+      'Compare side-by-side, partial overlap and +more. Capacity remains independent of layout.',
+    ],
+  },
+  {
+    view: 'summary',
+    title: ['Views e conteúdo próprios', 'Custom views and content'],
+    detail: [
+      'Resumo é uma view do exemplo, criada com createReactView; não é uma view embutida do pacote.',
+      'Summary is an example view created with createReactView, not a built-in package view.',
+    ],
+  },
+];
+
 function CodeBlock({ children }: { children: string }) {
   return (
     <pre className="site-code">
@@ -216,6 +328,16 @@ function DocumentationSite() {
   const [language, setLanguage] = useState<Language>(() =>
     new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'pt-BR',
   );
+  const [theme, setTheme] = useState<Theme>(() => {
+    const requested = new URLSearchParams(window.location.search).get('theme');
+    if (requested === 'system' || requested === 'light' || requested === 'dark') return requested;
+    try {
+      const stored = localStorage.getItem('calendara-theme');
+      return stored === 'light' || stored === 'dark' ? stored : 'system';
+    } catch {
+      return 'system';
+    }
+  });
   const [search, setSearch] = useState('');
   const [contractName, setContractName] = useState('CalendarProps');
   const text = content[language];
@@ -234,6 +356,28 @@ function DocumentationSite() {
     location.searchParams.set('lang', language);
     window.history.replaceState(null, '', location);
   }, [language, text.subtitle]);
+
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => {
+      document.documentElement.dataset.theme =
+        theme === 'system' ? (preference.matches ? 'dark' : 'light') : theme;
+    };
+    applyTheme();
+    const location = new URL(window.location.href);
+    location.searchParams.set('theme', theme);
+    window.history.replaceState(null, '', location);
+    try {
+      localStorage.setItem('calendara-theme', theme);
+    } catch {
+      /* Storage can be unavailable. */
+    }
+    preference.addEventListener('change', applyTheme);
+    return () => preference.removeEventListener('change', applyTheme);
+  }, [theme]);
+
+  const demoUrl = (view?: string, scenario?: string) =>
+    `./examples/react.html?lang=${language}&theme=${theme}${view ? `&view=${view}` : ''}${scenario ? `&scenario=${scenario}` : ''}`;
 
   return (
     <>
@@ -267,6 +411,20 @@ function DocumentationSite() {
           >
             EN
           </button>
+          <label className="site-theme-control">
+            <span>{text.theme}</span>
+            <select
+              aria-label={text.theme}
+              value={theme}
+              onChange={(event) => setTheme(event.target.value as Theme)}
+            >
+              {(['system', 'light', 'dark'] as const).map((value, index) => (
+                <option key={value} value={value}>
+                  {text.themeOptions[index]}
+                </option>
+              ))}
+            </select>
+          </label>
           <a href={repository}>GitHub</a>
         </nav>
       </header>
@@ -280,9 +438,12 @@ function DocumentationSite() {
                 {topic.title}
               </a>
             ))}
+            <a href="#features">{text.catalog}</a>
             <a href="#api">{text.reference}</a>
+            <a href="#bundle">{text.bundle}</a>
+            <a href="#distribution">{text.distribution}</a>
             <a href="#limits">{text.limits}</a>
-            <a href="./examples/react.html">{text.demo}</a>
+            <a href={demoUrl()}>{text.demo}</a>
           </nav>
           <p>{text.version}</p>
         </aside>
@@ -292,7 +453,7 @@ function DocumentationSite() {
               <h1>{text.title}</h1>
               <p>{text.introduction}</p>
               <div className="site-actions">
-                <a className="site-primary" href="./examples/react.html">
+                <a className="site-primary" href={demoUrl()}>
                   {text.demo}
                 </a>
                 <a href="#getting-started">{text.start}</a>
@@ -360,6 +521,20 @@ function DocumentationSite() {
               </article>
             ))}
             <a href={guideUrl}>{text.fullGuide}</a>
+          </section>
+
+          <section className="site-section" id="features">
+            <h2>{text.catalog}</h2>
+            <div className="site-feature-catalog">
+              {featureCatalog.map((feature) => (
+                <article key={feature.title[1]}>
+                  <h3>{feature.title[language === 'en' ? 1 : 0]}</h3>
+                  <p>{feature.detail[language === 'en' ? 1 : 0]}</p>
+                  <a href={demoUrl(feature.view, feature.scenario)}>{text.tryFeature}</a>
+                </article>
+              ))}
+            </div>
+            <a href={`${repository}/blob/main/docs/${language}/features.md`}>{text.fullGuide}</a>
           </section>
 
           <section className="site-section" id="api">
@@ -430,6 +605,31 @@ function DocumentationSite() {
               ))}
             </ul>
             <a href={`${repository}/blob/main/docs/${language}/comparison.md`}>{text.comparison}</a>
+          </section>
+          <section className="site-section" id="bundle">
+            <h2>{text.bundle}</h2>
+            <p>{text.bundleNote}</p>
+            <a href={`${repository}/blob/main/docs/${language}/bundle-comparison.md`}>
+              {text.bundleLink}
+            </a>
+          </section>
+          <section className="site-section" id="distribution">
+            <h2>{text.distribution}</h2>
+            <p>{text.distributionNote}</p>
+            <a
+              href={`${repository}/blob/main/docs/${language === 'en' ? 'publishing.md' : 'publishing.pt-BR.md'}`}
+            >
+              {text.distributionLink}
+            </a>
+            <p className="site-help">
+              <a href="https://docs.github.com/en/billing/concepts/product-billing/github-packages">
+                GitHub Packages: billing
+              </a>
+              {' · '}
+              <a href="https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry">
+                GitHub npm registry
+              </a>
+            </p>
           </section>
           <footer className="site-footer">
             <span>Calendara · MIT</span>

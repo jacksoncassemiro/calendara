@@ -66,7 +66,7 @@ export function beginExternalEventDrag(event: CalendarEvent, pointer: PointerEve
   if (pointer.button !== 0 || event.editable === false) return () => {};
   if (event.recurrence) {
     throw new RangeError(
-      '[meucalendario] arrasto externo requer um evento sem recorrência; escolha uma ocorrência antes',
+      '[calendara] arrasto externo requer um evento sem recorrência; escolha uma ocorrência antes',
     );
   }
   const source = pointer.currentTarget instanceof Element ? pointer.currentTarget : pointer.target;

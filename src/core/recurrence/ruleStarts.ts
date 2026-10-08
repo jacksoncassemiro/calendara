@@ -35,7 +35,7 @@ export function ruleStarts({ temporal, event, model, window }: RuleStartsInput):
   // Explicit DTSTART is shifted by the upstream library in gaps. Reject rather
   // than silently move the entire series to another wall-clock hour.
   if (temporal.PlainDateTime.compare(plain, anchor.toPlainDateTime()) !== 0) {
-    throw new RangeError('[meucalendario] início da série contém horário local inexistente');
+    throw new RangeError('[calendara] início da série contém horário local inexistente');
   }
   const input = (value: typeof anchor) => ({ timeZoneId: zone, toString: () => value.toString() });
   let until: typeof anchor | undefined;

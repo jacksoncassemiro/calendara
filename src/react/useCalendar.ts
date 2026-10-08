@@ -28,7 +28,7 @@ export function useCalendar(): UseCalendar {
       getVisibleRange: () => ref.current?.getVisibleRange() ?? { start: '', end: '' },
       getState: () => {
         const state = ref.current?.getState();
-        if (!state) throw new Error('[meucalendario/react] calendário ainda não montado');
+        if (!state) throw new Error('[calendara/react] calendário ainda não montado');
         return state;
       },
       listViews: () => ref.current?.listViews() ?? [],
@@ -36,7 +36,7 @@ export function useCalendar(): UseCalendar {
       evaluatePlacement: (input) =>
         ref.current?.evaluatePlacement(input) ?? { valid: false, reason: 'outside-allowed' },
       evaluateEvent: (event, occurrence) => {
-        if (!ref.current) throw new Error('[meucalendario/react] calendário ainda não montado');
+        if (!ref.current) throw new Error('[calendara/react] calendário ainda não montado');
         return ref.current.evaluateEvent(event, occurrence);
       },
       refetch: () => ref.current?.refetch(),
