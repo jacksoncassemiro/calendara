@@ -31,6 +31,8 @@ try {
   await run(['run-code', '--filename', 'scripts/browser-axis-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-slot-controls-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-event-margin-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-scroll-content-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-label-configurations-review.js']);
 } finally {
   await run(['close'], false);
   await server.close();
