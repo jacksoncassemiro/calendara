@@ -12,8 +12,8 @@ export interface CalendarResource {
   /** String OPACA definida pelo app — a lib não interpreta. */
   type?: string;
   color?: string;
-  /** Lotação simultânea (default 1). */
-  capacity?: number;
+  /** Undefined inherits options.defaultResourceCapacity; false is unlimited. */
+  capacity?: number | false;
   /** Minutos bloqueados antes (genérico). */
   bufferBefore?: number;
   /** Minutos bloqueados depois (genérico). */

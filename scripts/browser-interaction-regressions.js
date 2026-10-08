@@ -22,7 +22,7 @@ async page => {
     if(await page.locator('.mc-event-editor').count())throw new Error(`Modal abriu apesar do conflito ${reason}`);
   }
   await page.getByRole('button',{name:'Mês',exact:true}).click();
-  const handle=page.locator('[data-mc-month-event^="congresso@"] [data-mc-resize]');
+  const handle=page.locator('[data-mc-month-event^="congresso@"] [data-mc-resize="end"]');
   await handle.scrollIntoViewIfNeeded();const a=await handle.boundingBox();
   const target=await page.locator('[data-mc-month-day="2026-10-10"]').boundingBox();
   await page.mouse.move(a.x+a.width/2,a.y+a.height/2);await page.mouse.down();
@@ -37,7 +37,7 @@ async page => {
   const bar=page.locator('[data-mc-month-event^="congresso@"]');
   await bar.scrollIntoViewIfNeeded();const from=await bar.boundingBox();
   const destination=await page.locator('[data-mc-month-day="2026-10-13"]').boundingBox();
-  await page.mouse.move(from.x+12,from.y+10);await page.mouse.down();
+  await page.mouse.move(from.x+30,from.y+10);await page.mouse.down();
   await page.mouse.move(destination.x+30,destination.y+50,{steps:10});
   await page.waitForFunction(()=>document.querySelector('[data-mc-draft]')?.dataset.mcDraftDates==='2026-10-13 2026-10-14 2026-10-15 2026-10-16 2026-10-17');
   if(await page.locator('[data-mc-draft]').count()!==1 || !(await page.locator('[data-mc-draft]').innerText()).includes('Congresso'))throw new Error('Prévia de movimento perdeu barra/título');

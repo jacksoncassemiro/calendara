@@ -13,6 +13,9 @@
  * DATA é sempre a data real do dia da view — o recurso viaja no atributo próprio, nunca embutido
  * na data, que o ConstraintEngine consome como data de calendário de verdade.
  */
+import { usePageStickyHeaders } from './usePageStickyHeaders.js';
+import { applyDenseLayout } from './denseLayout.js';
+import { EventOverflow } from './EventOverflow.js';
 import { createElement, type JSX } from 'react';
 import type { CalendarView, ViewRange, ViewRenderContext } from './viewDef.js';
 import type { TemporalLike } from '../../core/index.js';
@@ -24,7 +27,7 @@ import {
 } from '../../core/index.js';
 import { layoutDay, type GeoGrid } from '../../core/index.js';
 import { formatDate, formatHourLabel, timeLabelStep } from './format.js';
-import { occurrenceEditableForDay } from './occurrenceDays.js';
+import { occurrenceEditableForDay,occurrenceEdges } from './occurrenceDays.js';
 import { GUTTER_PX, toPx, segmentStyle } from './utils.js';
 import { resolveHour } from '../../core/index.js';
 
@@ -71,7 +74,7 @@ function ResourceAllDay({ column, context }: { column: ResourceColumnData; conte
       const editable = event.editable !== false;
       return <div key={`${occurrence.masterId}@${occurrence.originalStart}`} className="mc-allday-event"
         data-mc-event={`${occurrence.masterId}@${occurrence.originalStart}`} data-mc-start-min="0" data-mc-end-min="0"
-        data-mc-editable={editable ? 'true' : 'false'} title={event.title}
+        data-mc-editable={editable ? 'true' : 'false'} title={event.title} style={context.draft?.eventId===occurrence.masterId+'@'+occurrence.originalStart ? {visibility:'hidden'} : undefined}
         role={context.onEventClick ? 'button' : undefined} tabIndex={context.onEventClick ? 0 : undefined}
         onClick={(click) => { if (click.detail === 0) context.onEventClick?.(occurrence); }}
         onKeyDown={(key) => {
@@ -80,9 +83,11 @@ function ResourceAllDay({ column, context }: { column: ResourceColumnData; conte
           }
         }}>
         {context.renderEvent ? context.renderEvent({ occurrence, event, timeLabel: '', isAllDay: true }) : event.title}
+        {editable && <span className="mc-allday-resize mc-resize-start" data-mc-resize="start" aria-hidden="true" />}
         {editable && <span className="mc-allday-resize" data-mc-resize="end" aria-hidden="true" />}
       </div>;
     })}
+    {context.draft?.allDay && context.draft.resourceId===column.resource.id && column.day.dateISO>=context.draft.dateISO && column.day.dateISO<context.draft.endDateISO! && <div className={draftClass(context.draft)} data-mc-draft={context.draft.kind} style={{pointerEvents:'none'}}>{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===context.draft!.eventId)?.event.title ?? 'Dia inteiro'}</div>}
   </div>;
 }
 
@@ -122,6 +127,7 @@ function ResourceGrid(props: {
   context: ViewRenderContext;
   resources: readonly CalendarResource[];
 }): JSX.Element {
+  const scrollRef=usePageStickyHeaders();
   const { context, resources } = props;
   const { options, range } = context;
   const day = range.startDate;
@@ -141,8 +147,10 @@ function ResourceGrid(props: {
     { startHour, endHour },
     options.timeZone,
     options.visibleResourceIds,
+    options.defaultResourceCapacity,
   );
 
+  const densities=columns.map(column=>applyDenseLayout(layoutDay(column.day.timed,geometryGridOf(context)), options.timedEventOverflow,options.eventMaxStack,options.minEventWidth,options.slotEventOverlap));
   const nowZoned = context.temporal.Instant.fromEpochMilliseconds(context.nowMs).toZonedDateTimeISO(
     options.timeZone,
   );
@@ -152,7 +160,7 @@ function ResourceGrid(props: {
   const showNowLine = isToday && nowWithinGrid;
 
   const hourLabels: { minute: number; label: string }[] = [];
-  for (let minute = gridTopMin; minute <= gridBottomMin; minute += timeLabelStep(options)) {
+  for (let minute = gridTopMin; minute < gridBottomMin; minute += timeLabelStep(options)) {
     hourLabels.push({ minute, label: formatHourLabel(minute, options.locale) });
   }
 
@@ -161,7 +169,7 @@ function ResourceGrid(props: {
       {/* Scroller horizontal ÚNICO (cabeçalho + corpo): em tela estreita as colunas de recurso
           ganham piso de largura (`--mc-resource-min-width`) e o grid rola na horizontal — os dois
           precisam rolar juntos, senão o nome do recurso desalinha da coluna. Só estrutura. */}
-      <div className="mc-hscroll" data-mc-hscroll>
+      <div ref={scrollRef} className="mc-hscroll" data-mc-hscroll>
         <div className="mc-resource-header-row" style={{ display: 'flex' }}>
           <div className="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
           {columns.map((column) => (
@@ -169,12 +177,12 @@ function ResourceGrid(props: {
               key={column.resource.id}
               className={`mc-resource-header${column.overCapacity ? ' mc-over-capacity' : ''}`}
               data-mc-resource-header={column.resource.id}
-              style={{ flex: '1 1 0', textAlign: 'center' }}
+              style={{ flex: '1 1 0', textAlign: 'center',minWidth:densities[columns.indexOf(column)]?.minWidth || undefined }}
             >
               <span className="mc-resource-title">{column.resource.title}</span>
               {column.overCapacity && (
                 <span className="mc-capacity-badge" data-mc-over-capacity>
-                  {column.maxConcurrency}/{column.resource.capacity ?? 1}
+                  {column.maxConcurrency}/{column.capacity ?? 1}
                 </span>
               )}
             </div>
@@ -183,7 +191,7 @@ function ResourceGrid(props: {
 
         {columns.some((column) => column.day.allDay.length > 0) && <div className="mc-resource-allday-row" style={{ display: 'flex' }}>
           <div style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}>Dia inteiro</div>
-          {columns.map((column) => <div key={column.resource.id} style={{ flex: '1 1 0', minWidth: 0 }}>
+          {columns.map((column) => <div key={column.resource.id} style={{ flex: '1 1 0', minWidth:densities[columns.indexOf(column)]?.minWidth || undefined }}>
             <ResourceAllDay column={column} context={context} />
           </div>)}
         </div>}
@@ -241,7 +249,8 @@ function ResourceColumn(props: {
 }): JSX.Element {
   const { column, context, bodyHeight, hourMinutes, minuteToY, pxPerMinute, nowMinutes, draft } = props;
   const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
-  const blocks = layoutDay(column.day.timed, geometryGridOf(context));
+  const density=applyDenseLayout(layoutDay(column.day.timed,geometryGridOf(context)),context.options.timedEventOverflow,context.options.eventMaxStack,context.options.minEventWidth,context.options.slotEventOverlap);
+  const blocks=density.blocks;
 
   return (
     <div
@@ -250,7 +259,7 @@ function ResourceColumn(props: {
       data-mc-slot="y"
       data-mc-slot-date={column.day.dateISO}
       data-mc-slot-resource={column.resource.id}
-      style={{ flex: '1 1 0', position: 'relative', height: toPx(bodyHeight), touchAction: 'pan-x pan-y' }}
+      style={{...context.getDayStyle?.({dateISO:column.day.dateISO,viewName:context.viewName ?? 'resources',resourceId:column.resource.id}), flex: '1 1 0', minWidth:density.minWidth || undefined,position: 'relative', height: toPx(bodyHeight), touchAction: 'pan-x pan-y' }}
     >
       <SlotCells dateISO={column.day.dateISO} resourceId={column.resource.id} first={props.first}
         startMin={resolveHour(context.options.startHour) * 60} endMin={resolveHour(context.options.endHour) * 60}
@@ -320,17 +329,20 @@ function ResourceColumn(props: {
               height: toPx(block.height),
               left: `${block.left * 100}%`,
               width: `${block.width * 100}%`,
+              zIndex: block.column + 1,
               ...(editable ? { touchAction: 'none' } : {}),
+              ...(context.draft?.eventId===block.id ? {visibility:'hidden' as const} : {}),
               ...(event.color ? { boxShadow: `inset 3px 0 0 ${event.color}, inset 0 0 0 1px var(--mc-color-event-border)` } : {}),
             }}
           >
             <div className="mc-event-content">{context.renderEvent
               ? context.renderEvent({ occurrence: placement.occurrence, event, timeLabel, isAllDay: false })
               : createElement('span', { className: 'mc-event-title' }, `${timeLabel} ${event.title}`)}</div>
-            {editable && (
+            {editable && occurrenceEdges(placement.occurrence,column.day.dateISO,context).start && <div className="mc-resize-handle mc-resize-start" data-mc-resize="start" style={{position:"absolute",top:0,left:0,right:0,height:6,cursor:"ns-resize",touchAction:"none"}} />}
+            {editable && occurrenceEdges(placement.occurrence,column.day.dateISO,context).end && (
               <div
                 className="mc-resize-handle"
-                data-mc-resize
+                data-mc-resize="end"
                 style={{
                   position: 'absolute',
                   left: 0,
@@ -345,6 +357,7 @@ function ResourceColumn(props: {
           </div>
         );
       })}
+      {density.groups.map((group,index)=><EventOverflow key={index} group={group} dateISO={column.day.dateISO} resourceId={column.resource.id} context={context} />)}
       {draft && (
         <div
           className={draftClass(draft)}
@@ -356,9 +369,9 @@ function ResourceColumn(props: {
             right: 0,
             top: toPx(minuteToY(draft.startMin)),
             height: toPx((draft.endMin - draft.startMin) * pxPerMinute),
-            pointerEvents: 'none',
+            pointerEvents: 'none',zIndex:4,
           }}
-        />
+        >{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===draft.eventId)?.event.title ?? 'Novo intervalo'}</div>
       )}
       {nowMinutes !== null && (
         <div
@@ -433,6 +446,7 @@ function Timeline(props: {
   context: ViewRenderContext;
   resources: readonly CalendarResource[];
 }): JSX.Element {
+  const scrollRef=usePageStickyHeaders();
   const { context, resources } = props;
   const { options, range } = context;
   const day = range.startDate;
@@ -468,7 +482,7 @@ function Timeline(props: {
       {/* Scroller horizontal ÚNICO (cabeçalho + todas as linhas). A Timeline JÁ nasce mais larga
           que um celular — a trilha tem largura explícita (janela × pxPerMinute) —, então aqui o
           scroll não depende de breakpoint: vale em qualquer largura. Só estrutura. */}
-      <div className="mc-hscroll" data-mc-hscroll>
+      <div ref={scrollRef} className="mc-hscroll" data-mc-hscroll>
         <div className="mc-timeline-header" style={{ display: 'flex' }}>
           <div className="mc-timeline-corner" style={{ width: toPx(RESOURCE_LABEL_PX), flex: '0 0 auto' }} />
           <div className="mc-timeline-axis" style={{ position: 'relative', width: toPx(trackWidth), flex: '0 0 auto' }}>
@@ -494,7 +508,7 @@ function Timeline(props: {
             })),
           );
           const laneCount = Math.max(1, ...[...lanes.values()].map((lane) => lane + 1));
-          const rowHeight = Math.max(laneCount * TIMELINE_ROW_PX, 28 + column.day.allDay.length * 28);
+          const rowHeight = Math.max(laneCount * TIMELINE_ROW_PX, 28 + (column.day.allDay.length+(context.draft?.allDay && context.draft.resourceId===column.resource.id ? 1 : 0)) * 28);
           const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
           const rowDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
           return (
@@ -502,7 +516,7 @@ function Timeline(props: {
               key={column.resource.id}
               className={`mc-timeline-row${column.overCapacity ? ' mc-over-capacity' : ''}`}
               data-mc-timeline-row={column.resource.id}
-              style={{ display: 'flex', minHeight: toPx(rowHeight) }}
+              style={{...context.getDayStyle?.({dateISO:column.day.dateISO,viewName:context.viewName ?? 'timeline',resourceId:column.resource.id}), display: 'flex', minHeight: toPx(rowHeight) }}
             >
               <div
                 className="mc-timeline-label"
@@ -573,6 +587,7 @@ function Timeline(props: {
                         top: toPx(lane * TIMELINE_ROW_PX),
                         height: toPx(TIMELINE_ROW_PX - 4),
                         ...(editable ? { touchAction: 'none' } : {}),
+              ...(context.draft?.eventId===eventId ? {visibility:'hidden' as const} : {}),
                         ...(event.color ? { boxShadow: `inset 3px 0 0 ${event.color}, inset 0 0 0 1px var(--mc-color-event-border)` } : {}),
                       }}
                     >
@@ -580,10 +595,11 @@ function Timeline(props: {
                         ? context.renderEvent({ occurrence: placement.occurrence, event, timeLabel, isAllDay: false })
                         : event.title}</div>
                       {/* Alça na borda DIREITA: aqui o tempo cresce no eixo X. */}
-                      {editable && (
+                      {editable && occurrenceEdges(placement.occurrence,column.day.dateISO,context).start && <span className="mc-resize-handle mc-resize-start" data-mc-resize="start" style={{position:"absolute",top:0,bottom:0,left:0,width:6,cursor:"ew-resize",touchAction:"none"}} />}
+                      {editable && occurrenceEdges(placement.occurrence,column.day.dateISO,context).end && (
                         <div
                           className="mc-resize-handle"
-                          data-mc-resize
+                          data-mc-resize="end"
                           style={{
                             position: 'absolute',
                             top: 0,
@@ -610,9 +626,9 @@ function Timeline(props: {
                       bottom: 0,
                       left: toPx(minuteToX(rowDraft.startMin)),
                       width: toPx((rowDraft.endMin - rowDraft.startMin) * options.pxPerMinute),
-                      pointerEvents: 'none',
+                      pointerEvents: 'none',zIndex:4,
                     }}
-                  />
+                  >{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===rowDraft.eventId)?.event.title ?? 'Novo intervalo'}</div>
                 )}
               </div>
             </div>

@@ -7,6 +7,7 @@ export {
 	applyEventTimeChange,
 	reassignResource,
 	type InteractionKind,
+	type ResizeEdge,
 	type DraftReason,
 	type PointerSlot,
 	type GridBounds,

@@ -185,7 +185,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                   (outsideMonth ? ' mc-outside-month' : '')
                 }
                 data-mc-month-day={dayISO}
-                style={{ flex: '1 1 0' }}
+                style={{...props.context.getDayStyle?.({dateISO:dayISO,viewName:'month'}), flex: '1 1 0' }}
               >
                 {compact || props.context.onDateClick ? (
                   <button type="button" className="mc-month-daynum"
@@ -254,6 +254,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                       }}
                       title={chip.occurrence.event.title}
                       style={{position:'absolute',top:lane*22,left:0,height:20,width:`calc(${span*100}% + ${span-1}px - 4px)`,zIndex:1,
+                        ...(draft?.eventId===chip.id ? {visibility:'hidden' as const} : {}),
                         ...(chip.occurrence.event.color ? {boxShadow:`inset 3px 0 0 ${chip.occurrence.event.color}`} : {})}}
                     >
                       {props.context.renderEvent
@@ -264,6 +265,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                             isAllDay: chip.isAllDay,
                             })
                         : `${chip.timeLabel ? chip.timeLabel + ' ' : ''}${chip.occurrence.event.title}`}
+                      {chip.occurrence.event.editable !== false && dayISO===chip.startDayISO && <span className="mc-month-resize mc-resize-start" data-mc-resize="start" aria-hidden="true" />}
                       {chip.occurrence.event.editable !== false && dates.at(-1)===chip.endDayISO && <span className="mc-month-resize" data-mc-resize="end" aria-hidden="true" />}
                     </div>
                   ))}
@@ -319,7 +321,8 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
         label={formatDate(selectedDay,options.locale,{dateStyle:'full'})} onClose={closeDetail}>
         {props.context.renderMonthMore ? props.context.renderMonthMore({...moreInfo,occurrences:selectedChips.map(chip=>chip.occurrence)}) : <div className="mc-month-detail">
           {selectedChips.map(chip=><button type="button" key={chip.id} className="mc-month-popover-event"
-            data-mc-month-detail-event={chip.id} onClick={()=>{closeDetail();props.context.onEventClick?.(chip.occurrence);}}>
+            style={props.context.draft?.eventId===chip.id ? {visibility:"hidden"} : undefined} data-mc-month-detail-event={chip.id} data-mc-event-date={selectedDay.toString()} data-mc-event={chip.id} data-mc-start-min={chip.startMin} data-mc-end-min="0" data-mc-editable={chip.occurrence.event.editable===false ? "false" : "true"}
+            onClick={event=>{closeDetail();if(event.detail===0)props.context.onEventClick?.(chip.occurrence);}}>
             {props.context.renderEvent ? props.context.renderEvent({occurrence:chip.occurrence,event:chip.occurrence.event,timeLabel:chip.timeLabel,isAllDay:chip.isAllDay})
               : <><span>{chip.isAllDay?'dia inteiro':chip.timeLabel}</span><span>{chip.occurrence.event.title}</span></>}
           </button>)}

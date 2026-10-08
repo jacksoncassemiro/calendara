@@ -24,6 +24,12 @@ try {
   await run(['run-code', '--filename', 'scripts/browser-interaction-regressions.js']);
   await run(['run-code', '--filename', 'scripts/browser-dense-review.js']);
   await run(['run-code', '--filename', 'scripts/capture-layout-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-sticky-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-feature-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-page-sticky-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-spacing-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-axis-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-slot-controls-review.js']);
 } finally {
   await run(['close'], false);
   await server.close();

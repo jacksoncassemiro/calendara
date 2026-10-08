@@ -8,6 +8,8 @@ import type { GeoBlock } from '../../core/index.js';
 import type { Segment } from '../../core/index.js';
 
 export interface EventVM {
+  resizeStart?: boolean;
+  resizeEnd?: boolean;
   activate?: () => void;
   id: string;
   block: GeoBlock;
@@ -37,6 +39,9 @@ export interface AllDayVM {
 }
 
 export interface DayColumnVM {
+  dayStyle?: import("react").CSSProperties;
+  minWidth?: number;
+  overflowGroups?: import("./denseLayout.js").DenseOverflowGroup[];
   dateISO: string;
   weekdayLabel: string;
   dayLabel: string;
@@ -56,6 +61,9 @@ export interface HourLabelVM {
 
 /** Fantasma do gesto em andamento (drag/resize/select) — desenhado na coluna correspondente. */
 export interface DraftVM {
+  eventId?: string;
+  title?: string;
+  color?: string;
   endDateISO?: string;
   allDay?: boolean;
   dateISO: string;
@@ -67,6 +75,7 @@ export interface DraftVM {
 }
 
 export interface GridVM {
+  context?: import("./viewDef.js").ViewRenderContext;
   viewName: string;
   startHour: number;
   endHour: number;

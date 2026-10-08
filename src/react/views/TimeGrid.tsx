@@ -9,11 +9,14 @@
 import type { JSX, CSSProperties } from 'react';
 import type { GridVM, DayColumnVM, DraftVM } from './viewModel.js';
 import { GUTTER_PX, toPx, segmentStyle } from './utils.js';
+import { usePageStickyHeaders } from './usePageStickyHeaders.js';
+import { EventOverflow } from './EventOverflow.js';
 import { SlotCells } from './SlotCells.js';
 import { packDateSpans } from './spanLayout.js';
 import { calendarDayOffset } from '../../core/interaction/model.js';
 
 export function TimeGrid(props: { vm: GridVM }): JSX.Element {
+  const scrollRef=usePageStickyHeaders();
   const vm = props.vm;
   const gridTopMin = vm.startHour * 60;
   const bodyHeight = (vm.endHour - vm.startHour) * 60 * vm.pxPerMinute;
@@ -23,6 +26,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
     const dates = vm.columns.filter(column=>column.allDay.some(item=>item.id===event.id)).map(column=>column.dateISO);
     return {event,dates,start:vm.columns.findIndex(column=>column.dateISO===dates[0]),span:dates.length};
   }).sort((a,b)=>a.start-b.start || b.span-a.span));
+  const allDayDraftDates=vm.draft?.allDay ? vm.columns.map(column=>column.dateISO).filter(date=>date>=vm.draft!.dateISO && date<vm.draft!.endDateISO!) : [];
   const allDayHeight = Math.max(1,...allDaySegments.map(segment=>segment.lane+1))*26;
 
   return (
@@ -31,7 +35,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
           estreita as colunas ganham um piso de largura (`--mc-day-min-width`, ver styles) e o grid
           passa a rolar na horizontal; sem este wrapper compartilhado cada faixa rolaria sozinha e
           os rótulos de dia sairiam do lugar sobre suas colunas. Só estrutura: zero geometria. */}
-      <div className="mc-hscroll" data-mc-hscroll>
+      <div ref={scrollRef} className="mc-hscroll" data-mc-hscroll>
         {/* Cabeçalho dos dias */}
         <div className="mc-header-row" style={{ display: 'flex' }}>
           <div className="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
@@ -40,7 +44,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
               key={column.dateISO}
               className={`mc-day-header${column.isToday ? ' mc-today' : ''}`}
               data-mc-day-header={column.dateISO}
-              style={{ flex: '1 1 0', textAlign: 'center' }}
+              style={{ ...column.dayStyle,flex: '1 1 0', textAlign: 'center',minWidth:column.minWidth || undefined }}
             >
               <div className="mc-weekday">{column.weekdayLabel}</div>
               <div className="mc-daynum">{column.dayLabel}</div>
@@ -61,10 +65,9 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
               key={column.dateISO}
               className="mc-allday-cell"
               data-mc-allday-cell={column.dateISO}
-              style={{ flex: '1 1 0', position:'relative',height:allDayHeight }}
+              style={{ flex: '1 1 0', position:'relative',height:allDayHeight,minWidth:column.minWidth || undefined }}
             >
-              {vm.draft?.allDay && column.dateISO >= vm.draft.dateISO && column.dateISO < vm.draft.endDateISO! &&
-                <div className={`mc-allday-event mc-draft${vm.draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`} data-mc-draft={vm.draft.kind} aria-hidden="true">Dia inteiro</div>}
+              {vm.draft?.allDay && column.dateISO===allDayDraftDates[0] && <div className={`mc-allday-event mc-draft${vm.draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`} data-mc-draft={vm.draft.kind} aria-hidden="true" style={{position:'absolute',top:0,left:0,width:`calc(${allDayDraftDates.length*100}% - 4px)`,height:22,pointerEvents:'none',zIndex:4}}>{vm.draft.title ?? 'Dia inteiro'}</div>}
               {allDaySegments.filter(segment=>segment.dates[0]===column.dateISO).map(({event:allDayEvent,dates,span,lane}) => (
                 <div
                   key={allDayEvent.id}
@@ -86,10 +89,12 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
                     }
                   }}
                   style={{position:'absolute',top:lane*26,left:0,height:22,width:`calc(${span*100}% - 4px)`,zIndex:1,
+                    ...(vm.draft?.eventId===allDayEvent.id ? {visibility:'hidden' as const} : {}),
                     ...(allDayEvent.color ? {boxShadow:`inset 3px 0 0 ${allDayEvent.color}`} : {})}}
                   title={allDayEvent.title}
                 >
                   {allDayEvent.content ?? allDayEvent.title}
+                  {allDayEvent.editable && (!allDayEvent.startDate || dates[0]===allDayEvent.startDate) && <span className="mc-allday-resize mc-resize-start" data-mc-resize="start" aria-hidden="true" />}
                   {allDayEvent.editable && (!allDayEvent.endDate || calendarDayOffset(dates.at(-1)!,allDayEvent.endDate)===1)
                     && <span className="mc-allday-resize" data-mc-resize="end" aria-hidden="true" />}
                 </div>
@@ -132,6 +137,8 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
             return (
               <DayColumn
                 key={column.dateISO}
+                activeEventId={vm.draft?.eventId}
+                context={vm.context}
                 column={column}
                 first={column === vm.columns[0]}
                 startMin={gridTopMin}
@@ -152,6 +159,8 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
 }
 
 function DayColumn(props: {
+  activeEventId?: string;
+  context?: import("./viewDef.js").ViewRenderContext;
   column: DayColumnVM;
   first: boolean;
   startMin: number;
@@ -168,7 +177,7 @@ function DayColumn(props: {
     <div
       className={`mc-day-col${column.isToday ? ' mc-today' : ''}`}
       data-mc-day={column.dateISO}
-      style={{ flex: '1 1 0', position: 'relative', height: toPx(bodyHeight), touchAction: 'pan-x pan-y' }}
+      style={{ flex: '1 1 0', minWidth:column.minWidth || undefined,position: 'relative', height: toPx(bodyHeight), touchAction: 'pan-x pan-y' }}
     >
       {/* Fundo: fora do expediente */}
       {column.nonBusiness.map((segment, index) => (
@@ -230,7 +239,9 @@ function DayColumn(props: {
             height: toPx(eventItem.block.height),
             left: `${eventItem.block.left * 100}%`,
             width: `${eventItem.block.width * 100}%`,
+            zIndex: eventItem.block.column + 1,
             ...(eventItem.editable ? { touchAction: 'none' } : {}),
+            ...(props.activeEventId===eventItem.id ? {visibility:'hidden' as const} : {}),
               ...(eventItem.color ? { boxShadow: `inset 3px 0 0 ${eventItem.color}, inset 0 0 0 1px var(--mc-color-event-border)` } : {}),
           }}
         >
@@ -241,10 +252,11 @@ function DayColumn(props: {
             </>
             )}</div>
           {/* Alça de redimensionamento (borda inferior) — só em eventos editáveis. */}
-          {eventItem.editable && (
+          {eventItem.editable && eventItem.resizeStart!==false && <div className="mc-resize-handle mc-resize-start" data-mc-resize="start" style={{position:"absolute",top:0,left:0,right:0,height:6,cursor:"ns-resize",touchAction:"none"}} />}
+          {eventItem.editable && eventItem.resizeEnd!==false && (
             <div
               className="mc-resize-handle"
-              data-mc-resize
+              data-mc-resize="end"
               style={{
                 position: 'absolute',
                 left: 0,
@@ -259,6 +271,7 @@ function DayColumn(props: {
         </div>
       ))}
 
+      {props.context && column.overflowGroups?.map((group,index)=><EventOverflow key={index} group={group} dateISO={column.dateISO} context={props.context!} />)}
       {/* Fantasma do gesto (preview de drag/resize/select) */}
       {draft && (
         <div
@@ -271,9 +284,9 @@ function DayColumn(props: {
             right: 0,
             top: toPx(minuteToY(draft.startMin)),
             height: toPx((draft.endMin - draft.startMin) * pxPerMinute),
-            pointerEvents: 'none',
+            pointerEvents: 'none',zIndex:4,
           }}
-        />
+        >{draft.title ?? (draft.kind==='select' ? 'Novo intervalo' : 'Alterando evento')}</div>
       )}
 
       {/* Linha "agora" */}

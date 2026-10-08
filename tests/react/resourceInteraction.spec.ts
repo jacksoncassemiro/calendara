@@ -287,7 +287,7 @@ describe('Multiagenda — interação (jsdom)', () => {
     stubMultiagendaRects(container);
 
     const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
-    const handle = eventNode.querySelector('[data-mc-resize]') as HTMLElement;
+    const handle = eventNode.querySelector('[data-mc-resize="end"]') as HTMLElement;
     expect(handle).toBeTruthy();
     // borda inferior (10:00 ⇒ minuto 600, offset 240) arrastada até 10:30 (minuto 630, offset 270)
     firePointer(handle, 'pointerdown', 5, 240);
@@ -427,7 +427,7 @@ describe('Timeline — interação (jsdom)', () => {
     stubTimelineRects(container);
 
     const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
-    const handle = eventNode.querySelector('[data-mc-resize]') as HTMLElement;
+    const handle = eventNode.querySelector('[data-mc-resize="end"]') as HTMLElement;
     expect(handle).toBeTruthy();
     // borda direita (10:00 ⇒ minuto 600, offset-X 240) arrastada até 10:30 (minuto 630, offset-X 270)
     firePointer(handle, 'pointerdown', 240, 50);

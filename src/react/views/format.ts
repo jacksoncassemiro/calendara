@@ -6,7 +6,10 @@ import type { TemporalLike } from '../../core/index.js';
 import type { CalendarOptions } from '../../core/index.js';
 
 export function timeLabelStep(options: CalendarOptions, horizontal=false): number {
-  return options.timeLabelInterval ?? Math.max(options.slotMinutes, Math.ceil((horizontal?60:24)/options.pxPerMinute/options.slotMinutes)*options.slotMinutes);
+  if (options.timeLabelInterval !== undefined) return options.timeLabelInterval;
+  const interval = options.slotMinutes;
+  // Only automatic labels adapt; explicit intervals and selection slots stay unchanged.
+  return Math.max(interval, Math.ceil((horizontal ? 60 : 24) / options.pxPerMinute / interval) * interval);
 }
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;

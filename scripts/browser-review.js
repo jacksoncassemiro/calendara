@@ -13,7 +13,7 @@ async page => {
   };
   const check = (condition, message) => { if (!condition) throw new Error(message); results.push(message); };
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole('combobox',{name:'Espaçamento',exact:true}).selectOption('1');
+  await page.getByRole('combobox',{name:'Tamanho do slot',exact:true}).selectOption('1');
   await page.getByRole('button', { name: 'Voltar ao exemplo', exact: true }).click();
   await page.getByRole('button', { name: 'Semana', exact: true }).click();
   await page.locator('[data-mc-event]').first().waitFor();
@@ -49,7 +49,7 @@ async page => {
   await page.waitForFunction(()=>!document.querySelector('[data-mc-allday-cell="2026-10-06"] [data-mc-allday-event]') && !!document.querySelector('[data-mc-allday-dates~="2026-10-10"]'),null,{timeout:5000})
     .catch(async()=>{throw new Error(`All-day move: ${await page.evaluate(()=>JSON.stringify({feedback:document.querySelector('.demo-feedback')?.textContent,days:[...document.querySelectorAll('[data-mc-allday-event]')].map(x=>x.parentElement.dataset.mcAlldayCell)}))}`);});
   check(await page.locator('[data-mc-allday-event]').getAttribute('data-mc-allday-dates') === '2026-10-08 2026-10-09 2026-10-10', 'All-day drag: preserva duração e fim exclusivo');
-  const resizeAllDay = await page.locator('[data-mc-allday-dates~="2026-10-10"] [data-mc-resize]').boundingBox();
+  const resizeAllDay = await page.locator('[data-mc-allday-dates~="2026-10-10"] [data-mc-resize="end"]').boundingBox();
   const lastCell = await page.locator('[data-mc-allday-cell="2026-10-11"]').boundingBox();
   await page.mouse.move(resizeAllDay.x + 4, resizeAllDay.y + 5); await page.mouse.down();
   await page.mouse.move(lastCell.x + 15, resizeAllDay.y + 5, {steps:8}); await page.mouse.up();
@@ -64,8 +64,8 @@ async page => {
   await page.mouse.move(nextDay.x + 15, overnight.y + 10, {steps:8}); await page.mouse.up();
   await page.waitForFunction(()=>!!document.querySelector('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"][data-mc-end-min="540"]'));
   results.push('Multiday drag: preserva início e duração de todas as partes');
-  await page.locator('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"] [data-mc-resize]').scrollIntoViewIfNeeded();
-  const overnightHandle = await page.locator('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"] [data-mc-resize]').boundingBox();
+  await page.locator('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"] [data-mc-resize="end"]').scrollIntoViewIfNeeded();
+  const overnightHandle = await page.locator('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"] [data-mc-resize="end"]').boundingBox();
   await page.mouse.move(overnightHandle.x+10,overnightHandle.y+2);await page.mouse.down();
   await page.mouse.move(overnightHandle.x+10,overnightHandle.y+62,{steps:8});await page.mouse.up();
   await page.waitForFunction(()=>!!document.querySelector('[data-mc-day="2026-10-09"] [data-mc-event^="plantao@"][data-mc-end-min="600"]'));
@@ -108,7 +108,7 @@ async page => {
   await page.mouse.up();
   await page.waitForFunction(() => document.querySelector('.demo-feedback')?.textContent?.includes('Gravação recusada'));
   check(await event.getAttribute('data-mc-start-min') === '600', 'Rejeição: horário restaurado');
-  const handle = event.locator('[data-mc-resize]');
+  const handle = event.locator('[data-mc-resize="end"]');
   const resize = await handle.boundingBox();
   await page.mouse.move(resize.x + resize.width / 2, resize.y + resize.height / 2);
   await page.mouse.down();
@@ -118,7 +118,7 @@ async page => {
   results.push('Resize React: nova duração aplicada');
   // Empty slot at 15:00 opens the creation form.
   const column = await day.boundingBox();
-  await page.mouse.click(column.x + column.width / 2, column.y + 480);
+  const createSlot=day.locator('[data-mc-cell-start="900"]');await createSlot.scrollIntoViewIfNeeded();const createRect=await createSlot.boundingBox();await page.mouse.click(createRect.x+createRect.width/2,createRect.y+2);
   await page.getByRole('textbox', { name: 'Título', exact: true }).fill('Novo agendamento');
   await page.getByRole('button', { name: 'Salvar evento' }).click();
   await page.locator('[data-mc-event][title="Novo agendamento"]').waitFor();
@@ -127,7 +127,7 @@ async page => {
   await page.getByRole('checkbox', { name: 'Sala 1', exact: true }).check();
   await page.getByRole('button', { name: 'Salvar evento' }).click();
   await page.locator('dialog').waitFor({ state: 'hidden' });
-  await page.mouse.click(column.x + column.width / 2, column.y + 540);
+  const conflictSlot=day.locator('[data-mc-cell-start="960"]');await conflictSlot.scrollIntoViewIfNeeded();const conflictRect=await conflictSlot.boundingBox();await page.mouse.click(conflictRect.x+conflictRect.width/2,conflictRect.y+2);
   await page.getByRole('textbox', { name: 'Título', exact: true }).fill('Conflito recusado');
   await page.getByLabel('Início', { exact: true }).fill('2026-10-07T15:00');
   await page.getByLabel('Término', { exact: true }).fill('2026-10-07T15:30');

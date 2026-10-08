@@ -15,9 +15,13 @@ type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
 /** Capacidade padrão de um recurso quando não especificada. */
 const DEFAULT_CAPACITY = 1;
+export function resourceCapacity(resource:CalendarResource,defaultCapacity:number|false=DEFAULT_CAPACITY):number {
+ const configured=resource.capacity ?? defaultCapacity;return configured===false ? Infinity : configured;
+}
 
 export interface ResourceColumnData {
   resource: CalendarResource;
+  capacity?: number;
   /** Dados do dia (timed/allDay/fundo) já filtrados para este recurso. */
   day: DayData;
   /** Bandas de buffer (antes/depois de cada evento) do recurso. */
@@ -63,8 +67,8 @@ export function maxConcurrency(day: DayData): number {
     boundaries.push({ minute: placement.endMin, delta: -1 });
   }
   boundaries.sort((first, second) => first.minute - second.minute || first.delta - second.delta);
-  let current = 0;
-  let peak = 0;
+  let current = day.allDay.length;
+  let peak = current;
   for (const boundary of boundaries) {
     current += boundary.delta;
     if (current > peak) peak = current;
@@ -114,6 +118,7 @@ export function buildResourceColumns(
   grid: { startHour: number; endHour: number },
   displayTimeZone: string,
   visibleResourceIds?: readonly string[],
+  defaultCapacity:number|false=DEFAULT_CAPACITY,
 ): ResourceColumnData[] {
   const gridStartMin = grid.startHour * 60;
   const gridEndMin = grid.endHour * 60;
@@ -131,9 +136,10 @@ export function buildResourceColumns(
     const dayData = buildDays(temporal, [day], resourceOccurrences, constraints, grid, displayTimeZone)[0]!;
 
     const concurrency = maxConcurrency(dayData);
-    const capacity = resource.capacity ?? DEFAULT_CAPACITY;
+    const capacity = resourceCapacity(resource,defaultCapacity);
     columns.push({
       resource,
+      capacity,
       day: dayData,
       bufferSegments: bufferSegmentsFor(resource, dayData, gridStartMin, gridEndMin),
       maxConcurrency: concurrency,

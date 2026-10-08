@@ -186,3 +186,14 @@ O calendário declara `container: mc-calendar / inline-size`, e adapta o piso da
 ```
 
 A escala dos horários é configurada pela opção `pxPerMinute`, e a frequência de rótulos por `timeLabelInterval`. O mês compacto usa lista do dia selecionado.
+
+## Cabeçalhos durante rolagem da página
+
+O exemplo usa a rolagem vertical da página e somente overflow horizontal interno. Uma cópia visual do cabeçalho acompanha a página enquanto a grade está visível e sai ao final dela. A cópia é inert, aria-hidden e não duplica IDs/atributos de interação; atualiza posição via requestAnimationFrame sem rerender React por scroll.
+
+`--mc-sticky-top: 64px` compensa um cabeçalho fixo do aplicativo. `--mc-grid-max-height` mantém padrão none; uma altura explícita opta por scroll interno, caso o consumidor realmente queira esse modo. Os dois modos não atuam simultaneamente. O eixo de horários continua alinhado aos eventos e fixo à esquerda no scroll horizontal; não é uma régua de horário independente da posição vertical dos eventos.
+
+Os rótulos marcam o início dos intervalos e ficam 2px abaixo da linha. O limite endHour é exclusivo: com endHour21 e rótulos a cada30min, o último rótulo é20:30 e o intervalo20:30–21:00 tem altura completa. Para incluir21:00–21:30, use endHour:"21:30".
+
+
+Os rótulos respeitam uma distância mínima de 60 px na timeline horizontal e 24 px nas grades verticais. Somente o modo automático adapta a frequência; um `timeLabelInterval` explícito é respeitado exatamente; isso não altera `slotMinutes` nem o snapping. A escala `pxPerMinute` usa pixels CSS: compacto 1 e amplo 2 dobram a largura temporal na timeline (e a altura nas grades verticais), sem alterar a altura das salas. Use `rem` em fontes e espaçamentos de interface; para derivar a escala de `rem`, converta a medida para pixels CSS efetivos antes de passar a opção.

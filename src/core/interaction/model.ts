@@ -16,6 +16,9 @@ import type { CalendarEvent, EventOccurrence } from '../types/event.js';
 /** Tipo de gesto em andamento. */
 export type InteractionKind = 'move' | 'resize' | 'select';
 
+/** Endpoint held by a resize gesture; end is the legacy default. */
+export type ResizeEdge = 'start' | 'end';
+
 /**
  * Motivo da (in)validade de um rascunho. Superconjunto de `SlotEvaluation.reason`
  * (ConstraintEngine) + os motivos de ocupação de recurso (lotação/buffer) que a validação
@@ -218,8 +221,9 @@ export function applyEventTimeChange(
 			end: { date: change.endDateISO ?? change.endDateTime.slice(0, 10) },
 		} : {
 			...effective.time,
-			start: { ...effective.time.start, dateTime: change.startDateTime, ...(change.timeZone ? { timeZone: change.timeZone } : {}) },
-			end: { ...effective.time.end, dateTime: change.endDateTime, ...(change.timeZone ? { timeZone: change.timeZone } : {}) },
+			allDay: false,
+			start: { ...(effective.time.allDay ? {} : effective.time.start), dateTime: change.startDateTime, ...(change.timeZone ? { timeZone: change.timeZone } : {}) },
+			end: { ...(effective.time.allDay ? {} : effective.time.end), dateTime: change.endDateTime, ...(change.timeZone ? { timeZone: change.timeZone } : {}) },
 		};
 		const nextResources = crossedResource
 			? reassignResource(effective.resourceIds ?? [], fromResourceId!, resourceId!)

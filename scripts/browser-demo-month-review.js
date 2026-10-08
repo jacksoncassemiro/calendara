@@ -33,9 +33,9 @@ async page => {
   await page.getByRole('button',{name:'Mês',exact:true}).click();
   await drag(congress(),cell('2026-10-13'));
   await page.waitForFunction(()=>document.querySelector('[data-mc-month-event^="congresso@"]')?.getAttribute('data-mc-month-dates')==='2026-10-13 2026-10-14 2026-10-15');
-  await drag(congress().locator('[data-mc-resize]'),cell('2026-10-16'));
+  await drag(congress().locator('[data-mc-resize="end"]'),cell('2026-10-16'));
   await page.waitForFunction(()=>document.querySelector('[data-mc-month-event^="congresso@"]')?.getAttribute('data-mc-month-dates')==='2026-10-13 2026-10-14 2026-10-15 2026-10-16');
-  await page.getByRole('combobox',{name:'Espaçamento',exact:true}).selectOption('2');
+  await page.getByRole('combobox',{name:'Tamanho do slot',exact:true}).selectOption('2');
   await page.getByRole('button',{name:'Dia',exact:true}).click();await page.getByRole('button',{name:'Mês',exact:true}).click();
   check(await congress().getAttribute('data-mc-month-dates')==='2026-10-13 2026-10-14 2026-10-15 2026-10-16','React controlado: mover/estender sobrevivem a rerender e troca de view');
   await congress().focus();await page.keyboard.press('Enter');
@@ -44,13 +44,13 @@ async page => {
   await page.locator('[data-mc-month-event][title="Congresso salvo"]').waitFor();
   check(await congress().getAttribute('data-mc-month-dates')==='2026-10-13 2026-10-14 2026-10-15 2026-10-16','Editar salva título sem perder o intervalo alterado');
   await page.getByRole('checkbox',{name:'Aplicar restrições de horário',exact:true}).check();
-  await drag(page.locator('[data-mc-month-event^="consulta@"] [data-mc-resize]'),cell('2026-10-08'));
+  await drag(page.locator('[data-mc-month-event^="consulta@"] [data-mc-resize="end"]'),cell('2026-10-08'));
   await page.waitForFunction(()=>document.querySelector('.demo-feedback')?.textContent.includes('atravessa um bloqueio'));
   check(await page.locator('[data-mc-month-event^="consulta@"]').getAttribute('data-mc-month-dates')==='2026-10-07','Extensão bloqueada é recusada com motivo visível; evento original preservado');
   await page.getByRole('checkbox',{name:'Aplicar restrições de horário',exact:true}).uncheck();
   await page.getByRole('button',{name:'Dia',exact:true}).click();
-  await page.getByRole('combobox',{name:'Espaçamento',exact:true}).selectOption('1.5');
-  await page.getByRole('combobox',{name:'Rótulos de horário',exact:true}).selectOption('60');
+  await page.getByRole('combobox',{name:'Tamanho do slot',exact:true}).selectOption('1.5');
+  await page.getByRole('combobox',{name:'Intervalo dos rótulos',exact:true}).selectOption('60');
   const labels=await page.locator('.mc-hour-label').evaluateAll(nodes=>nodes.map(node=>({label:node.textContent,y:node.getBoundingClientRect().top})));
   check(labels[1].label==='08:00' && Math.abs(labels[1].y-labels[0].y-90)<1,'Espaçamento: rótulos de 60 minutos têm 90px com escala 1.5');
   check(await page.locator('[data-mc-cell-start="450"]').count()===1,'Intervalo de rótulos não altera slots de 30 minutos');

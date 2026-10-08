@@ -27,7 +27,7 @@ const constraints = {
   blocked: [{ scope: 'time' as const, date: REF, startTime: '12:00', endTime: '13:00', description: 'Almoço' }],
 };
 const options = { timeZone: TZ, startHour: 7, endHour: 21, locale: 'pt-BR', slotMinutes: 30 };
-const resources = [{ id: 'sala-1', title: 'Sala 1', capacity: 1, bufferAfter: 15 }, { id: 'sala-2', title: 'Sala 2', capacity: 1 }];
+const resources = [{ id: 'sala-1', title: 'Sala 1', bufferAfter: 15 }, { id: 'sala-2', title: 'Sala 2', }];
 function SummaryView(context: ViewRenderContext) {
   const [expanded, setExpanded] = useState(true);
   return <div className="demo-summary"><h2>Resumo do dia</h2><button type="button" onClick={() => setExpanded(value => !value)}>{expanded ? 'Recolher eventos' : 'Mostrar eventos'}</button>
@@ -57,7 +57,17 @@ function App() {
   const [editorResources, setEditorResources] = useState<string[]>([]);
   const [editorError, setEditorError] = useState('');
   const [visibleResource, setVisibleResource] = useState('');
+  const [roomCapacity,setRoomCapacity]=useState('1');
+  const [room1Capacity,setRoom1Capacity]=useState('inherit');
+  const [room2Capacity,setRoom2Capacity]=useState('inherit');
+  const activeResources=resources.map(resource=>{
+    const own=resource.id==='sala-1'?room1Capacity:room2Capacity;
+    return {...resource,...(own==='inherit'?{}:{capacity:own==='unlimited'?false as const:Number(own)})};
+  });
+  const [densityPolicy,setDensityPolicy]=useState<'shrink'|'scroll'|'more'>('shrink');
+  const [slotEventOverlap,setSlotEventOverlap]=useState(false);
   const [timeScale,setTimeScale] = useState(1.5);
+  const [slotMinutes,setSlotMinutes] = useState(30);
   const [labelInterval,setLabelInterval] = useState(0);
   const [moreBehavior,setMoreBehavior] = useState('popover');
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -100,24 +110,31 @@ function App() {
     <section className="demo-tools" aria-label="Controles da demonstração">
       <label><input type="checkbox" checked={rejectNext} onChange={event => setRejectNext(event.target.checked)} /> Recusar próxima gravação</label>
       <label><input type="checkbox" checked={businessHoursEnabled} onChange={event => setBusinessHoursEnabled(event.target.checked)} /> Aplicar restrições de horário</label>
+      <label>Capacidade padrão<select aria-label="Capacidade padrão" value={roomCapacity} onChange={event=>setRoomCapacity(event.target.value)}><option value={1}>1 simultâneo</option><option value={4}>4 simultâneos</option><option value={10}>10 simultâneos</option><option value="unlimited">Sem limite</option></select></label>
+      <label>Capacidade Sala 1<select aria-label="Capacidade Sala 1" value={room1Capacity} onChange={event=>setRoom1Capacity(event.target.value)}><option value="inherit">Usar padrão</option><option value="1">1 simultâneo</option><option value="4">4 simultâneos</option><option value="unlimited">Sem limite</option></select></label>
+      <label>Capacidade Sala 2<select aria-label="Capacidade Sala 2" value={room2Capacity} onChange={event=>setRoom2Capacity(event.target.value)}><option value="inherit">Usar padrão</option><option value="1">1 simultâneo</option><option value="4">4 simultâneos</option><option value="unlimited">Sem limite</option></select></label>
+      <label>Eventos próximos<select aria-label="Eventos próximos" value={densityPolicy} onChange={event=>setDensityPolicy(event.target.value as typeof densityPolicy)}><option value="shrink">Comprimir</option><option value="scroll">Ampliar e rolar</option><option value="more">Agrupar em +mais</option></select></label>
+      <label><input type="checkbox" checked={slotEventOverlap} onChange={event=>setSlotEventOverlap(event.target.checked)} /> Sobreposição parcial de eventos</label>
       <label>Recurso visível<select value={visibleResource} onChange={event => setVisibleResource(event.target.value)}>
         <option value="">Todos os recursos</option>{resources.map(resource => <option key={resource.id} value={resource.id}>{resource.title}</option>)}
       </select></label>
       <button type="button" onClick={() => setMounted(value => !value)}>{mounted ? 'Desmontar calendário' : 'Montar calendário'}</button>
-      <label>Espaçamento<select value={timeScale} onChange={event=>setTimeScale(Number(event.target.value))}>
-        <option value={1}>Compacto · 30px/30min</option><option value={1.5}>Confortável · 45px/30min</option><option value={2}>Amplo · 60px/30min</option>
+      <label>Duração do slot<select aria-label="Duração do slot" value={slotMinutes} onChange={event=>setSlotMinutes(Number(event.target.value))}><option value={15}>15 minutos</option><option value={30}>30 minutos</option><option value={60}>60 minutos</option></select></label>
+      <label>Tamanho do slot<select aria-label="Tamanho do slot" value={timeScale} onChange={event=>setTimeScale(Number(event.target.value))}>
+        <option value={1}>30 px por slot</option><option value={1.5}>45 px por slot</option><option value={2}>60 px por slot</option>
       </select></label>
-      <label>Rótulos de horário<select value={labelInterval} onChange={event=>setLabelInterval(Number(event.target.value))}>
+      <label>Intervalo dos rótulos<select aria-label="Intervalo dos rótulos" value={labelInterval} onChange={event=>setLabelInterval(Number(event.target.value))}>
         <option value={0}>Automático</option>
-        <option value={30}>A cada 30 minutos</option><option value={60}>A cada hora</option>
+        <option value={15}>A cada 15 minutos</option><option value={30}>A cada 30 minutos</option><option value={60}>A cada hora</option>
       </select></label>
       <label>Ver mais<select value={moreBehavior} onChange={event=>setMoreBehavior(event.target.value)}>
         <option value="popover">Popover padrão</option><option value="custom">Conteúdo React personalizado</option><option value="day">Abrir view Dia</option>
       </select></label>
     </section>
+    <p className="demo-note" aria-label="Configuração do eixo"><code>slotMinutes: {slotMinutes} · pxPerMinute: {Number((timeScale*30/slotMinutes).toFixed(3))} · timeLabelInterval: {labelInterval || 'automático'}</code></p>
     <p className="demo-feedback" role="status">{feedback}</p>
     <section ref={containerRef} className="demo-calendar" aria-label="Agenda">
-      {mounted ? <Calendar apiRef={ref} date={REF} view={initialView.current} events={events} options={{ ...options, pxPerMinute:timeScale, timeLabelInterval:labelInterval || undefined,monthMoreView:moreBehavior==='day'?'day':undefined, visibleResourceIds: visibleResource ? [visibleResource] : resources.map(resource => resource.id) }} constraints={businessHoursEnabled ? constraints : {}} resources={resources} views={views}
+      {mounted ? <Calendar apiRef={ref} date={REF} view={initialView.current} events={events} options={{ ...options,defaultResourceCapacity:roomCapacity==='unlimited'?false:Number(roomCapacity),timedEventOverflow:densityPolicy,slotEventOverlap,eventMaxStack:3,minEventWidth:110,eventMoreView:moreBehavior==='day'?'day':undefined, slotMinutes, pxPerMinute:timeScale*30/slotMinutes, timeLabelInterval:labelInterval || undefined,monthMoreView:moreBehavior==='day'?'day':undefined, visibleResourceIds: visibleResource ? [visibleResource] : resources.map(resource => resource.id) }} constraints={businessHoursEnabled ? constraints : {}} resources={activeResources} views={views}
         renderMonthMore={moreBehavior==='custom' ? info=><div className="demo-more-custom"><p>{info.occurrences.length} eventos nesta data</p>
           {info.occurrences.map(occurrence=><button type="button" key={`${occurrence.masterId}@${occurrence.originalStart}`} onClick={()=>{info.close();openEditor(occurrence);}}>{occurrence.event.title}</button>)}
           <button type="button" onClick={()=>info.openView('day')}>Abrir agenda do dia</button></div> : undefined}
@@ -133,8 +150,8 @@ function App() {
         }}
         onDropBlocked={info => setFeedback(info.reason==='blocked' ? 'Alteração recusada: o intervalo atravessa um bloqueio. Desative “Aplicar restrições de horário” para experimentar livremente.'
           : info.reason==='outside-business-hours' ? 'Alteração recusada: o intervalo ultrapassa o expediente. Desative “Aplicar restrições de horário” para experimentar livremente.'
-          : info.reason==='over-capacity' ? 'Alteração recusada: capacidade da sala excedida (1 evento simultâneo por sala).' : info.reason==='buffer-conflict' ? 'Alteração recusada: conflito com os 15 minutos de preparação da Sala 1.' : `Alteração recusada: ${info.reason}.`)}
-        onClickBlocked={info => setFeedback(info.reason==='outside-business-hours' ? 'Horário indisponível: fora do expediente (segunda a sexta, 08h–20h).' : info.reason==='blocked' ? 'Horário indisponível: intervalo bloqueado.' : info.reason==='over-capacity' ? 'Horário indisponível: capacidade da sala excedida (1 evento simultâneo).' : info.reason==='buffer-conflict' ? 'Horário indisponível: conflito com a preparação de 15 minutos da Sala 1.' : `Horário indisponível: ${info.reason}.`)}
+          : info.reason==='over-capacity' ? 'Alteração recusada: capacidade da sala excedida (limite configurado por sala).' : info.reason==='buffer-conflict' ? 'Alteração recusada: conflito com os 15 minutos de preparação da Sala 1.' : `Alteração recusada: ${info.reason}.`)}
+        onClickBlocked={info => setFeedback(info.reason==='outside-business-hours' ? 'Horário indisponível: fora do expediente (segunda a sexta, 08h–20h).' : info.reason==='blocked' ? 'Horário indisponível: intervalo bloqueado.' : info.reason==='over-capacity' ? 'Horário indisponível: capacidade da sala excedida (limite configurado por sala).' : info.reason==='buffer-conflict' ? 'Horário indisponível: conflito com a preparação de 15 minutos da Sala 1.' : `Horário indisponível: ${info.reason}.`)}
       /> : <p>Calendário desmontado. Use “Montar calendário” para continuar.</p>}
     </section>
     <p className="demo-note">Os dados ficam em memória. Arraste ou redimensione o intervalo completo; abra o editor para reagendar por teclado ou no celular.</p>
@@ -142,7 +159,7 @@ function App() {
       <h2 id="editor-title">{editing ? 'Editar evento' : 'Criar evento'}</h2>
       {(editing || selection) && <CalendarEventEditor key={editing?.originalStart ?? selection?.date}
         event={editing?.event ?? {id:'new',calendarId:'agenda',title:'',resourceIds:editorResources,time:allDay ? {allDay:true,start:{date:start},end:{date:end}} : {allDay:false,start:{dateTime:start,timeZone:TZ},end:{dateTime:end,timeZone:TZ}}}}
-        occurrence={editing ?? undefined} resources={resources} timeZone={TZ} onCancel={closeEditor}
+        occurrence={editing ?? undefined} resources={activeResources} timeZone={TZ} onCancel={closeEditor}
         validate={(draft) => {
           const T=getTemporal(), time=draft.time;
           const first=time.allDay ? time.start.date! : time.start.dateTime!.slice(0,10);

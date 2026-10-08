@@ -187,13 +187,15 @@ interface Calls {
 
 function makeEngine(
   dom: Harness,
-  options: { injectLocator?: boolean } = {},
+  options: { injectLocator?: boolean; allowEventTypeChange?: boolean; span?: ReturnType<NonNullable<InteractionDeps['resolveSpan']>> } = {},
 ): { engine: InteractionEngine; calls: Calls } {
   const calls: Calls = { move: [], resize: [], select: [], blocked: [], clickEvent: [], clickEmpty: [], drafts: [] };
   const deps: InteractionDeps = {
     getGridBounds: () => ({ startMin: 360, endMin: 1200 }),
     getSlotMinutes: () => 30,
     getMinDurationMin: () => 15,
+    allowEventTypeChange: () => options.allowEventTypeChange ?? false,
+    ...(options.span ? { resolveSpan: () => options.span! } : {}),
     evaluate: (input) => {
       const blockedZone = input.startMin >= 720; // ≥12:00 inválido neste stub
       return blockedZone ? { valid: false, reason: 'blocked' } : { valid: true, reason: 'ok' };
@@ -357,6 +359,47 @@ describe('InteractionEngine — gesto com localizador injetado', () => {
 });
 
 describe('InteractionEngine — localizador padrão por retângulos', () => {
+  it('opt-in distingue faixa allDay real de grid timed e converte nos dois sentidos', () => {
+    const setup = () => {
+      const dom = buildDom();
+      const cell = new FakeElement('div');
+      cell.setAttribute('data-mc-allday-cell', '2026-07-22');
+      cell.dataset.mcAlldayCell = '2026-07-22';
+      cell.rect = { left: 0, right: 100, top: -50, bottom: 0, width: 100, height: 50 };
+      dom.container.appendChild(cell);
+      return { dom, cell };
+    };
+    const { dom } = setup();
+    const { calls } = makeEngine(dom, { injectLocator: false, allowEventTypeChange: true });
+    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 180));
+    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, -25));
+    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, -25));
+    expect(calls.move[0]).toMatchObject({ allDay: true, dateISO: '2026-07-22', endDateISO: '2026-07-23' });
+
+    const reverse = setup();
+    reverse.cell.appendChild(reverse.dom.eventNode);
+    const result = makeEngine(reverse.dom, { injectLocator: false, allowEventTypeChange: true,
+      span: { dateISO: '2026-07-22', startMin: 0, endDateISO: '2026-07-24', endMin: 0, allDay: true } });
+    reverse.dom.container.emit('pointerdown', makeEvent(reverse.dom.eventNode, 5, -25));
+    reverse.dom.documentRef.emit('pointermove', makeEvent(reverse.dom.documentRef, 5, 120));
+    reverse.dom.documentRef.emit('pointerup', makeEvent(reverse.dom.documentRef, 5, 120));
+    expect(result.calls.move[0]).toMatchObject({ allDay: false, startDateTime: '2026-07-22T08:00:00', endDateTime: '2026-07-24T08:00:00' });
+  });
+
+  it('alça start redimensiona início, mantém fim e entrega preview e commit de resize', () => {
+    const dom = buildDom();
+    dom.handle.dataset.mcResize = 'start';
+    dom.handle.setAttribute('data-mc-resize', 'start');
+    const { calls } = makeEngine(dom);
+    dom.container.emit('pointerdown', makeEvent(dom.handle, 5, 540));
+    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 480));
+    expect(calls.drafts.at(-1)).toMatchObject({ kind: 'resize', startMin: 480, endMin: 600 });
+    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 480));
+    expect(calls.move).toHaveLength(0);
+    expect(calls.resize).toHaveLength(1);
+    expect(calls.resize[0]).toMatchObject({ startDateTime: '2026-07-22T08:00:00', endDateTime: '2026-07-22T10:00:00' });
+  });
+
   it('projeta clientY na coluna via getBoundingClientRect (sem locateSlot injetado)', () => {
     const dom = buildDom();
     // sem injeção: usa rects. Coluna: top 0, height 840, span 360..1200 ⇒ minuto = 360 + clientY.

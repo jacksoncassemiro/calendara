@@ -31,3 +31,15 @@ export function occurrenceDays(
     return start < dayEnd && end > dayStart;
   }).map((day) => day.toString());
 }
+
+/** Resize handles only belong to the real, visible boundaries of the interval. */
+export function occurrenceEdges(occurrence:EventOccurrence,dayISO:string,context:ViewRenderContext):{start:boolean;end:boolean} {
+ const {time}=occurrence.event,{temporal,options}=context;
+ if(time.allDay)return {start:time.start.date===dayISO,end:temporal.PlainDate.from(time.end.date!).subtract({days:1}).toString()===dayISO};
+ const start=temporal.PlainDateTime.from(time.start.dateTime!).toZonedDateTime(time.start.timeZone ?? options.timeZone).withTimeZone(options.timeZone);
+ const end=temporal.PlainDateTime.from(time.end.dateTime!).toZonedDateTime(time.end.timeZone ?? options.timeZone).withTimeZone(options.timeZone);
+ const min=typeof options.startHour==='number'?options.startHour*60:Number(options.startHour.slice(0,2))*60+Number(options.startHour.slice(3,5));
+ const max=typeof options.endHour==='number'?options.endHour*60:Number(options.endHour.slice(0,2))*60+Number(options.endHour.slice(3,5));
+ return {start:start.toPlainDate().toString()===dayISO && start.hour*60+start.minute>=min,
+   end:end.toPlainDate().toString()===dayISO && end.hour*60+end.minute<=max || end.hour===0 && end.minute===0 && end.toPlainDate().subtract({days:1}).toString()===dayISO && max===1440};
+}

@@ -60,7 +60,10 @@ export interface CalendarProps {
 	/** Conteúdo custom de evento, escrito em React (React nativo). */
 	renderEvent?: (info: EventSlotInfo) => ReactNode;
 	renderMonthMore?: MonthMoreRenderSlot;
+  renderEventMore?: MonthMoreRenderSlot;
+  getDayStyle?: import("./views/viewDef.js").DayStyleCallback;
 	onMonthMoreClick?: (info: MonthMoreInfo) => void | false;
+  onEventMoreClick?: (info: MonthMoreInfo) => void | false;
 	/** Toolbar custom em React (React nativo). Presente ⇒ substitui a toolbar nativa. */
 	customToolbar?: (context: ToolbarContext) => ReactNode;
 	onEventClick?: (occurrence: EventOccurrence) => void;

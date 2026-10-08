@@ -14,7 +14,7 @@ import { listView, createListView } from '../../src/react/views/ListView.js';
 import { createNDaysView, dayView } from '../../src/react/views/timeGridViews.js';
 import { createResourceDayView, createTimelineView } from '../../src/react/views/resourceViews.js';
 import { occurrenceEditableForDay } from '../../src/react/views/occurrenceDays.js';
-import { formatDate, formatHourLabel } from '../../src/react/views/format.js';
+import { formatDate, formatHourLabel, timeLabelStep } from '../../src/react/views/format.js';
 import type { CalendarView, ViewRenderContext } from '../../src/react/views/viewDef.js';
 
 const temporal = Temporal as unknown as TemporalLike;
@@ -290,5 +290,17 @@ describe('View ranges and formatting', () => {
     expect(formatHourLabel(0, 'en-US')).toBe('00:00');
     expect(formatHourLabel(0, 'pt-BR')).toBe('00:00');
     expect(formatDate(temporal.PlainDate.from('0099-01-01'), 'en-US', { year: 'numeric' })).toBe('99');
+  });
+});
+
+
+describe('time label density', () => {
+  it('honors explicit label intervals and adapts only automatic labels', () => {
+    const options = { slotMinutes: 30, pxPerMinute: 1, timeLabelInterval: 30 } as Parameters<typeof timeLabelStep>[0];
+    expect(timeLabelStep(options, true)).toBe(30);
+    expect(timeLabelStep({ ...options, timeLabelInterval: undefined }, true)).toBe(60);
+    expect(timeLabelStep({ ...options, pxPerMinute: 2 }, true)).toBe(30);
+    expect(timeLabelStep(options)).toBe(30);
+    expect(options.slotMinutes).toBe(30);
   });
 });

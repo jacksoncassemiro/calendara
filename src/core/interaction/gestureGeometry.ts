@@ -11,7 +11,7 @@
  * Por isso a Timeline (eixo transposto) reusa estas funções sem mudança: quem decide se o minuto
  * veio de X ou de Y é o localizador do motor, não a geometria.
  */
-import type { DraftGeometry, GridBounds, PlacementInfo, PointerSlot } from './model.js';
+import type { DraftGeometry, GridBounds, PlacementInfo, PointerSlot, ResizeEdge } from './model.js';
 import { calendarDayOffset, normalizeCalendarMinute, shiftCalendarDate } from './model.js';
 
 /** Copia o recurso para a geometria só quando existe (views de data ficam sem a chave). */
@@ -69,7 +69,23 @@ export function computeMoveDraft(
 	grabOffsetMin: number,
 	slotMinutes: number,
 	bounds: GridBounds,
+	allowTypeChange = false,
 ): DraftGeometry {
+	if (allowTypeChange && !pointer.dateOnly && Boolean(pointer.allDay) !== Boolean(origin.allDay)) {
+		const resourceId = pointer.resourceId ?? origin.resourceId;
+		if (pointer.allDay) {
+			const civilDuration = calendarDayOffset(origin.dateISO, origin.endDateISO ?? origin.dateISO) * 1440
+				+ origin.endMin - origin.startMin;
+			const durationDays = Math.max(1, Math.ceil((origin.durationMinutes ?? civilDuration) / 1440));
+			return withResource({ dateISO: pointer.dateISO, startMin: 0, endMin: 0,
+				endDateISO: shiftCalendarDate(pointer.dateISO, durationDays), allDay: true }, resourceId);
+		}
+		const durationDays = Math.max(1, calendarDayOffset(origin.dateISO, origin.endDateISO!));
+		const start = normalizeCalendarMinute(pointer.dateISO, snapMinute(pointer.minuteOfDay, slotMinutes));
+		const end = normalizeCalendarMinute(start.dateISO, start.minute + durationDays * 1440);
+		return withResource({ dateISO: start.dateISO, startMin: start.minute,
+			endDateISO: end.dateISO, endMin: end.minute, allDay: false }, resourceId);
+	}
 	if (pointer.dateOnly && !origin.allDay) {
 		const grabbedDays = Math.round((grabOffsetMin + origin.startMin) / 1440);
 		const dateISO = shiftCalendarDate(pointer.dateISO, -grabbedDays);
@@ -101,8 +117,8 @@ export function computeMoveDraft(
 }
 
 /**
- * REDIMENSIONAR (borda inferior): mantém o início, move o fim para o ponteiro, respeitando a
- * duração mínima e o fundo do grid. O dia (e o recurso) não mudam — redimensiona na coluna de origem.
+ * REDIMENSIONAR: move a borda escolhida e mantém a oposta, com duração mínima.
+ * Pode atravessar dias; o recurso de origem é preservado em ambos os sentidos.
  */
 export function computeResizeDraft(
 	origin: PlacementInfo,
@@ -110,12 +126,33 @@ export function computeResizeDraft(
 	slotMinutes: number,
 	minDurationMin: number,
 	bounds: GridBounds,
+	edge: ResizeEdge = 'end',
 ): DraftGeometry {
+	if (edge === 'start') {
+		const endDate = origin.endDateISO ?? origin.dateISO;
+		if (origin.allDay) {
+			const latestStart = shiftCalendarDate(endDate, -1);
+			return withResource({ dateISO: pointer.dateISO < latestStart ? pointer.dateISO : latestStart,
+				startMin: 0, endMin: 0, endDateISO: endDate, allDay: true }, origin.resourceId);
+		}
+		const endAbsolute = calendarDayOffset(origin.dateISO, endDate) * 1440 + origin.endMin;
+		const requestedStart = calendarDayOffset(origin.dateISO, pointer.dateISO) * 1440
+			+ (pointer.dateOnly ? origin.startMin : snapMinute(pointer.minuteOfDay, slotMinutes));
+		const minimumDuration = pointer.dateOnly ? minDurationMin : Math.max(minDurationMin, slotMinutes);
+		let startAbsolute = Math.min(requestedStart, endAbsolute - minimumDuration);
+		// A same-day time grid clips its start edge to its visible upper boundary.
+		if (!pointer.dateOnly && pointer.dateISO === origin.dateISO && endDate === origin.dateISO) {
+			startAbsolute = Math.min(Math.max(startAbsolute, bounds.startMin), endAbsolute - minimumDuration);
+		}
+		const start = normalizeCalendarMinute(origin.dateISO, startAbsolute);
+		return withResource({ dateISO: start.dateISO, startMin: start.minute,
+			endMin: origin.endMin, ...(origin.endDateISO || start.dateISO !== endDate ? { endDateISO: endDate } : {}) }, origin.resourceId);
+	}
 	if (pointer.dateOnly && !origin.allDay) {
 		const endDate = shiftCalendarDate(pointer.dateISO, origin.endMin === 0 ? 1 : 0);
 		const requestedEnd = calendarDayOffset(origin.dateISO, endDate) * 1440 + origin.endMin;
 		const end = normalizeCalendarMinute(origin.dateISO, Math.max(requestedEnd, origin.startMin + minDurationMin));
-		return { dateISO: origin.dateISO, startMin: origin.startMin, endDateISO: end.dateISO, endMin: end.minute };
+		return withResource({ dateISO: origin.dateISO, startMin: origin.startMin, endDateISO: end.dateISO, endMin: end.minute }, origin.resourceId);
 	}
 	if (origin.allDay) {
 		const days = Math.max(1, calendarDayOffset(origin.dateISO, pointer.dateISO) + 1);

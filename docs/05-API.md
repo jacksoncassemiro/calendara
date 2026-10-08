@@ -281,3 +281,69 @@ O corte precisa ser uma ocorrência ativa gerada pela RRULE. Datas extras RDATE-
 Sem `renderMonthMore`, o conteúdo padrão aparece em popover com posicionamento e gestão de foco do Floating UI. `options.monthMoreView: 'day'` abre diretamente a view registrada na data escolhida. Para um componente externo, use `onMonthMoreClick={info => { abrirPainel(info); return false; }}`: retornar false cancela a abertura interna. `MonthMoreInfo` fornece data, todas as ocorrências, ocorrências ocultas, âncora e funções close/openView.
 
 Nas grades de semana/N dias e recursos, cabeçalho, dia inteiro e eventos compartilham uma rolagem horizontal. Containers até 640 px mantêm piso de 104 px por dia e 140 px por recurso. A barra aparece somente quando as colunas não cabem. Os tokens CSS `--mc-day-min-width` e `--mc-resource-min-width` permitem aumentar o piso.
+
+## Capacidade global e por recurso
+
+```tsx
+<Calendar
+  options={{defaultResourceCapacity: 4}}
+  resources={[
+    {id:'triagem', title:'Triagem'},             // herda 4
+    {id:'consulta', title:'Consulta', capacity:1},
+    {id:'coletas', title:'Coletas', capacity:false} // sem limite
+  ]}
+/>
+```
+
+`capacity: undefined` herda `options.defaultResourceCapacity`; `false` representa ilimitado. O padrão global também aceita `false`; omitido mantém 1. Um número próprio continua prevalecendo mesmo quando o global é ilimitado. A mesma capacidade efetiva é usada na avaliação de movimentos/criação e na indicação visual de lotação. Eventos de dia inteiro também contam na concorrência. Buffers estendem a ocupação de cada atendimento; não impõem capacidade 1. Sem limite, não há recusa por concorrência/buffer, mas expediente e bloqueios continuam sendo avaliados.
+
+## Densidade, conteúdo e edição
+
+Nas grades verticais de Dia/Semana/N dias/Recursos:
+
+```tsx
+<Calendar options={{
+  timedEventOverflow:'more', // 'shrink' (padrão), 'scroll' ou 'more'
+  eventMaxStack:3,
+  minEventWidth:110,
+  // eventMoreView:'day', // navega em vez de abrir o popover
+}} />
+```
+
+`scroll` amplia colunas conforme a concorrência visual e a largura mínima. `more` reserva uma faixa para as ocorrências excedentes de cada grupo conectado. `renderEventMore` personaliza o conteúdo do popover; `onEventMoreClick` permite substituir sua abertura retornando false, como no mês. A timeline horizontal mantém empilhamento em linhas; o agrupamento acima se aplica às grades verticais.
+
+O popover padrão permite iniciar arraste de um evento para a grade. Conteúdo personalizado precisa preservar o contrato de atributos de interação ou oferecer edição própria. O editor permanece a alternativa de teclado/toque.
+
+`event.color` controla o destaque lateral. Fundo/texto padrão são os tokens `--mc-color-event-bg` / `--mc-color-event-fg`; `renderEvent` troca o conteúdo React. Cor não representa bloqueio ou capacidade. As prévias de drag/resize ocultam a origem durante o gesto e mostram o título. Alças no início/fim só aparecem quando a extremidade real está visível.
+
+`options.allowEventTypeChange: true` permite converter por arraste entre faixa de dia inteiro e grade de horários. Padrão false preserva o tipo. Timed→allDay arredonda duração para dias completos (mínimo um); allDay→timed preserva a quantidade de dias com início no horário alvo. Mudar a view ou mover no mês preserva tipo e relógio; não é uma conversão de evento.
+
+## Decoração visual por dia
+
+```tsx
+<Calendar getDayStyle={({dateISO,resourceId}) =>
+  dateISO==='2026-10-09'
+    ? {backgroundColor:'#fff7ed', color:'#9a3412'}
+    : undefined
+} />
+```
+
+`getDayStyle` recebe `dateISO`, `viewName` e recurso quando aplicável. Decora mês, grade vertical, recursos, timeline e agenda sem mudar disponibilidade. Use-o para feriados, campanhas, status ou ocupação; constraints continuam sendo a API de bloqueio. Evite propriedades de geometria (posição, altura, largura) na decoração.
+
+
+Os rótulos respeitam uma distância mínima de 60 px na timeline horizontal e 24 px nas grades verticais. Somente o modo automático adapta a frequência; um `timeLabelInterval` explícito é respeitado exatamente; isso não altera `slotMinutes` nem o snapping. A escala `pxPerMinute` usa pixels CSS: compacto 1 e amplo 2 dobram a largura temporal na timeline (e a altura nas grades verticais), sem alterar a altura das salas. Use `rem` em fontes e espaçamentos de interface; para derivar a escala de `rem`, converta a medida para pixels CSS efetivos antes de passar a opção.
+
+
+### Contrato de eixo temporal e comparação
+
+- FullCalendar separa slotDuration, slotHeaderInterval (slotLabelInterval em versões anteriores) e slotMinWidth: https://fullcalendar.io/docs/slotDuration , https://fullcalendar.io/docs/slotHeaderInterval , https://fullcalendar.io/docs/slotMinWidth .
+- DayPilot configura a altura da célula em cellHeight: https://doc.daypilot.org/calendar/cell-height/ .
+- Bryntum separa tickSize, timeResolution e headers do viewPreset: https://bryntum.com/products/scheduler-next/docs/guide/Scheduler/whats-new/api/Scheduler/view/Scheduler .
+- Schedule-X usa weekOptions.gridHeight e gridStep: https://schedule-x.dev/docs/calendar/configuration . Não tem o mesmo contrato completo de nomes do FullCalendar.
+
+Aqui, slotMinutes é o intervalo das células (e atualmente também o snapping), pxPerMinute define a escala e timeLabelInterval controla somente os textos. Exemplo: slotMinutes:30, pxPerMinute:2, timeLabelInterval:60 cria slots de 60px com rótulos separados por 120px. Intervalos explícitos nunca mudam ao trocar a escala; somente undefined (Automático) adapta os rótulos. Configurações explícitas muito densas podem produzir colisão de texto: aumente a escala ou escolha intervalo maior.
+
+
+### Playground: controles independentes
+
+Duração do slot configura slotMinutes (15/30/60 min); Tamanho do slot configura30/45/60px por divisão. A escala passada ao calendário é tamanhoEmPixels/slotMinutes. Intervalo dos rótulos configura timeLabelInterval (15/30/60min ou automático). Os valores efetivos aparecem abaixo dos controles. Mudar a duração mantém o tamanho visual escolhido por divisão; não altera o intervalo explícito dos textos.

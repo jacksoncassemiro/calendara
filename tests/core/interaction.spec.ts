@@ -72,6 +72,28 @@ describe('gestureGeometry — clampSpanToGrid preserva duração', () => {
 });
 
 describe('gestureGeometry — move', () => {
+  it('conversão opt-in timed→allDay conserva dias de duração e não converte na grade mensal', () => {
+    const origin = { ...placement(540, 600), resourceId: 'sala', durationMinutes: 1500 };
+    const pointer = { dateISO: '2026-07-24', minuteOfDay: 0, allDay: true, resourceId: 'coleta' };
+    expect(computeMoveDraft(origin, pointer, 15, 30, BOUNDS, true)).toEqual({
+      dateISO: '2026-07-24', startMin: 0, endMin: 0, endDateISO: '2026-07-26', allDay: true, resourceId: 'coleta',
+    });
+    expect(computeMoveDraft(origin, pointer, 15, 30, BOUNDS).allDay).toBeUndefined();
+    expect(computeMoveDraft(origin, { ...pointer, dateOnly: true }, -540, 30, BOUNDS, true).allDay).toBeUndefined();
+  });
+
+  it('conversão opt-in allDay→timed mantém dias completos e persiste tipo/endpoints corretos', () => {
+    const origin = { ...placement(0, 0), allDay: true, endDateISO: '2026-07-25', resourceId: 'triagem' };
+    const event = { ...origin.occurrence.event, time: { allDay: true, start: { date: '2026-07-22' }, end: { date: '2026-07-25' } } };
+    const draft = computeMoveDraft(origin, { dateISO: '2026-07-26', minuteOfDay: 490 }, 1440, 30, BOUNDS, true);
+    expect(draft).toEqual({ dateISO: '2026-07-26', startMin: 480, endDateISO: '2026-07-29', endMin: 480, allDay: false, resourceId: 'triagem' });
+    const [next] = applyEventTimeChange([event], { ...draft, kind: 'move', occurrence: occurrenceOf(event), event,
+      startDateTime: minutesToDateTime(draft.dateISO, draft.startMin), endDateTime: minutesToDateTime(draft.endDateISO!, draft.endMin),
+      timeZone: 'America/Sao_Paulo' });
+    expect(next!.time).toEqual({ allDay: false, start: { dateTime: '2026-07-26T08:00:00', timeZone: 'America/Sao_Paulo' },
+      end: { dateTime: '2026-07-29T08:00:00', timeZone: 'America/Sao_Paulo' } });
+  });
+
   it('mantém a duração e ancora sob o ponto de agarre', () => {
     const origin = placement(540, 600); // 09:00–10:00, dur 60
     const grabOffset = 0; // agarrou no topo
@@ -91,6 +113,40 @@ describe('gestureGeometry — move', () => {
 });
 
 describe('gestureGeometry — resize', () => {
+  it('redimensiona início com snap, limite do grid e duração mínima, sem trocar recurso', () => {
+    const origin = { ...placement(540, 600), resourceId: 'triagem' };
+    const pointer = { dateISO: origin.dateISO, minuteOfDay: 490, resourceId: 'outra-sala' };
+    expect(computeResizeDraft(origin, pointer, 30, 15, BOUNDS, 'start'))
+      .toEqual({ dateISO: origin.dateISO, startMin: 480, endMin: 600, resourceId: 'triagem' });
+    expect(computeResizeDraft(origin, { ...pointer, minuteOfDay: 660 }, 30, 45, BOUNDS, 'start').startMin).toBe(555);
+    expect(computeResizeDraft(origin, { ...pointer, minuteOfDay: 0 }, 30, 15, BOUNDS, 'start').startMin).toBe(360);
+  });
+
+  it('expande início para dia anterior e preserva fim de um intervalo noturno', () => {
+    const origin = { ...placement(1140, 540), endDateISO: '2026-07-23', resourceId: 'coleta' };
+    expect(computeResizeDraft(origin, { dateISO: '2026-07-21', minuteOfDay: 1150 }, 30, 15, BOUNDS, 'start'))
+      .toEqual({ dateISO: '2026-07-21', startMin: 1140, endDateISO: '2026-07-23', endMin: 540, resourceId: 'coleta' });
+    expect(computeResizeDraft(origin, { dateISO: '2026-07-24', minuteOfDay: 600 }, 30, 15, BOUNDS, 'start'))
+      .toEqual({ dateISO: '2026-07-23', startMin: 510, endDateISO: '2026-07-23', endMin: 540, resourceId: 'coleta' });
+  });
+
+  it('mês preserva relógio e meia-noite exclusiva ao mudar a data do início', () => {
+    const origin = { ...placement(557, 0), endDateISO: '2026-07-24' };
+    expect(computeResizeDraft(origin, { dateISO: '2026-07-21', minuteOfDay: 0, dateOnly: true }, 30, 15, BOUNDS, 'start'))
+      .toEqual({ dateISO: '2026-07-21', startMin: 557, endDateISO: '2026-07-24', endMin: 0 });
+    // Crossing the fixed endpoint clamps to the minimum interval, never a negative duration.
+    expect(computeResizeDraft(origin, { dateISO: '2026-07-25', minuteOfDay: 0, dateOnly: true }, 30, 15, BOUNDS, 'start'))
+      .toEqual({ dateISO: '2026-07-23', startMin: 1425, endDateISO: '2026-07-24', endMin: 0 });
+  });
+
+  it('início de dia inteiro mantém fim exclusivo e pelo menos um dia', () => {
+    const origin = { ...placement(0, 0), allDay: true, endDateISO: '2026-07-25', resourceId: 'triagem' };
+    expect(computeResizeDraft(origin, { dateISO: '2026-07-20', minuteOfDay: 0, allDay: true }, 30, 15, BOUNDS, 'start'))
+      .toEqual({ dateISO: '2026-07-20', startMin: 0, endMin: 0, allDay: true, endDateISO: '2026-07-25', resourceId: 'triagem' });
+    expect(computeResizeDraft(origin, { dateISO: '2026-07-27', minuteOfDay: 0, allDay: true }, 30, 15, BOUNDS, 'start').dateISO)
+      .toBe('2026-07-24');
+  });
+
   it('mantém o início e move o fim (com duração mínima)', () => {
     const origin = placement(540, 600);
     const draft = computeResizeDraft(origin, { dateISO: '2026-07-22', minuteOfDay: 700 }, 30, 15, BOUNDS);

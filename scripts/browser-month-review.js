@@ -50,10 +50,10 @@ async page => {
   await drag(chip('2026-10-07', 'conference'), cell('2026-10-13'),false,'2026-10-07');
   await chip('2026-10-12', 'conference').waitFor(); await chip('2026-10-14', 'conference').waitFor();
   assert(await chip('2026-10-12','conference').getAttribute('data-mc-month-dates') === '2026-10-12 2026-10-13 2026-10-14', 'Mês: all-day mantém três dias e fim exclusivo');
-  await drag(chip('2026-10-14', 'conference').locator('[data-mc-resize]'), cell('2026-10-15'), true);
+  await drag(chip('2026-10-14', 'conference').locator('[data-mc-resize="end"]'), cell('2026-10-15'), true);
   await chip('2026-10-15', 'conference').waitFor();
   assert(await chip('2026-10-12','conference').getAttribute('data-mc-month-dates') === '2026-10-12 2026-10-13 2026-10-14 2026-10-15', 'Mês: resize expande all-day para quatro dias');
-  await drag(chip('2026-10-09', 'meeting').locator('[data-mc-resize]'), cell('2026-10-10'), true);
+  await drag(chip('2026-10-09', 'meeting').locator('[data-mc-resize="end"]'), cell('2026-10-10'), true);
   await chip('2026-10-10', 'meeting').waitFor();
   const resize = await page.evaluate(() => window.monthLog.resizes.at(-1));
   assert(resize.startMin === 557 && resize.endMin === 642 && resize.endDateISO === '2026-10-10', 'Mês: resize entre dias preserva horário final');

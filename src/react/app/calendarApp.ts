@@ -98,7 +98,10 @@ export interface CalendarConfig {
   /** Slot para conteúdo customizado de evento. */
   renderEvent?: EventRenderSlot;
   renderMonthMore?: MonthMoreRenderSlot;
+  renderEventMore?: MonthMoreRenderSlot;
+  getDayStyle?: import("../views/viewDef.js").DayStyleCallback;
   onMonthMoreClick?: (info: MonthMoreInfo) => void | false;
+  onEventMoreClick?: (info: MonthMoreInfo) => void | false;
   /** Slot para toolbar customizada (render-prop). */
   renderToolbar?: ToolbarRenderSlot;
   /** Recursos (capacity/buffers/businessHours) — habilitam a validação DURA de ocupação (Fase 4). */
@@ -126,7 +129,7 @@ function validateResources(resources: readonly CalendarResource[] | undefined): 
   for (const resource of resources ?? []) {
     if (typeof resource.id !== 'string' || resource.id.length === 0 || ids.has(resource.id)) throw new RangeError('[meucalendario] id de recurso vazio ou duplicado');
     ids.add(resource.id);
-    if (resource.capacity !== undefined && (!Number.isSafeInteger(resource.capacity) || resource.capacity <= 0)) throw new RangeError('[meucalendario] capacity deve ser inteiro positivo');
+    if (resource.capacity !== undefined && resource.capacity!==false && (!Number.isSafeInteger(resource.capacity) || resource.capacity <= 0)) throw new RangeError('[meucalendario] capacity deve ser inteiro positivo');
     for (const buffer of [resource.bufferBefore, resource.bufferAfter]) {
       if (buffer !== undefined && (!Number.isFinite(buffer) || buffer < 0)) throw new RangeError('[meucalendario] buffer deve ser finito e não negativo');
     }
@@ -184,6 +187,9 @@ export class CalendarApp {
 
   private eventSource: EventSource | undefined;
   private renderEvent: EventRenderSlot | undefined;
+  private getDayStyle: import("../views/viewDef.js").DayStyleCallback | undefined;
+  private renderEventMore: MonthMoreRenderSlot | undefined;
+  private readonly onEventMoreClick: ((info: MonthMoreInfo) => void | false) | undefined;
   private renderMonthMore: MonthMoreRenderSlot | undefined;
   private readonly onMonthMoreClick: ((info: MonthMoreInfo) => void | false) | undefined;
   private renderToolbar: ToolbarRenderSlot | undefined;
@@ -240,6 +246,9 @@ export class CalendarApp {
 
     this.eventSource = config.eventSource;
     this.renderEvent = config.renderEvent;
+    this.getDayStyle = config.getDayStyle;
+    this.renderEventMore = config.renderEventMore;
+    this.onEventMoreClick = config.onEventMoreClick;
     this.renderMonthMore = config.renderMonthMore;
     this.onMonthMoreClick = config.onMonthMoreClick;
     this.renderToolbar = config.renderToolbar;
@@ -337,6 +346,10 @@ export class CalendarApp {
     this.renderEvent = slot;
     this.renderNow();
   }
+
+  setDayStyle(callback: import("../views/viewDef.js").DayStyleCallback | undefined): void { if(this.getDayStyle===callback)return;this.getDayStyle=callback;this.renderNow(); }
+
+  setRenderEventMore(slot: MonthMoreRenderSlot | undefined): void { if(this.renderEventMore===slot)return;this.renderEventMore=slot;this.renderNow(); }
 
   setRenderMonthMore(slot: MonthMoreRenderSlot | undefined): void {
     if (this.renderMonthMore === slot) return;
@@ -550,6 +563,10 @@ export class CalendarApp {
     if (this.hasResourceConfig) context.resources = this.resources;
     if (this.draft) context.draft = this.draft;
     if (this.renderEvent) context.renderEvent = this.renderEvent;
+    context.viewName=state.viewName;
+    if(this.getDayStyle)context.getDayStyle=this.getDayStyle;
+    if (this.renderEventMore) context.renderEventMore=this.renderEventMore;
+    if (this.onEventMoreClick) context.onEventMoreClick=this.onEventMoreClick;
     if (this.renderMonthMore) context.renderMonthMore = this.renderMonthMore;
     if (this.onMonthMoreClick) context.onMonthMoreClick = this.onMonthMoreClick;
     context.openDateView = (dateISO,viewName) => this.batchUpdate(() => { this.setDate(dateISO); this.changeView(viewName); });
@@ -613,6 +630,7 @@ export class CalendarApp {
         return { startMin: resolveHour(options.startHour) * 60, endMin: resolveHour(options.endHour) * 60 };
       },
       getSlotMinutes: () => this.store.getState().options.slotMinutes,
+      allowEventTypeChange:()=>this.store.getState().options.allowEventTypeChange===true,
       getMinDurationMin: () => this.store.getState().options.minEventMinutes,
       evaluate: (input) => this.evaluateDraft(input),
       resolveOccurrence: (eventId) => this.occurrenceIndex.get(eventId) ?? null,
@@ -799,7 +817,7 @@ export class CalendarApp {
     }));
     dayData.allDay.forEach(() => busy.push({ startMin: 0, endMin: 1440 }));
     const occupancy: ResourceOccupancy = {
-      capacity: resource.capacity ?? 1,
+      capacity: resource.capacity===false ? Infinity : resource.capacity ?? (state.options.defaultResourceCapacity===false ? Infinity : state.options.defaultResourceCapacity ?? 1),
       bufferBefore: resource.bufferBefore ?? 0,
       bufferAfter: resource.bufferAfter ?? 0,
       busy,

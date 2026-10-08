@@ -33,6 +33,7 @@ import type {
 	PointerSlot,
 	SelectionChange,
 	DraftGeometry,
+	ResizeEdge,
 } from './model.js';
 import { minutesToDateTime, calendarDayOffset } from './model.js';
 import { computeMoveDraft, computeResizeDraft, computeSelectDraft } from './gestureGeometry.js';
@@ -80,6 +81,8 @@ export interface InteractionDeps {
 	getGridBounds(): GridBounds;
 	getSlotMinutes(): number;
 	getMinDurationMin(): number;
+	/** Opt-in conversion when moving between real timed and all-day surfaces. */
+	allowEventTypeChange?: () => boolean;
 	evaluate(input: EvaluationInput): DraftEvaluation;
 	resolveOccurrence(eventId: string): EventOccurrence | null;
 	resolveSpan?: (occurrence: EventOccurrence) => Pick<PlacementInfo, 'dateISO' | 'startMin' | 'endDateISO' | 'endMin' | 'allDay' | 'durationMinutes'>;
@@ -101,11 +104,14 @@ interface ActiveGesture {
 	origin: PlacementInfo | null;
 	/** Minutos abaixo do topo do evento onde o usuário agarrou (move). */
 	grabOffsetMin: number;
+	resizeEdge?: ResizeEdge;
 	/** Evento editável? (não editável ⇒ só clique, sem arrasto). */
 	editable: boolean;
 	movedEnough: boolean;
 	lastDraft: InteractionDraft | null;
 	captureTarget: Element | null;
+	/** Popover items do not occupy their event's time coordinates in the grid. */
+	popoverPointerOrigin?: { x: number; y: number };
 }
 
 /** Coordenada de um MouseEvent/PointerEvent (o que o motor consome do DOM). */
@@ -163,7 +169,8 @@ export class InteractionEngine {
 
 		const targetElement = coords.target instanceof Element ? coords.target : null;
 		if (!targetElement) return;
-		if (targetElement.closest('button.mc-month-daynum, button.mc-month-more, .mc-month-detail, .mc-month-popover')) return;
+		if (targetElement.closest('button.mc-month-daynum, button.mc-month-more, [data-mc-more]')) return;
+		if (targetElement.closest('.mc-month-detail, .mc-month-popover') && !targetElement.closest('[data-mc-event]')) return;
 
 		const allDayCell = targetElement.closest('[data-mc-allday-cell]');
 		const anchor = allDayCell ? this.locateAllDay(coords.clientX, coords.clientY) : this.locate(coords.clientX, coords.clientY);
@@ -180,16 +187,20 @@ export class InteractionEngine {
 			const placement = this.placementFromNode(eventNode);
 			if (!placement) return;
 			const kind: InteractionKind = resizeHandle ? 'resize' : 'move';
+			const fromPopover = Boolean(eventNode.closest('.mc-month-popover'));
 			this.gesture = {
 				kind,
+				resizeEdge: (resizeHandle as HTMLElement | null)?.dataset.mcResize === 'start' ? 'start' : 'end',
 				pointerId: coords.pointerId,
 				anchor,
 				origin: placement,
-				grabOffsetMin: calendarDayOffset(placement.dateISO, anchor.dateISO) * 1440 + anchor.minuteOfDay - placement.startMin,
+				grabOffsetMin: fromPopover ? (anchor.dateOnly ? -placement.startMin : 0)
+					: calendarDayOffset(placement.dateISO, anchor.dateISO) * 1440 + anchor.minuteOfDay - placement.startMin,
 				editable: placement.editable,
 				movedEnough: false,
 				lastDraft: null,
 				captureTarget: eventNode,
+				popoverPointerOrigin: fromPopover ? { x: coords.clientX, y: coords.clientY } : undefined,
 			};
 			this.beginDrag(eventNode, coords.pointerId);
 			return;
@@ -224,9 +235,13 @@ export class InteractionEngine {
 		// mover uma consulta de um profissional para outro no MESMO horário é o caso central da
 		// Multiagenda, e sem isto o gesto seria interpretado como clique.
 		const crossedResource = point.resourceId !== gesture.anchor.resourceId;
+		const crossedType = gesture.kind === 'move' && this.deps.allowEventTypeChange?.()
+			&& !point.dateOnly && Boolean(point.allDay) !== Boolean(gesture.anchor.allDay);
 		const movedMinutes = Math.abs(point.minuteOfDay - gesture.anchor.minuteOfDay);
 		const threshold = this.deps.dragThresholdMin ?? DEFAULT_DRAG_THRESHOLD_MIN;
-		const passedThreshold = crossedDay || crossedResource || movedMinutes >= threshold;
+		const passedThreshold = gesture.popoverPointerOrigin
+			? Math.hypot(coords.clientX-gesture.popoverPointerOrigin.x, coords.clientY-gesture.popoverPointerOrigin.y) >= 5
+			: crossedDay || crossedResource || crossedType || movedMinutes >= threshold;
 		if (passedThreshold) gesture.movedEnough = true;
 
 		const readOnlyEventDrag =
@@ -330,9 +345,9 @@ export class InteractionEngine {
 
 		let geometry;
 		if (gesture.kind === 'move' && gesture.origin) {
-			geometry = computeMoveDraft(gesture.origin, point, gesture.grabOffsetMin, slotMinutes, bounds);
+			geometry = computeMoveDraft(gesture.origin, point, gesture.grabOffsetMin, slotMinutes, bounds, this.deps.allowEventTypeChange?.() ?? false);
 		} else if (gesture.kind === 'resize' && gesture.origin) {
-			geometry = computeResizeDraft(gesture.origin, point, slotMinutes, minDuration, bounds);
+			geometry = computeResizeDraft(gesture.origin, point, slotMinutes, minDuration, bounds, gesture.resizeEdge);
 		} else {
 			geometry = computeSelectDraft(gesture.anchor, point, slotMinutes, minDuration, bounds);
 		}
@@ -345,7 +360,7 @@ export class InteractionEngine {
 			endMin: geometry.endMin,
 		};
 		if (geometry.endDateISO) evaluationInput.endDateISO = geometry.endDateISO;
-		if (geometry.allDay) evaluationInput.allDay = true;
+		if (geometry.allDay !== undefined) evaluationInput.allDay = geometry.allDay;
 		if (gesture.origin) evaluationInput.occurrence = gesture.origin.occurrence;
 		if (geometry.resourceId) evaluationInput.resourceId = geometry.resourceId;
 		if (gesture.origin?.resourceId) evaluationInput.fromResourceId = gesture.origin.resourceId;
@@ -360,7 +375,7 @@ export class InteractionEngine {
 			reason: evaluation.reason,
 		};
 		if (geometry.endDateISO) draft.endDateISO = geometry.endDateISO;
-		if (geometry.allDay) draft.allDay = true;
+		if (geometry.allDay !== undefined) draft.allDay = geometry.allDay;
 		if (gesture.origin) draft.eventId = gesture.origin.eventId;
 		if (geometry.resourceId) draft.resourceId = geometry.resourceId;
 		return draft;
@@ -377,7 +392,7 @@ export class InteractionEngine {
 			: (eventNode.closest('[data-mc-slot]') as HTMLElement | null);
 		const allDayCell = eventNode.closest('[data-mc-allday-cell]') as HTMLElement | null;
 		const monthCell = eventNode.closest<HTMLElement>('[data-mc-month-day]');
-		const dateISO = monthCell?.dataset.mcMonthDay ?? allDayCell?.dataset.mcAlldayCell ?? dayNode?.dataset.mcDay ?? slotNode?.dataset.mcSlotDate;
+		const dateISO = monthCell?.dataset.mcMonthDay ?? allDayCell?.dataset.mcAlldayCell ?? dayNode?.dataset.mcDay ?? slotNode?.dataset.mcSlotDate ?? eventNode.dataset.mcEventDate;
 		if (!dateISO) return null;
 		const startMin = Number(eventNode.dataset.mcStartMin);
 		const endMin = Number(eventNode.dataset.mcEndMin);
@@ -389,7 +404,8 @@ export class InteractionEngine {
 		const placement: PlacementInfo = { eventId, dateISO, startMin, endMin, occurrence, editable };
 		const span = this.deps.resolveSpan?.(occurrence);
 		if (span) Object.assign(placement, span);
-		const resourceId = slotNode?.dataset.mcSlotResource ?? allDayCell?.dataset.mcSlotResource;
+		const resourceId = slotNode?.dataset.mcSlotResource ?? allDayCell?.dataset.mcSlotResource
+			?? eventNode.closest<HTMLElement>('[data-mc-slot-resource]')?.dataset.mcSlotResource;
 		if (resourceId) placement.resourceId = resourceId;
 		return placement;
 	}
@@ -397,6 +413,11 @@ export class InteractionEngine {
 	private locate(clientX: number, clientY: number): PointerSlot | null {
 		const month = this.locateMonth(clientX, clientY);
 		if (month) return month;
+		if (this.gesture?.kind === 'move' && this.deps.allowEventTypeChange?.()) {
+			const allDay = this.locateAllDay(clientX, clientY, true);
+			if (allDay) return allDay;
+			return this.deps.locateSlot?.(clientX, clientY) ?? this.locateByRects(clientX, clientY) ?? this.locateBySlots(clientX, clientY);
+		}
 		if (this.gesture?.anchor.allDay) return this.locateAllDay(clientX, clientY);
 		if (this.deps.locateSlot) return this.deps.locateSlot(clientX, clientY);
 		// Colunas de data primeiro (caminho legado, inalterado); superfícies de recurso só quando
@@ -418,7 +439,7 @@ export class InteractionEngine {
 			allDay: this.gesture?.origin ? this.gesture.origin.allDay : true } : null;
 	}
 
-	private locateAllDay(clientX: number, clientY: number): PointerSlot | null {
+	private locateAllDay(clientX: number, clientY: number, insideOnly = false): PointerSlot | null {
 		if (!this.root) return null;
 		let best: { cell: HTMLElement; distance: number } | null = null;
 		for (const cell of this.root.querySelectorAll<HTMLElement>('[data-mc-allday-cell]')) {
@@ -426,6 +447,7 @@ export class InteractionEngine {
 			const dx = Math.max(rect.left - clientX, 0, clientX - rect.right);
 			const dy = Math.max(rect.top - clientY, 0, clientY - rect.bottom);
 			const distance = dx * dx + dy * dy;
+			if (insideOnly && distance > 0) continue;
 			if (!best || distance < best.distance) best = { cell, distance };
 		}
 		if (!best) return null;
@@ -587,7 +609,7 @@ function buildEventChange(
 		endDateTime: minutesToDateTime(draft.endDateISO ?? draft.dateISO, draft.endMin),
 	};
 	if (draft.endDateISO) change.endDateISO = draft.endDateISO;
-	if (draft.allDay) change.allDay = true;
+	if (draft.allDay !== undefined) change.allDay = draft.allDay;
 	if (draft.resourceId) change.resourceId = draft.resourceId;
 	if (origin.resourceId) change.fromResourceId = origin.resourceId;
 	return change;

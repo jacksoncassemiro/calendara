@@ -44,6 +44,17 @@ export interface CalendarOptions {
   monthMaxEvents?: number | false;
   /** Open this registered view on +more instead of the default popover. */
   monthMoreView?: string;
+  /** Timed grids: compress all events, widen columns, or group excess events. */
+  /** Opt-in drag conversion between all-day lane and timed grid; preserves duration/days. */
+  allowEventTypeChange?: boolean;
+  /** Used by resources without their own capacity; false disables capacity limits. */
+  defaultResourceCapacity?: number | false;
+  timedEventOverflow?: 'shrink' | 'scroll' | 'more';
+  /** Vertical timed views: adjacent lanes may overlap up to half of an event. */
+  slotEventOverlap?: boolean;
+  eventMaxStack?: number;
+  minEventWidth?: number;
+  eventMoreView?: string;
   /** Recursos visíveis nas views de recurso (undefined = todos). Toggle por recurso/grupo. */
   visibleResourceIds?: readonly string[];
 }
@@ -69,6 +80,7 @@ export const DEFAULT_OPTIONS: CalendarOptions = {
   nowMs: null,
   minEventMinutes: 15,
   monthMaxEvents: 3,
+  slotEventOverlap: false,
 };
 
 /** Reject unusable grid dimensions before views enter their slot-generation loops. */
@@ -85,6 +97,10 @@ export function validateCalendarOptions(options: CalendarOptions): void {
   if (!validSlot) throw new RangeError('[meucalendario] slotMinutes deve ser maior que zero e no máximo 1440.');
   if(options.timeLabelInterval!==undefined && (!Number.isFinite(options.timeLabelInterval) || options.timeLabelInterval<=0 || options.timeLabelInterval>1440))
     throw new RangeError('[meucalendario] timeLabelInterval deve ser maior que zero e no máximo 1440.');
+  if (options.timedEventOverflow!==undefined && !['shrink','scroll','more'].includes(options.timedEventOverflow)) throw new RangeError('Invalid timedEventOverflow');
+  if (options.eventMaxStack!==undefined && (!Number.isInteger(options.eventMaxStack) || options.eventMaxStack<2)) throw new RangeError('eventMaxStack must be an integer >= 2');
+  if (options.minEventWidth!==undefined && (!Number.isFinite(options.minEventWidth) || options.minEventWidth<=0)) throw new RangeError('minEventWidth must be positive');
+  if(options.defaultResourceCapacity!==undefined && options.defaultResourceCapacity!==false && (!Number.isSafeInteger(options.defaultResourceCapacity) || options.defaultResourceCapacity<=0)) throw new RangeError('defaultResourceCapacity must be a positive integer or false');
   const validScale = Number.isFinite(options.pxPerMinute) && options.pxPerMinute > 0;
   if (!validScale) throw new RangeError('[meucalendario] pxPerMinute deve ser maior que zero.');
   const validMinimum = Number.isFinite(options.minEventMinutes) && options.minEventMinutes > 0 && options.minEventMinutes <= 1440;

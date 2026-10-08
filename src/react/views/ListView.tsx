@@ -107,7 +107,7 @@ function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
         const dayISO = day.toString();
         const items = itemsByDay.get(dayISO)!;
         return (
-          <div key={dayISO} className="mc-list-day" data-mc-list-day={dayISO}>
+          <div key={dayISO} className="mc-list-day" data-mc-list-day={dayISO} style={props.context.getDayStyle?.({dateISO:dayISO,viewName:props.context.viewName ?? "list"})}>
             <div className="mc-list-day-header">
               {formatDate(day, options.locale, {
                 weekday: 'long',
