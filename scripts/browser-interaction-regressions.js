@@ -3,7 +3,7 @@ async (page) => {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole('button', { name: 'Voltar ao exemplo', exact: true }).click();
+  await page.getByRole('button', { name: 'Restaurar data de exemplo', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Aplicar restrições de horário', exact: true }).check();
   await page.getByRole('button', { name: 'Dia', exact: true }).click();
   for (const minute of [435, 735]) {
