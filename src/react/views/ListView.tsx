@@ -10,7 +10,7 @@ import type { TemporalLike } from '../../core/index.js';
 import type { EventOccurrence } from '../../core/index.js';
 import { occurrenceStart } from '../../core/index.js';
 import { formatDate, formatHourLabel } from './format.js';
-import { occurrenceDays } from './occurrenceDays.js';
+import { occurrenceDays } from './layout/occurrenceDays.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 

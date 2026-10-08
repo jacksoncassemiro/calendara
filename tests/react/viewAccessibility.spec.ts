@@ -13,7 +13,7 @@ import { monthView } from '../../src/react/views/MonthView.js';
 import { listView, createListView } from '../../src/react/views/ListView.js';
 import { createNDaysView, dayView } from '../../src/react/views/timeGridViews.js';
 import { createResourceDayView, createTimelineView } from '../../src/react/views/resourceViews.js';
-import { occurrenceEditableForDay } from '../../src/react/views/occurrenceDays.js';
+import { occurrenceEditableForDay } from '../../src/react/views/layout/occurrenceDays.js';
 import { formatDate, formatHourLabel, timeLabelStep } from '../../src/react/views/format.js';
 import type { CalendarView, ViewRenderContext } from '../../src/react/views/viewDef.js';
 

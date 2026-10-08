@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const cli = fileURLToPath(new URL('../node_modules/@playwright/cli/playwright-cli.js', import.meta.url));
 mkdirSync(new URL('../output/playwright/', import.meta.url), { recursive: true });
 mkdirSync(new URL('../output/layout-review/', import.meta.url), { recursive: true });
-const server = await createServer({ root, server: { host: '127.0.0.1', port: 5180, strictPort: true } });
+const server = await createServer({ root, server: { host: '127.0.0.1', port: 5180, strictPort: true, hmr: false } });
 function run(args, required = true) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, '-s=calendar-review', ...args], { cwd: root, stdio: 'inherit' });
@@ -33,6 +33,11 @@ try {
   await run(['run-code', '--filename', 'scripts/browser-event-margin-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-scroll-content-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-label-configurations-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-persona-reception-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-persona-clinician-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-persona-personal-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-persona-admin-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-recurrence-editor-review.js']);
 } finally {
   await run(['close'], false);
   await server.close();

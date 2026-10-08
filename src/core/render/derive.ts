@@ -139,6 +139,28 @@ function toDisplayZoned(
   return sourceTimeZone === displayTimeZone ? zoned : zoned.withTimeZone(displayTimeZone);
 }
 
+/** Full intervals relative to a day; negative/>1440 minutes preserve adjacent-day buffers. */
+export function resourceBusyIntervals(
+  temporal: TemporalLike,
+  day: PlainDate,
+  occurrences: readonly EventOccurrence[],
+  displayTimeZone: string,
+): Segment[] {
+  return occurrences.map(occurrence => {
+    const time = occurrence.event.time;
+    if (time.allDay) return {
+      startMin: temporal.PlainDate.from(time.start.date!).since(day).days * MINUTES_PER_DAY,
+      endMin: temporal.PlainDate.from(time.end.date!).since(day).days * MINUTES_PER_DAY,
+    };
+    const start = toDisplayZoned(temporal, time.start, displayTimeZone);
+    const end = toDisplayZoned(temporal, time.end, displayTimeZone);
+    return {
+      startMin: start.toPlainDate().since(day).days * MINUTES_PER_DAY + start.hour * 60 + start.minute,
+      endMin: end.toPlainDate().since(day).days * MINUTES_PER_DAY + end.hour * 60 + end.minute,
+    };
+  });
+}
+
 /**
  * Distribui ocorrências pelos dias visíveis, projetando os timed em minutos-do-dia de exibição.
  * Distribui continuações em cada dia; end exclusivo não cria um segmento vazio à meia-noite.

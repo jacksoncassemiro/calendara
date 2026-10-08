@@ -310,7 +310,7 @@ Nas grades verticais de Dia/Semana/N dias/Recursos:
 }} />
 ```
 
-`scroll` amplia colunas conforme a concorrência visual e a largura mínima. `more` reserva uma faixa para as ocorrências excedentes de cada grupo conectado. `renderEventMore` personaliza o conteúdo do popover; `onEventMoreClick` permite substituir sua abertura retornando false, como no mês. A timeline horizontal mantém empilhamento em linhas; o agrupamento acima se aplica às grades verticais.
+`scroll` amplia colunas conforme a concorrência visual e a largura mínima. `more` reserva uma faixa para as ocorrências excedentes de cada grupo conectado. `renderEventMore` personaliza o conteúdo do popover; `onEventMoreClick` permite substituir sua abertura retornando false, como no mês. A timeline horizontal empilha eventos em linhas e também aceita more para agrupar o excesso por intervalo.
 
 O popover padrão permite iniciar arraste de um evento para a grade. Conteúdo personalizado precisa preservar o contrato de atributos de interação ou oferecer edição própria. O editor permanece a alternativa de teclado/toque.
 

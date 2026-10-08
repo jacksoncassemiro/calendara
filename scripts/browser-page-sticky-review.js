@@ -10,7 +10,7 @@ async page => {
     const resources=Array.from({length:20},(_,index)=>({id:`room-${index}`,title:`Sala ${index+1}`}));
     const events=[{id:'long',calendarId:'c',title:'Evento longo',resourceIds:['room-0'],time:{allDay:false,
       start:{dateTime:'2026-10-07T00:00:00',timeZone:'UTC'},end:{dateTime:'2026-10-07T23:00:00',timeZone:'UTC'}}},
-      {id:'all',calendarId:'c',title:'Congresso',resourceIds:['room-0'],time:{allDay:true,startDate:'2026-10-07',endDate:'2026-10-09'}}];
+      {id:'all',calendarId:'c',title:'Congresso',resourceIds:['room-0'],time:{allDay:true,start:{date:'2026-10-07'},end:{date:'2026-10-09'}}}];
     window.allDayClicks=0;
     const app=new CalendarApp({temporal:await ensureTemporal(),date:'2026-10-07',view:'week',resources,events,
       onEventClick:()=>window.allDayClicks++,
@@ -64,3 +64,4 @@ async page => {
   }
   return results;
 }
+

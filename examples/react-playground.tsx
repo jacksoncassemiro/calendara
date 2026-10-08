@@ -155,7 +155,13 @@ function App() {
       /> : <p>Calendário desmontado. Use “Montar calendário” para continuar.</p>}
     </section>
     <p className="demo-note">Os dados ficam em memória. Arraste ou redimensione o intervalo completo; abra o editor para reagendar por teclado ou no celular.</p>
-    <dialog ref={dialogRef} className="demo-editor" aria-labelledby="editor-title" onCancel={closeEditor}>
+    <dialog ref={dialogRef} className="demo-editor" aria-labelledby="editor-title" onCancel={closeEditor} onKeyDown={event => {
+      if (event.key !== 'Tab') return;
+      const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled), [tabindex="0"]')].filter(control => control.getClientRects().length > 0);
+      const first = controls[0], last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }}>
       <h2 id="editor-title">{editing ? 'Editar evento' : 'Criar evento'}</h2>
       {(editing || selection) && <CalendarEventEditor key={editing?.originalStart ?? selection?.date}
         event={editing?.event ?? {id:'new',calendarId:'agenda',title:'',resourceIds:editorResources,time:allDay ? {allDay:true,start:{date:start},end:{date:end}} : {allDay:false,start:{dateTime:start,timeZone:TZ},end:{dateTime:end,timeZone:TZ}}}}

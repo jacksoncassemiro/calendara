@@ -680,3 +680,11 @@
 [data-mc-root] .mc-event-more { position:absolute; border:1px dashed var(--mc-color-event-border); border-radius:4px; background:var(--mc-color-event-bg); color:var(--mc-color-event-fg); font:inherit; padding:2px; cursor:pointer; overflow:hidden; }
 /* Rótulos marcam fronteiras dos intervalos; endHour é o limite, não outra célula. */
 [data-mc-root] .mc-hour-label { transform: translateY(2px); }
+
+/* Keep weekday choices usable within narrow editors without a long checkbox column. */
+.mc-event-editor .mc-recurrence-weekdays {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0 .5rem;
+}
+.mc-event-editor .mc-recurrence-weekdays .mc-editor-check { margin: 0; }

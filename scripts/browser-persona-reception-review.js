@@ -60,9 +60,9 @@ async page => {
   await dialog.waitFor({ state: 'hidden' });
   await card('sala-2', 'Coleta reagendada').waitFor();
 
-  // Unlimited capacity removes the number-of-bookings limit, not preparation.
-  // Sala 1's 09–10 consultation reserves a 15-minute buffer after its end.
-  await page.getByRole('combobox', { name: 'Capacidade Sala 1', exact: true }).selectOption('unlimited');
+  // With capacity one, Sala 1's 09–10 consultation reserves preparation until
+  // 10:15. Unlimited capacity permits overlapping buffered reservations too.
+  await page.getByRole('combobox', { name: 'Capacidade Sala 1', exact: true }).selectOption('1');
   await clickSlot('sala-1', 900);
   await title().fill('Coleta após preparação');
   await setInterval('10:00', '10:15');
@@ -77,6 +77,6 @@ async page => {
   return [
     'Recepção: clique preenche sala; limite próprio ilimitado vence padrão global',
     'Recepção: criação aceita sobrevive troca de views; recusa no editor preserva estado',
-    'Recepção: sala ilimitada mantém preparação e libera exatamente ao fim do buffer',
+    'Recepção: sala com capacidade 1 respeita preparação e libera exatamente ao fim do buffer',
   ];
 }

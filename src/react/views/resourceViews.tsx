@@ -13,8 +13,8 @@
  * DATA é sempre a data real do dia da view — o recurso viaja no atributo próprio, nunca embutido
  * na data, que o ConstraintEngine consome como data de calendário de verdade.
  */
-import { usePageStickyHeaders } from './usePageStickyHeaders.js';
-import { applyDenseLayout } from './denseLayout.js';
+import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
+import { applyDenseLayout, type DenseLayoutResult } from './layout/denseLayout.js';
 import { EventOverflow } from './EventOverflow.js';
 import { createElement, type JSX } from 'react';
 import type { CalendarView, ViewRange, ViewRenderContext } from './viewDef.js';
@@ -26,9 +26,9 @@ import {
   type ResourceColumnData,
 } from '../../core/index.js';
 import { layoutDay, type GeoGrid } from '../../core/index.js';
-import { formatDate, formatHourLabel, timeLabelStep } from './format.js';
-import { occurrenceEditableForDay,occurrenceEdges } from './occurrenceDays.js';
-import { GUTTER_PX, toPx, segmentStyle } from './utils.js';
+import { formatDate, formatHourLabel, timeLabelStep, formatDraftInterval } from './format.js';
+import { occurrenceEditableForDay,occurrenceEdges } from './layout/occurrenceDays.js';
+import { GUTTER_PX, toPx, segmentStyle , timedEventWidth } from './layout/geometryStyles.js';
 import { resolveHour } from '../../core/index.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
@@ -87,7 +87,7 @@ function ResourceAllDay({ column, context }: { column: ResourceColumnData; conte
         {editable && occurrenceEdges(occurrence,column.day.dateISO,context).end && <span className="mc-allday-resize" data-mc-resize="end" aria-hidden="true" />}
       </div>;
     })}
-    {context.draft?.allDay && context.draft.resourceId===column.resource.id && column.day.dateISO>=context.draft.dateISO && column.day.dateISO<context.draft.endDateISO! && <div className={draftClass(context.draft)} data-mc-draft={context.draft.kind} style={{pointerEvents:'none'}}>{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===context.draft!.eventId)?.event.title ?? 'Dia inteiro'}</div>}
+    {context.draft?.allDay && context.draft.resourceId===column.resource.id && column.day.dateISO>=context.draft.dateISO && column.day.dateISO<context.draft.endDateISO! && <div className={draftClass(context.draft)} data-mc-draft={context.draft.kind} aria-hidden="true" style={{pointerEvents:'none'}}><span className="mc-draft-time">{formatDraftInterval(context.draft,context.options.locale)}</span>{' · '}<span className="mc-draft-title">{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===context.draft!.eventId)?.event.title ?? 'Novo intervalo'}</span></div>}
   </div>;
 }
 
@@ -142,7 +142,7 @@ function ResourceGrid(props: {
     context.temporal,
     resources,
     day,
-    context.occurrences,
+    context.resourceBufferOccurrences ?? context.occurrences,
     context.constraints,
     { startHour, endHour },
     options.timeZone,
@@ -172,12 +172,12 @@ function ResourceGrid(props: {
       <div ref={scrollRef} className="mc-hscroll" data-mc-hscroll>
         <div className="mc-resource-header-row" style={{ display: 'flex' }}>
           <div className="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
-          {columns.map((column) => (
+          {columns.map((column, columnIndex) => (
             <div
               key={column.resource.id}
               className={`mc-resource-header${column.overCapacity ? ' mc-over-capacity' : ''}`}
               data-mc-resource-header={column.resource.id}
-              style={{ flex: '1 1 0', textAlign: 'center',minWidth:densities[columns.indexOf(column)]?.minWidth || undefined }}
+              style={{ flex: '1 1 0', textAlign: 'center',minWidth:densities[columnIndex]?.minWidth || undefined }}
             >
               <span className="mc-resource-title">{column.resource.title}</span>
               {column.overCapacity && (
@@ -191,7 +191,7 @@ function ResourceGrid(props: {
 
         {columns.some((column) => column.day.allDay.length > 0) && <div className="mc-resource-allday-row" style={{ display: 'flex' }}>
           <div style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}>Dia inteiro</div>
-          {columns.map((column) => <div key={column.resource.id} style={{ flex: '1 1 0', minWidth:densities[columns.indexOf(column)]?.minWidth || undefined }}>
+          {columns.map((column, columnIndex) => <div key={column.resource.id} style={{ flex: '1 1 0', minWidth:densities[columnIndex]?.minWidth || undefined }}>
             <ResourceAllDay column={column} context={context} />
           </div>)}
         </div>}
@@ -212,12 +212,13 @@ function ResourceGrid(props: {
           </div>
 
 
-        {columns.map((column) => {
+        {columns.map((column, columnIndex) => {
             const columnDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
             return (
               <ResourceColumn
                 key={column.resource.id}
                 column={column}
+                density={densities[columnIndex]!}
                 first={column === columns[0]}
                 context={context}
                 bodyHeight={bodyHeight}
@@ -239,6 +240,7 @@ function ResourceGrid(props: {
 function ResourceColumn(props: {
   first: boolean;
   column: ResourceColumnData;
+  density: DenseLayoutResult;
   context: ViewRenderContext;
   bodyHeight: number;
   hourMinutes: number[];
@@ -247,9 +249,8 @@ function ResourceColumn(props: {
   nowMinutes: number | null;
   draft?: InteractionDraft;
 }): JSX.Element {
-  const { column, context, bodyHeight, hourMinutes, minuteToY, pxPerMinute, nowMinutes, draft } = props;
+  const { column, context, bodyHeight, hourMinutes, minuteToY, pxPerMinute, nowMinutes, draft, density } = props;
   const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
-  const density=applyDenseLayout(layoutDay(column.day.timed,geometryGridOf(context)),context.options.timedEventOverflow,context.options.eventMaxStack,context.options.minEventWidth,context.options.slotEventOverlap);
   const blocks=density.blocks;
 
   return (
@@ -328,7 +329,7 @@ function ResourceColumn(props: {
               top: toPx(block.top),
               height: toPx(block.height),
               left: `${block.left * 100}%`,
-              width: `calc(${block.width * 100}% - min(var(--mc-event-gap, 8px), ${block.width * 25}%))`,
+              width: timedEventWidth(block, context.options.slotEventOverlap),
               zIndex: block.column + 1,
               ...(editable ? { touchAction: 'none' } : {}),
               ...(context.draft?.eventId===block.id ? {visibility:'hidden' as const} : {}),
@@ -362,6 +363,7 @@ function ResourceColumn(props: {
         <div
           className={draftClass(draft)}
           data-mc-draft={draft.kind}
+          aria-hidden="true"
           data-mc-draft-valid={draft.valid ? 'true' : 'false'}
           style={{
             position: 'absolute',
@@ -371,7 +373,7 @@ function ResourceColumn(props: {
             height: toPx((draft.endMin - draft.startMin) * pxPerMinute),
             pointerEvents: 'none',zIndex:10000,
           }}
-        >{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===draft.eventId)?.event.title ?? 'Novo intervalo'}</div>
+        ><span className="mc-draft-time">{formatDraftInterval(context.draft ?? draft,context.options.locale)}</span>{' · '}<span className="mc-draft-title">{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===draft.eventId)?.event.title ?? 'Novo intervalo'}</span></div>
       )}
       {nowMinutes !== null && (
         <div
@@ -438,7 +440,7 @@ function Timeline(props: {
     context.temporal,
     resources,
     day,
-    context.occurrences,
+    context.resourceBufferOccurrences ?? context.occurrences,
     context.constraints,
     { startHour, endHour },
     options.timeZone,
@@ -476,7 +478,7 @@ function Timeline(props: {
         </div>
 
         <div className="mc-timeline-rows" style={{position:"relative"}}>
-        {columns.map((column) => {
+        {columns.map((column, columnIndex) => {
           const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
           const density=applyDenseLayout(layoutDay(column.day.timed,geometryGridOf(context)).map(block=>({
             ...block,left:block.column/block.columns,width:1/block.columns,
@@ -596,6 +598,7 @@ function Timeline(props: {
                   <div
                     className={draftClass(rowDraft)}
                     data-mc-draft={rowDraft.kind}
+                    aria-hidden="true"
                     data-mc-draft-valid={rowDraft.valid ? 'true' : 'false'}
                     style={{
                       position: 'absolute',
@@ -605,7 +608,7 @@ function Timeline(props: {
                       width: toPx((rowDraft.endMin - rowDraft.startMin) * options.pxPerMinute),
                       pointerEvents: 'none',zIndex:10000,
                     }}
-                  >{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===rowDraft.eventId)?.event.title ?? 'Novo intervalo'}</div>
+                  ><span className="mc-draft-time">{formatDraftInterval(context.draft ?? rowDraft,options.locale)}</span>{' · '}<span className="mc-draft-title">{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===rowDraft.eventId)?.event.title ?? 'Novo intervalo'}</span></div>
                 )}
               </div>
             </div>

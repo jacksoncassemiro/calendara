@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { layoutDay } from '../../src/core/geometry/geometry.js';
-import { applyDenseLayout } from '../../src/react/views/denseLayout.js';
+import { applyDenseLayout } from '../../src/react/views/layout/denseLayout.js';
 
 const grid = { startHour: 8, endHour: 12, pxPerMinute: 1, minEventMinutes: 15 };
 const simultaneous = (count: number, startMin = 540) => Array.from({ length: count }, (_, index) => ({

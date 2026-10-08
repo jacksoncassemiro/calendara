@@ -1,4 +1,4 @@
-import type { GeoBlock } from '../../core/geometry/geometry.js';
+import type { GeoBlock } from '../../../core/geometry/geometry.js';
 
 export type DenseEventPolicy = 'shrink' | 'scroll' | 'more';
 

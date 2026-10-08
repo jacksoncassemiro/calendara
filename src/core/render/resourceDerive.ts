@@ -9,7 +9,7 @@ import type { TemporalLike } from '../date/temporal.js';
 import type { CalendarResource } from '../types/resource.js';
 import type { EventOccurrence } from '../types/event.js';
 import type { ConstraintSet } from '../types/constraint.js';
-import { buildDays, type DayData, type Segment } from './derive.js';
+import { buildDays, resourceBusyIntervals, type DayData, type Segment } from './derive.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
@@ -79,7 +79,7 @@ export function maxConcurrency(day: DayData): number {
 /** Bandas de buffer (antes/depois) de cada evento do recurso, recortadas ao grid. */
 function bufferSegmentsFor(
   resource: CalendarResource,
-  day: DayData,
+  intervals: readonly Segment[],
   gridStartMin: number,
   gridEndMin: number,
 ): Segment[] {
@@ -88,7 +88,7 @@ function bufferSegmentsFor(
   const hasBuffer = bufferBefore > 0 || bufferAfter > 0;
   if (!hasBuffer) return [];
   const segments: Segment[] = [];
-  for (const placement of day.timed) {
+  for (const placement of intervals) {
     if (bufferBefore > 0) {
       const start = Math.max(gridStartMin, placement.startMin - bufferBefore);
       const end = Math.min(gridEndMin, placement.startMin);
@@ -141,7 +141,9 @@ export function buildResourceColumns(
       resource,
       capacity,
       day: dayData,
-      bufferSegments: bufferSegmentsFor(resource, dayData, gridStartMin, gridEndMin),
+      bufferSegments: bufferSegmentsFor(resource,
+        resourceBusyIntervals(temporal,day,resourceOccurrences.filter(occurrence=>!occurrence.event.time.allDay),displayTimeZone),
+        gridStartMin,gridEndMin),
       maxConcurrency: concurrency,
       overCapacity: concurrency > capacity,
     });

@@ -68,6 +68,8 @@ export interface ViewRenderContext {
   range: ViewRange;
   /** Ocorrências já expandidas dentro do range visível. */
   occurrences: EventOccurrence[];
+  /** Adjacent occurrences for resource buffer shading; not visible event content. */
+  resourceBufferOccurrences?: readonly EventOccurrence[];
   constraints: ConstraintSet;
   /** Epoch ms de "agora" (injetável). */
   nowMs: number;

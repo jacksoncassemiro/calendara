@@ -6,8 +6,8 @@
  * Apenas GEOMETRIA (posição/altura absolutas) vive aqui — cor/borda/tipografia vêm das classes
  * `mc-*` do pacote de estilos, não de inline.
  */
-import type { JSX, CSSProperties } from 'react';
-import type { Segment } from '../../core/index.js';
+import type { CSSProperties } from 'react';
+import type { Segment } from '../../../core/index.js';
 
 /** Largura da calha (eixo de horas) em px. */
 export const GUTTER_PX = 56;
@@ -30,4 +30,13 @@ export function segmentStyle(
 		top: toPx(minuteToY(segment.startMin)),
 		height: toPx((segment.endMin - segment.startMin) * pxPerMinute),
 	};
+}
+
+/** Reserve the creation gutter only at the outer edge of side-by-side lanes. */
+export function timedEventWidth(block: { left: number; width: number }, overlap = false): string {
+  const width = block.width * 100;
+  const touchesOuterEdge = block.left + block.width >= 1 - 1e-6;
+  return overlap || touchesOuterEdge
+    ? `calc(${width}% - min(var(--mc-event-gap, 8px), ${width / 4}%))`
+    : `${width}%`;
 }

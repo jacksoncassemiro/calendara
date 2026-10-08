@@ -26,7 +26,8 @@ import type { CalendarEvent, EventOccurrence } from '../../core/index.js';
 import type { ConstraintSet, SlotEvaluation } from '../../core/index.js';
 import type { CalendarResource } from '../../core/index.js';
 
-import { expandRange, buildDays, occurrenceKey } from '../../core/index.js';
+import { expandRange, occurrenceKey } from '../../core/index.js';
+import { resourceBusyIntervals } from '../../core/render/derive.js';
 import { occurrencesForResource, resourceConstraintSet } from '../../core/index.js';
 import {
   InteractionEngine,
@@ -184,6 +185,8 @@ export class CalendarApp {
   private readonly listeners = new Map<CalendarEventName, Set<(payload: unknown) => void>>();
   private readonly readyPromise: Promise<void>;
   private readonly memoExpand = memoize(expandRange);
+  private readonly memoBufferExpand = memoize(expandRange);
+  private readonly memoOccupancyExpand = memoize(expandRange);
 
   private eventSource: EventSource | undefined;
   private renderEvent: EventRenderSlot | undefined;
@@ -561,6 +564,10 @@ export class CalendarApp {
       nowMs,
     };
     if (this.hasResourceConfig) context.resources = this.resources;
+    const bufferPaddingDays=Math.ceil(Math.max(0,...this.resources.map(resource=>
+      (resource.bufferBefore ?? 0)+(resource.bufferAfter ?? 0)))/1440);
+    if(bufferPaddingDays>0)context.resourceBufferOccurrences=this.memoBufferExpand(temporal,state.events,
+      range.startDate.subtract({days:bufferPaddingDays}).toString(),range.endDate.add({days:bufferPaddingDays}).toString(),state.options.timeZone);
     if (this.draft) context.draft = this.draft;
     if (this.renderEvent) context.renderEvent = this.renderEvent;
     context.viewName=state.viewName;
@@ -797,25 +804,17 @@ export class CalendarApp {
     const state = this.store.getState();
     const range = this.getVisibleRange();
     const isVisibleDate = input.dateISO >= range.start && input.dateISO <= range.end;
-    const candidates = isVisibleDate ? this.currentOccurrences
-      : expandRange(temporal, state.events, input.dateISO, input.dateISO, state.options.timeZone);
+    // Both the existing reservation and candidate acquire buffers. Fetch the
+    // neighbouring dates before clipping; a 23:50 end can occupy tomorrow.
+    const bufferDays = Math.ceil(((resource.bufferBefore ?? 0) + (resource.bufferAfter ?? 0)) / 1440);
+    const candidates = bufferDays > 0
+      ? this.memoOccupancyExpand(temporal, state.events, dayPlain.subtract({days:bufferDays}).toString(), dayPlain.add({days:bufferDays}).toString(), state.options.timeZone)
+      : isVisibleDate ? this.currentOccurrences
+        : expandRange(temporal, state.events, input.dateISO, input.dateISO, state.options.timeZone);
     const resourceOccurrences = occurrencesForResource(candidates, resourceId).filter(
       (occurrence) => occurrenceKey(occurrence) !== movedId,
     );
-    // Dia inteiro (0..24) p/ não recortar ocupação pela janela visível do grid.
-    const dayData = buildDays(
-      temporal,
-      [dayPlain],
-      resourceOccurrences,
-      {},
-      { startHour: 0, endHour: 24 },
-      this.store.getState().options.timeZone,
-    )[0]!;
-    const busy = dayData.timed.map((placement) => ({
-      startMin: placement.startMin,
-      endMin: placement.endMin,
-    }));
-    dayData.allDay.forEach(() => busy.push({ startMin: 0, endMin: 1440 }));
+    const busy = resourceBusyIntervals(temporal,dayPlain,resourceOccurrences,state.options.timeZone);
     const occupancy: ResourceOccupancy = {
       capacity: resource.capacity===false ? Infinity : resource.capacity ?? (state.options.defaultResourceCapacity===false ? Infinity : state.options.defaultResourceCapacity ?? 1),
       bufferBefore: resource.bufferBefore ?? 0,

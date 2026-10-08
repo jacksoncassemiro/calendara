@@ -3,14 +3,14 @@
  * Extraído do CalendarApp para que Week/Day/NDays compartilhem exatamente o mesmo pipeline
  * (buildDays → geometria waterfall → rótulos → linha "agora") e o mesmo componente de render.
  */
-import { applyDenseLayout } from './denseLayout.js';
-import { buildDays, occurrenceKey } from '../../core/index.js';
-import { layoutDay, type GeoGrid } from '../../core/index.js';
-import { resolveHour } from '../../core/index.js';
-import { formatDate, formatHourLabel, timeLabelStep } from './format.js';
-import { occurrenceEditableForDay,occurrenceEdges } from './occurrenceDays.js';
-import type { ViewRenderContext } from './viewDef.js';
-import type { GridVM, DayColumnVM, EventVM, AllDayVM, DraftVM } from './viewModel.js';
+import { applyDenseLayout } from '../layout/denseLayout.js';
+import { buildDays, occurrenceKey } from '../../../core/index.js';
+import { layoutDay, type GeoGrid } from '../../../core/index.js';
+import { resolveHour } from '../../../core/index.js';
+import { formatDate, formatHourLabel, timeLabelStep } from '../format.js';
+import { occurrenceEditableForDay,occurrenceEdges } from '../layout/occurrenceDays.js';
+import type { ViewRenderContext } from '../viewDef.js';
+import type { GridVM, DayColumnVM, EventVM, AllDayVM, DraftVM } from './timeGridViewModel.js';
 
 export function buildTimeGridVM(context: ViewRenderContext, viewName: string): GridVM {
   const { temporal, options, range, occurrences, constraints, renderEvent } = context;
@@ -52,6 +52,7 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
       const event = placement.occurrence.event;
       const timeLabel = formatHourLabel(placement.startMin, options.locale);
       const isEditable = occurrenceEditableForDay(placement.occurrence, day.dateISO, context);
+      const resizeEdges = occurrenceEdges(placement.occurrence, day.dateISO, context);
       const eventVM: EventVM = {
         id: block.id,
         block,
@@ -60,8 +61,8 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
         startMin: placement.startMin,
         endMin: placement.endMin,
         editable: isEditable,
-        resizeStart:occurrenceEdges(placement.occurrence,day.dateISO,context).start,
-        resizeEnd:occurrenceEdges(placement.occurrence,day.dateISO,context).end,
+        resizeStart:resizeEdges.start,
+        resizeEnd:resizeEdges.end,
       };
       if (event.color !== undefined) eventVM.color = event.color;
       if (context.onEventClick) eventVM.activate = () => context.onEventClick?.(placement.occurrence);

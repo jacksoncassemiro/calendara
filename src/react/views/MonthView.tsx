@@ -8,9 +8,9 @@ import type { CalendarView, ViewContext, ViewRange, ViewRenderContext, MonthMore
 import type { TemporalLike } from '../../core/index.js';
 import type { EventOccurrence } from '../../core/index.js';
 import { occurrenceStart } from '../../core/index.js';
-import { formatDate, formatHourLabel } from './format.js';
-import { occurrenceDays } from './occurrenceDays.js';
-import { packDateSpans } from './spanLayout.js';
+import { formatDate, formatHourLabel, formatDraftInterval } from './format.js';
+import { occurrenceDays } from './layout/occurrenceDays.js';
+import { packDateSpans } from './layout/spanLayout.js';
 const MonthMorePopover = lazy(()=>import('./MonthMorePopover.js').then(module=>({default:module.MonthMorePopover})));
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
@@ -230,7 +230,9 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                     className={`mc-month-event mc-month-draft${draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`}
                     data-mc-draft={draft.kind} data-mc-draft-dates={draftDates.join(' ')} aria-hidden="true"
                     style={{position:'absolute',top:draftLane*22,left:0,height:20,width:`calc(${draftDates.length*100}% + ${draftDates.length-1}px - 4px)`,zIndex:2}}>
-                    {draft.valid ? (draft.eventId ? occurrences.find(occurrence=>chipKey(occurrence)===draft.eventId)?.event.title ?? 'Novo intervalo' : 'Novo intervalo') : `Indisponível: ${draft.reason}`}
+                    <span className="mc-draft-time">{formatDraftInterval(draft,options.locale)}</span>{' · '}
+                    <span className="mc-draft-title">{draft.eventId ? occurrences.find(occurrence=>chipKey(occurrence)===draft.eventId)?.event.title ?? 'Novo intervalo' : 'Novo intervalo'}</span>
+                    {!draft.valid && <span className="mc-draft-reason">{` · Indisponível: ${draft.reason}`}</span>}
                     </div>}
                   {visibleSegments.map(({chip,span,lane,dates}) => (
                     <div
@@ -319,13 +321,14 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
         </section>
       ) : moreInfo && moreAnchorRef.current && rootRef.current && <Suspense fallback={null}><MonthMorePopover id={detailId} anchor={moreAnchorRef.current} container={rootRef.current}
         label={formatDate(selectedDay,options.locale,{dateStyle:'full'})} onClose={closeDetail}>
-        {props.context.renderMonthMore ? props.context.renderMonthMore({...moreInfo,occurrences:selectedChips.map(chip=>chip.occurrence)}) : <div className="mc-month-detail">
-          {selectedChips.map(chip=><button type="button" key={chip.id} className="mc-month-popover-event"
+        {props.context.renderMonthMore ? props.context.renderMonthMore({...moreInfo,occurrences:selectedChips.map(chip=>chip.occurrence),hiddenOccurrences:selectedChips.filter(chip=>moreInfo.hiddenOccurrences.some(occurrence=>chipKey(occurrence)===chip.id)).map(chip=>chip.occurrence)}) : <div className="mc-month-detail">
+          {selectedChips.map(chip=><div role="button" tabIndex={0} key={chip.id} className="mc-month-popover-event"
             style={props.context.draft?.eventId===chip.id ? {visibility:"hidden"} : undefined} data-mc-month-detail-event={chip.id} data-mc-event-date={selectedDay.toString()} data-mc-event={chip.id} data-mc-start-min={chip.startMin} data-mc-end-min="0" data-mc-editable={chip.occurrence.event.editable===false ? "false" : "true"}
-            onClick={event=>{closeDetail();if(event.detail===0)props.context.onEventClick?.(chip.occurrence);}}>
+            onClick={event=>{if ((event.target as Element).closest("button, a, input, select, textarea, [contenteditable=true]") && event.target!==event.currentTarget) return;closeDetail();if(event.detail===0)props.context.onEventClick?.(chip.occurrence);}}
+            onKeyDown={event=>{if(event.target===event.currentTarget && ["Enter"," "].includes(event.key)){event.preventDefault();closeDetail();props.context.onEventClick?.(chip.occurrence);}}}>
             {props.context.renderEvent ? props.context.renderEvent({occurrence:chip.occurrence,event:chip.occurrence.event,timeLabel:chip.timeLabel,isAllDay:chip.isAllDay})
               : <><span>{chip.isAllDay?'dia inteiro':chip.timeLabel}</span><span>{chip.occurrence.event.title}</span></>}
-          </button>)}
+          </div>)}
         </div>}
       </MonthMorePopover></Suspense>)}
     </div>

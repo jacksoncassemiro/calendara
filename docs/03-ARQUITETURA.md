@@ -1,131 +1,35 @@
-# 03 — Arquitetura alvo
+# 03 — Arquitetura atual
 
-> Estado atual: pacote único @meucalendario/calendar, React nativo e rrule-temporal 2.2.8 integrado à expansão de eventos; iterador civil permanece utilitário independente. Editor inclui “esta e seguintes”. As seções abaixo são históricas. Consulte README, 00-STATUS.md e experiments/civil-recurrence/ADOPTION.md.
+A biblioteca é um único pacote, @meucalendario/calendar, com renderização React nativa. React e React DOM são peer dependencies (18/19); o build não inclui uma cópia própria desses runtimes. Não há renderer Preact nem monorepo de adapters.
 
-Desenho técnico da biblioteca. Deriva diretamente de `01-ANALISE.md` (requisitos) e
-`reference/referencias-open-source.md` (padrões consolidados). Formaliza como **matamos o rerender**
-e como **criar view nova fica simples**.
+## Responsabilidades
 
-## Princípio central: núcleo headless + render isolado + adapter fino
+- src/core/types: contratos de eventos, recursos, recorrência e constraints.
+- src/core/date, recurrence, geometry, constraint e render: projeção temporal, expansão, disposição e disponibilidade. O nome render neste núcleo designa derivação de dados; não componentes React.
+- src/core/interaction: Pointer Events, seleção, movimento, redimensionamento e validação dos rascunhos.
+- src/react/app/calendarApp.ts: coordenação de estado, views, expansão, commits e integração do motor de interação com React.
+- src/react/Calendar.tsx e hooks: API declarativa para aplicações React.
+- src/react/CalendarEventEditor.tsx: formulário opcional; persistência e validação são callbacks do consumidor.
+- src/react/views: componentes e definições das views.
+- src/react/views/layout: geometria de apresentação, segmentos multiday e políticas de densidade.
+- src/react/views/models: modelo de apresentação do time-grid e sua construção.
+- src/react/views/hooks: comportamento compartilhado de cabeçalhos e conteúdo durante rolagem.
+- styles.css: estilos isolados por classes mc-* e tokens CSS.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ App do usuário (React hoje; Vue/Angular/Vanilla depois)  │
-└───────────────┬─────────────────────────────────────────┘
-                │ props declarativas + callbacks (nunca manipula DOM interno)
-┌───────────────▼─────────────────────────────────────────┐
-│ packages/react  — <Calendar/>  (ADAPTER FINO)            │
-│  • cria a instância do core 1x (useRef)                  │
-│  • repassa dados via store; NÃO reconcilia a árvore interna │
-└───────────────┬─────────────────────────────────────────┘
-                │ API imperativa + store observável
-┌───────────────▼─────────────────────────────────────────┐
-│ packages/core — CalendarApp (HEADLESS, TS puro)          │
-│  • Store (estado: date, view, events, constraints)       │
-│  • Engines: DateUtils · Recurrence · Geometry · Constraint│
-│  • Render próprio via PREACT em um container isolado      │
-│  • Views plugáveis (ICalendarView) · Plugins             │
-└─────────────────────────────────────────────────────────┘
-```
+A separação entre core e react é de responsabilidades internas, não de pacotes. A entrada ./core permite consumir utilitários de dados sem importar as views. Layout/models/hooks não são novos pontos de entrada públicos.
 
-### Por que isso elimina o rerender parasita
-O `CalendarApp` **renderiza a si mesmo com Preact** dentro do seu container (mesmo padrão de
-FullCalendar e Schedule-X). O React do app **não reconcilia** nada dentro do calendário: ele só
-entrega dados ao store e recebe eventos por callback. Resultado: mudar um filtro no app **não** re-renderiza
-o calendário inteiro; o store faz **diff granular** e só re-renderiza o que mudou. Isso remove a necessidade
-do diff manual (`api.getEvents()` + `setStart/setEnd`) que existe hoje no `wsaude-web`.
+## Atualização e interação
 
-> Preact é escolhido para o render interno por ser minúsculo (~4kB), ter API tipo-React (fácil de escrever
-> views) e ser o padrão dos dois maiores projetos do mercado para exatamente esse fim. **Fica encapsulado**
-> no core — o app não precisa saber que existe.
+O estado controlado pertence ao aplicativo consumidor. Alterações aceitas são aplicadas de forma otimista; callbacks podem recusá-las. O rollback conserva alterações posteriores que já não pertencem à operação recusada. Isso não substitui validação transacional de capacidade no servidor.
 
-## Pacotes (monorepo yarn workspaces)
+Movimento e resize usam rascunhos separados dos eventos salvos. A renderização oculta a origem durante a prévia e usa a ocorrência completa, mesmo quando o segmento visível está recortado por dia, semana ou janela de horários. Capacidade, buffers e constraints são avaliados antes do commit.
 
-```
-packages/
-  core/      @meucalendario/core   — headless, framework-agnostic (inclui render Preact interno)
-  react/     @meucalendario/react  — <Calendar/> + hooks (useCalendar)
-  styles/    @meucalendario/styles — CSS com tokens (custom properties), isolado
-  (futuro) vue/, angular/, vanilla/, ical/, resource-timeline/
-```
+A recorrência de produção usa rrule-temporal 2.2.8. Temporal é carregado pelo mecanismo existente; os experimentos do iterador civil permanecem separados. Editor e motor não são a mesma responsabilidade: a UI apresenta campos comuns e conserva cláusulas avançadas que não foram editadas.
 
-### `core` — estrutura interna
-```
-core/src/
-  types/            ← contratos públicos (CalendarEvent, EventTime, RRuleModel, ICalendarView, …)
-  store/            ← estado observável + diff granular (sem framework)
-  date/DateUtils    ← utilitários puros (sobre Temporal)
-  recurrence/       ← motor RFC 5545 sobre Temporal (iterador-por-FREQ + recurrence-set + parser)
-  geometry/         ← layout de eventos (algoritmo de sobreposição/waterfall)
-  constraint/       ← businessHours ∧ allowedRanges ∧ ¬blockedRanges + bloqueios
-  render/           ← camada Preact (CalendarWrapper) + componentes base
-  views/            ← Month, Week, Day, NDays, List (implementam ICalendarView)
-  interaction/      ← drag&drop + resize (Pointer Events) com preview→commit→revert
-  plugins/          ← current-time, event-source(fetch por período), …
-  index.ts
-```
+## Extensibilidade e manutenção
 
-## Contrato de View (torna "criar view nova" simples)
+Views implementam CalendarView: nome, label, range, navegação, título e renderização React. Slots de eventos, toolbar e popovers recebem contexto e podem retornar conteúdo React. Recursos e capacidades permanecem dados configuráveis, sem regras específicas de clínicas embutidas no pacote.
 
-Uma view é um objeto pequeno — o mesmo contrato que já funcionou nas tentativas anteriores, formalizado:
+Mantenha helpers junto à responsabilidade que atendem. Uma extração deve remover repetição ou esclarecer limites, não criar um arquivo por expressão. Evite abreviações ambíguas em novas funções públicas; preservam-se os nomes públicos já documentados. ResourceGrid reutiliza a densidade calculada no componente pai, e o modelo do time-grid calcula os limites de resize uma vez por evento.
 
-```ts
-interface ICalendarView {
-  mount(container: HTMLElement, api: CalendarAPI): void;
-  update(state: ViewState): void;      // date, eventos expandidos+posicionados, constraints
-  destroy(): void;
-  getTitle(date: Temporal.PlainDate, locale: string): string;
-  navigate(dir: 'prev'|'next', date): Temporal.PlainDate;   // quanto avançar
-  getRange(date): { start; end };      // range visível → dispara event-source fetch
-}
-calendar.registerView('week', 'Semana', WeekViewFactory);
-```
-
-O core cuida de: expandir recorrências no range, posicionar (geometry), aplicar constraints e chamar
-`update`. A view só desenha. **Views podem ser escritas em Preact (padrão) ou entregar HTML puro.**
-Um app React poderá também registrar uma view feita em React via um helper `createReactView` (padrão
-`createViewComponent` do `testes-nextjs`).
-
-> **Criar view nova NÃO é travado.** As views internas (Month/Week/Day/NDays/List/Timeline) são apenas
-> implementações padrão do mesmo contrato público `ICalendarView`. Qualquer view customizada — Kanban,
-> "3 dias úteis", escala de plantão, painel de recursos — é cidadã de 1ª classe via `registerView(...)`.
-> Este é justamente um dos pontos que hoje é difícil no FullCalendar e que resolvemos por design: o
-> contrato é pequeno (mount/update/destroy/getTitle/navigate/getRange) e recebe do core os eventos já
-> expandidos e posicionados. Nenhuma view é "especial" para o núcleo.
-
-## Estado e fluxo de dados
-- **Fonte de verdade**: store no core. App envia `events` (array) **ou** um `eventSource.fetch({start,end})`
-  com `refetchKey` (padrão FullCalendar/`testes-nextjs`).
-- **Expansão de recorrência é lazy por range**: só expande ocorrências dentro da janela visível (+buffer).
-- **Interações** emitem callbacks (`onEventDrop(event, old, revert)`, `onEventResize`, `onDateSelect`,
-  `onDateClick`, `onEventClick`, `onDropBlocked`, `onClickBlocked`, `onViewChange`, `onRangeChange`).
-
-## Camadas visuais especiais (bloqueio / horário comercial)
-Renderizadas pelo core como **camada de fundo** (não como eventos), a partir de `businessHours`,
-`blockedRanges`/`blocking` e `allowedRanges`. O `ConstraintEngine` responde "esse slot é válido?" para
-drag/drop/click, disparando `onDropBlocked`/`onClickBlocked`. Resolve os itens 2 e 3 de `01-ANALISE.md`
-de forma nativa (sem background-events manuais).
-
-## CSS e isolamento
-- `packages/styles`: CSS com **custom properties** (`--mc-*`) para tema (claro/escuro) e tokens.
-- Escopo por atributo raiz (`[data-mc-root]`), reset local (box-sizing/button/input) — **sem preflight global**.
-- Herda a ideia validada em `modularCalendar` (prefixo + reset escopado) para não colidir com o Tailwind do app.
-
-## Temporal API — política de compatibilidade
-- Código usa `Temporal` diretamente. Um shim no bootstrap: se `globalThis.Temporal` ausente (Safari),
-  carrega o polyfill. Medir custo de bundle na Fase 1; oferecer build "sem polyfill" para quem só tem
-  navegadores modernos.
-
-## Recursos (`Resource`) — conceito genérico, resource-aware desde o núcleo
-O core nasce **resource-aware** usando o conceito **padrão e genérico de calendário: `Resource`**
-(o mesmo de FullCalendar/Syncfusion/Graph). A lib **não** tem noção de "profissional/sala/equipamento":
-isso é apenas o `type` (string opaca) que o app define. `CalendarResource { type, capacity, buffers,
-businessHours, parentId, metadata }` + `event.resourceIds: string[]` (0..N). Capacity/buffers/disponibilidade
-são consumidos pela geometria e pelo ConstraintEngine. As **views orientadas a recurso** (Timeline em
-linhas; Multiagenda em colunas) são só mais implementações de `ICalendarView`. **Nenhuma regra de negócio
-entra na lib** — obrigatoriedade/semântica de recurso vive no app (via `metadata` + callbacks).
-Detalhes e a fronteira lib×app: `reference/agenda-desvinculada.md`.
-A entidade e os tipos entram já na Fase 1; o comportamento/visões na **Fase 3B** (`02-PLANO.md`).
-
-## Fora do MVP (fases posteriores)
-- Adapters Vue/Angular/Vanilla, pacote `ical` (import/export), timezone Windows↔IANA (interop Outlook).
+Ainda vale dividir resourceViews.tsx em componentes por view em uma rodada própria. Isso é uma melhoria de legibilidade, não requisito funcional nem justificativa para criar outro pacote. Consulte 08-auditoria-personas.md para limitações e evidências; quantidade de testes não prova ausência de rerenders ou de bugs.

@@ -8,7 +8,7 @@ import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from './
 import type { TemporalLike } from '../../core/index.js';
 import { formatDate } from './format.js';
 import { TimeGrid } from './TimeGrid.js';
-import { buildTimeGridVM } from './timeGridModel.js';
+import { buildTimeGridVM } from './models/timeGridModel.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 

@@ -1,5 +1,5 @@
 import {lazy,Suspense,useRef,useState,useId,useEffect,type JSX} from 'react';
-import type {DenseOverflowGroup} from './denseLayout.js';
+import type {DenseOverflowGroup} from './layout/denseLayout.js';
 import type {ViewRenderContext,MonthMoreInfo} from './viewDef.js';
 import {formatDate,formatHourLabel} from './format.js';
 import {occurrenceKey,occurrenceStart} from '../../core/index.js';
@@ -33,7 +33,7 @@ export function EventOverflow({group,dateISO,resourceId,context,horizontalHeight
          data-mc-event-date={dateISO} data-mc-event={occurrenceKey(occurrence)} data-mc-start-min={start.minuteOfDay} data-mc-end-min="0"
          style={context.draft?.eventId===occurrenceKey(occurrence) ? {visibility:"hidden"} : undefined}
          data-mc-editable={occurrence.event.editable===false?'false':'true'}
-         onClick={event=>{close();if(event.detail===0)context.onEventClick?.(occurrence);}}
+         onClick={event=>{if ((event.target as Element).closest("button, a, input, select, textarea, [contenteditable=true]") && event.target!==event.currentTarget) return;close();if(event.detail===0)context.onEventClick?.(occurrence);}}
          onKeyDown={event=>{if(event.target===event.currentTarget && ['Enter',' '].includes(event.key)){event.preventDefault();close();context.onEventClick?.(occurrence);}}}>
         {context.renderEvent ? context.renderEvent({occurrence,event:occurrence.event,timeLabel:label,isAllDay:start.isAllDay}) : <><span>{label}</span><span>{occurrence.event.title}</span></>}
        </div>;

@@ -24,7 +24,7 @@ export { monthView } from './MonthView.js';
 export { listView, createListView } from './ListView.js';
 export { createResourceDayView, createTimelineView } from './resourceViews.js';
 export { TimeGrid } from './TimeGrid.js';
-export { buildTimeGridVM } from './timeGridModel.js';
+export { buildTimeGridVM } from './models/timeGridModel.js';
 export { CalendarShell, type ShellProps } from './Shell.js';
 export { formatDate, formatHourLabel } from './format.js';
 export type {
@@ -34,7 +34,7 @@ export type {
   AllDayVM,
   HourLabelVM,
   DraftVM,
-} from './viewModel.js';
+} from './models/timeGridViewModel.js';
 
 import { weekView, dayView } from './timeGridViews.js';
 import { monthView } from './MonthView.js';

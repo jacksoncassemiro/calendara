@@ -178,6 +178,9 @@ export class InteractionEngine {
 
 		const eventNode = targetElement.closest('[data-mc-event]') as HTMLElement | null;
 		const resizeHandle = targetElement.closest('[data-mc-resize]');
+		// Controls supplied by renderEvent own their pointer gestures.
+		const nestedControl = targetElement.closest('button, a, input, select, textarea, [contenteditable="true"], [role="button"]');
+		if (eventNode && nestedControl && nestedControl !== eventNode && !resizeHandle) return;
 		// Alvo de SELEÇÃO em área vazia: coluna de data ou, nas views de recurso, a superfície
 		// genérica. Só procura a segunda se a primeira falhou (custo zero no TimeGrid).
 		const dayNode = targetElement.closest('[data-mc-day]') as HTMLElement | null;

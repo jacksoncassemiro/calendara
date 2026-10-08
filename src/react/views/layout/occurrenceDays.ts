@@ -1,5 +1,5 @@
-import type { EventOccurrence } from '../../core/index.js';
-import type { ViewRenderContext } from './viewDef.js';
+import type { EventOccurrence } from '../../../core/index.js';
+import type { ViewRenderContext } from '../viewDef.js';
 
 /** The interaction controller resolves the complete interval, including continuation days. */
 export function occurrenceEditableForDay(

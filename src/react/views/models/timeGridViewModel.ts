@@ -1,11 +1,11 @@
 /**
- * View model do time-grid: estrutura 100% de dados que o CalendarApp entrega ao componente
- * React. O componente é "burro" — só desenha isto. Facilita testar (asserção sobre o VM) e
- * escrever views novas.
+ * View model do time-grid: reúne geometria e dados de apresentação com conteúdo React,
+ * callbacks de ativação e contexto para os componentes de eventos excedentes.
+ * Mantém a preparação do layout separada do componente que o renderiza.
  */
 import type { ReactNode } from 'react';
-import type { GeoBlock } from '../../core/index.js';
-import type { Segment } from '../../core/index.js';
+import type { GeoBlock } from '../../../core/index.js';
+import type { Segment } from '../../../core/index.js';
 
 export interface EventVM {
   resizeStart?: boolean;
@@ -41,7 +41,7 @@ export interface AllDayVM {
 export interface DayColumnVM {
   dayStyle?: import("react").CSSProperties;
   minWidth?: number;
-  overflowGroups?: import("./denseLayout.js").DenseOverflowGroup[];
+  overflowGroups?: import("../layout/denseLayout.js").DenseOverflowGroup[];
   dateISO: string;
   weekdayLabel: string;
   dayLabel: string;
@@ -75,7 +75,7 @@ export interface DraftVM {
 }
 
 export interface GridVM {
-  context?: import("./viewDef.js").ViewRenderContext;
+  context?: import("../viewDef.js").ViewRenderContext;
   viewName: string;
   startHour: number;
   endHour: number;

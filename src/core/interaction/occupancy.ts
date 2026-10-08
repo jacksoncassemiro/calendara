@@ -55,14 +55,14 @@ function peakConcurrency(intervals: readonly BusyInterval[]): number {
 	return peak;
 }
 
-/** Estende um intervalo pelos buffers (recortado em 0). */
+/** Extend full intervals; negative minutes intentionally reach the preceding date. */
 function expandByBuffer(
 	interval: BusyInterval,
 	bufferBefore: number,
 	bufferAfter: number,
 ): BusyInterval {
 	return {
-		startMin: Math.max(0, interval.startMin - bufferBefore),
+		startMin: interval.startMin - bufferBefore,
 		endMin: interval.endMin + bufferAfter,
 	};
 }
