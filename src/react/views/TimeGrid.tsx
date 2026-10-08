@@ -67,7 +67,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
               data-mc-allday-cell={column.dateISO}
               style={{ flex: '1 1 0', position:'relative',height:allDayHeight,minWidth:column.minWidth || undefined }}
             >
-              {vm.draft?.allDay && column.dateISO===allDayDraftDates[0] && <div className={`mc-allday-event mc-draft${vm.draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`} data-mc-draft={vm.draft.kind} aria-hidden="true" style={{position:'absolute',top:0,left:0,width:`calc(${allDayDraftDates.length*100}% - 4px)`,height:22,pointerEvents:'none',zIndex:4}}>{vm.draft.title ?? 'Dia inteiro'}</div>}
+              {vm.draft?.allDay && column.dateISO===allDayDraftDates[0] && <div className={`mc-allday-event mc-draft${vm.draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`} data-mc-draft={vm.draft.kind} aria-hidden="true" style={{position:'absolute',top:0,left:0,width:`calc(${allDayDraftDates.length*100}% - 4px)`,height:22,pointerEvents:'none',zIndex:10000}}>{vm.draft.title ?? 'Dia inteiro'}</div>}
               {allDaySegments.filter(segment=>segment.dates[0]===column.dateISO).map(({event:allDayEvent,dates,span,lane}) => (
                 <div
                   key={allDayEvent.id}
@@ -238,7 +238,7 @@ function DayColumn(props: {
             top: toPx(eventItem.block.top),
             height: toPx(eventItem.block.height),
             left: `${eventItem.block.left * 100}%`,
-            width: `${eventItem.block.width * 100}%`,
+            width: `calc(${eventItem.block.width * 100}% - min(var(--mc-event-gap, 8px), ${eventItem.block.width * 25}%))`,
             zIndex: eventItem.block.column + 1,
             ...(eventItem.editable ? { touchAction: 'none' } : {}),
             ...(props.activeEventId===eventItem.id ? {visibility:'hidden' as const} : {}),
@@ -284,7 +284,7 @@ function DayColumn(props: {
             right: 0,
             top: toPx(minuteToY(draft.startMin)),
             height: toPx((draft.endMin - draft.startMin) * pxPerMinute),
-            pointerEvents: 'none',zIndex:4,
+            pointerEvents: 'none',zIndex:10000,
           }}
         >{draft.title ?? (draft.kind==='select' ? 'Novo intervalo' : 'Alterando evento')}</div>
       )}
@@ -294,7 +294,7 @@ function DayColumn(props: {
         <div
           className="mc-now-line"
           data-mc-now
-          style={{ position: 'absolute', left: 0, right: 0, top: toPx(minuteToY(column.nowMinutes)) }}
+          style={{ position: 'absolute', left: 0, right: 0, top: toPx(minuteToY(column.nowMinutes)),zIndex:10001,pointerEvents:'none' }}
         />
       )}
     </div>

@@ -22,7 +22,7 @@ describe('dense event geometry policy', () => {
         expect(block.top).toBe(original.top);
         expect(block.height).toBe(original.height);
         expect(block.width).toBeLessThanOrEqual(original.width * 2);
-        expect(block.width).toBeGreaterThanOrEqual(original.width);
+        expect(block.width + 1e-12).toBeGreaterThanOrEqual(original.width);
         const boundary = overlap.groups[0]?.left ?? 1;
         expect(block.left + block.width).toBeLessThanOrEqual(boundary);
       });

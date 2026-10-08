@@ -83,8 +83,8 @@ function ResourceAllDay({ column, context }: { column: ResourceColumnData; conte
           }
         }}>
         {context.renderEvent ? context.renderEvent({ occurrence, event, timeLabel: '', isAllDay: true }) : event.title}
-        {editable && <span className="mc-allday-resize mc-resize-start" data-mc-resize="start" aria-hidden="true" />}
-        {editable && <span className="mc-allday-resize" data-mc-resize="end" aria-hidden="true" />}
+        {editable && occurrenceEdges(occurrence,column.day.dateISO,context).start && <span className="mc-allday-resize mc-resize-start" data-mc-resize="start" aria-hidden="true" />}
+        {editable && occurrenceEdges(occurrence,column.day.dateISO,context).end && <span className="mc-allday-resize" data-mc-resize="end" aria-hidden="true" />}
       </div>;
     })}
     {context.draft?.allDay && context.draft.resourceId===column.resource.id && column.day.dateISO>=context.draft.dateISO && column.day.dateISO<context.draft.endDateISO! && <div className={draftClass(context.draft)} data-mc-draft={context.draft.kind} style={{pointerEvents:'none'}}>{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===context.draft!.eventId)?.event.title ?? 'Dia inteiro'}</div>}
@@ -328,7 +328,7 @@ function ResourceColumn(props: {
               top: toPx(block.top),
               height: toPx(block.height),
               left: `${block.left * 100}%`,
-              width: `${block.width * 100}%`,
+              width: `calc(${block.width * 100}% - min(var(--mc-event-gap, 8px), ${block.width * 25}%))`,
               zIndex: block.column + 1,
               ...(editable ? { touchAction: 'none' } : {}),
               ...(context.draft?.eventId===block.id ? {visibility:'hidden' as const} : {}),
@@ -369,7 +369,7 @@ function ResourceColumn(props: {
             right: 0,
             top: toPx(minuteToY(draft.startMin)),
             height: toPx((draft.endMin - draft.startMin) * pxPerMinute),
-            pointerEvents: 'none',zIndex:4,
+            pointerEvents: 'none',zIndex:10000,
           }}
         >{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===draft.eventId)?.event.title ?? 'Novo intervalo'}</div>
       )}
@@ -377,7 +377,7 @@ function ResourceColumn(props: {
         <div
           className="mc-now-line"
           data-mc-now
-          style={{ position: 'absolute', left: 0, right: 0, top: toPx(minuteToY(nowMinutes)) }}
+          style={{ position: 'absolute', left: 0, right: 0, top: toPx(minuteToY(nowMinutes)),zIndex:10001,pointerEvents:'none' }}
         />
       )}
     </div>
@@ -416,32 +416,6 @@ export function createTimelineView(
   };
 }
 
-/** Empacota os eventos de uma linha em "faixas" (lanes) para não se sobreporem verticalmente. */
-function assignLanes(placements: { id: string; startMin: number; endMin: number }[]): Map<string, number> {
-  const sorted = [...placements].sort((first, second) => first.startMin - second.startMin);
-  const laneEnds: number[] = [];
-  const laneByEvent = new Map<string, number>();
-  for (const placement of sorted) {
-    let assignedLane = -1;
-    for (let laneIndex = 0; laneIndex < laneEnds.length; laneIndex++) {
-      const laneIsFree = (laneEnds[laneIndex] ?? -Infinity) <= placement.startMin;
-      if (laneIsFree) {
-        assignedLane = laneIndex;
-        break;
-      }
-    }
-    const needsNewLane = assignedLane === -1;
-    if (needsNewLane) {
-      assignedLane = laneEnds.length;
-      laneEnds.push(placement.endMin);
-    } else {
-      laneEnds[assignedLane] = placement.endMin;
-    }
-    laneByEvent.set(placement.id, assignedLane);
-  }
-  return laneByEvent;
-}
-
 function Timeline(props: {
   context: ViewRenderContext;
   resources: readonly CalendarResource[];
@@ -469,6 +443,7 @@ function Timeline(props: {
     { startHour, endHour },
     options.timeZone,
     options.visibleResourceIds,
+    options.defaultResourceCapacity,
   );
 
   const hourLabels: { minute: number; label: string }[] = [];
@@ -476,6 +451,8 @@ function Timeline(props: {
   for (let minute = gridStartMin; minute < gridEndMin; minute += labelStep) {
     hourLabels.push({ minute, label: formatHourLabel(minute, options.locale) });
   }
+
+  const labelRows = Math.min(hourLabels.length, Math.max(1, Math.ceil(60 / (labelStep * options.pxPerMinute))));
 
   return (
     <div className="mc-timeline" data-mc-view="timeline">
@@ -485,12 +462,12 @@ function Timeline(props: {
       <div ref={scrollRef} className="mc-hscroll" data-mc-hscroll>
         <div className="mc-timeline-header" style={{ display: 'flex' }}>
           <div className="mc-timeline-corner" style={{ width: toPx(RESOURCE_LABEL_PX), flex: '0 0 auto' }} />
-          <div className="mc-timeline-axis" style={{ position: 'relative', width: toPx(trackWidth), flex: '0 0 auto' }}>
-            {hourLabels.map((hourLabel) => (
+          <div className="mc-timeline-axis" style={{ position: 'relative', width: toPx(trackWidth), height: toPx(Math.max(30, labelRows * 20 + 8)), flex: '0 0 auto' }}>
+            {hourLabels.map((hourLabel, labelIndex) => (
               <span
                 key={hourLabel.minute}
                 className="mc-timeline-hour"
-                style={{ position: 'absolute', left: toPx(minuteToX(hourLabel.minute)) }}
+                style={{ position: 'absolute', top: toPx(4 + (labelIndex % labelRows) * 20), left: toPx(minuteToX(hourLabel.minute)) }}
               >
                 {hourLabel.label}
               </span>
@@ -500,16 +477,13 @@ function Timeline(props: {
 
         <div className="mc-timeline-rows" style={{position:"relative"}}>
         {columns.map((column) => {
-          const lanes = assignLanes(
-            column.day.timed.filter((placement) => placement.startMin < gridEndMin && placement.endMin > gridStartMin).map((placement) => ({
-              id: placement.id,
-              startMin: Math.max(placement.startMin, gridStartMin),
-              endMin: Math.min(gridEndMin, Math.max(placement.endMin, Math.max(placement.startMin, gridStartMin) + options.minEventMinutes)),
-            })),
-          );
-          const laneCount = Math.max(1, ...[...lanes.values()].map((lane) => lane + 1));
-          const rowHeight = Math.max(laneCount * TIMELINE_ROW_PX, 28 + (column.day.allDay.length+(context.draft?.allDay && context.draft.resourceId===column.resource.id ? 1 : 0)) * 28);
           const placementById = new Map(column.day.timed.map((placement) => [placement.id, placement]));
+          const density=applyDenseLayout(layoutDay(column.day.timed,geometryGridOf(context)).map(block=>({
+            ...block,left:block.column/block.columns,width:1/block.columns,
+          })),options.timedEventOverflow==='more'?'more':'shrink',options.eventMaxStack);
+          const visibleLaneCount=Math.max(1,...density.blocks.map(block=>block.columns),...density.groups.map(()=>options.eventMaxStack ?? 3));
+          const timedHeight=visibleLaneCount*TIMELINE_ROW_PX;
+          const rowHeight = Math.max(timedHeight, 28 + (column.day.allDay.length+(context.draft?.allDay && context.draft.resourceId===column.resource.id ? 1 : 0)) * 28);
           const rowDraft = draftForResource(context.draft, column.resource.id, column.day.dateISO);
           return (
             <div
@@ -548,7 +522,8 @@ function Timeline(props: {
                 ].flatMap(({segments,className,attribute})=>segments.map((segment,index)=><div
                   key={`${className}-${index}`} className={className} {...{[attribute]:true}}
                   style={{position:'absolute',top:0,bottom:0,left:toPx(minuteToX(segment.startMin)),width:toPx((segment.endMin-segment.startMin)*options.pxPerMinute)}} />))}
-                {[...lanes.entries()].map(([eventId, lane]) => {
+                {density.blocks.map((block) => {
+                  const eventId=block.id;
                   const placement = placementById.get(eventId)!;
                   const event = placement.occurrence.event;
                   const timeLabel = formatHourLabel(placement.startMin, options.locale);
@@ -584,8 +559,9 @@ function Timeline(props: {
                         position: 'absolute',
                         left: toPx(left),
                         width: toPx(width),
-                        top: toPx(lane * TIMELINE_ROW_PX),
-                        height: toPx(TIMELINE_ROW_PX - 4),
+                        top: toPx(block.column * TIMELINE_ROW_PX),
+                        height: `calc(${TIMELINE_ROW_PX}px - var(--mc-event-gap, 8px))`,
+                        zIndex: block.column+1,
                         ...(editable ? { touchAction: 'none' } : {}),
               ...(context.draft?.eventId===eventId ? {visibility:'hidden' as const} : {}),
                         ...(event.color ? { boxShadow: `inset 3px 0 0 ${event.color}, inset 0 0 0 1px var(--mc-color-event-border)` } : {}),
@@ -615,6 +591,7 @@ function Timeline(props: {
                   );
                 })}
 
+                {density.groups.map((group,index)=><EventOverflow key={index} group={group} dateISO={column.day.dateISO} resourceId={column.resource.id} context={context} horizontalHeight={timedHeight} />)}
                 {rowDraft && (
                   <div
                     className={draftClass(rowDraft)}
@@ -626,7 +603,7 @@ function Timeline(props: {
                       bottom: 0,
                       left: toPx(minuteToX(rowDraft.startMin)),
                       width: toPx((rowDraft.endMin - rowDraft.startMin) * options.pxPerMinute),
-                      pointerEvents: 'none',zIndex:4,
+                      pointerEvents: 'none',zIndex:10000,
                     }}
                   >{context.occurrences.find(occurrence=>occurrence.masterId+'@'+occurrence.originalStart===rowDraft.eventId)?.event.title ?? 'Novo intervalo'}</div>
                 )}
@@ -635,7 +612,7 @@ function Timeline(props: {
           );
         })}
         {showNow && <div className="mc-now-line mc-timeline-now" data-mc-now
-          style={{position:'absolute',top:0,bottom:0,left:toPx(RESOURCE_LABEL_PX+minuteToX(nowMinute)),pointerEvents:'none',zIndex:3}} />}
+          style={{position:'absolute',top:0,bottom:0,left:toPx(RESOURCE_LABEL_PX+minuteToX(nowMinute)),pointerEvents:'none',zIndex:10001}} />}
         </div>
       </div>
     </div>

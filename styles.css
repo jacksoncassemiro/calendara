@@ -68,6 +68,7 @@
   --mc-resource-min-width: 0px; /* idem para a coluna de RECURSO (Multiagenda) */
   --mc-grid-max-height: none; /* ex.: 70vh limita a grade e mantém cabeçalhos visíveis no scroll interno */
   --mc-sticky-top: 0px; /* deslocamento dos cabeçalhos presos à página, ex.: altura do header do app */
+  --mc-event-gap: 8px; /* espaço livre entre cartões para criar/selecionar horários no fundo */
 
   box-sizing: border-box;
   font-family: var(--mc-font-family);
@@ -196,6 +197,17 @@
   position: relative !important;
   z-index: 2;
   background: var(--mc-color-bg);
+}
+[data-mc-root] .mc-hscroll.mc-internal-scroll > .mc-allday-row,
+[data-mc-root] .mc-hscroll.mc-internal-scroll > .mc-resource-allday-row {
+  position: sticky;
+  top: var(--mc-sticky-header-height, 0px);
+  z-index: 4;
+  background: var(--mc-color-bg);
+}
+[data-mc-root] .mc-body,
+[data-mc-root] .mc-timeline-rows {
+  isolation: isolate;
 }
 [data-mc-root] .mc-timegrid .mc-event-content,
 [data-mc-root] .mc-resources .mc-event-content {

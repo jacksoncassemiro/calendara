@@ -12,7 +12,7 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
       ':scope > .mc-header-row, :scope > .mc-resource-header-row, :scope > .mc-timeline-header',
     );
     if (!header) return;
-    const allDay = scroller.querySelector<HTMLElement>(':scope > .mc-allday-row, :scope > .mc-resource-allday-row');
+    let allDay = scroller.querySelector<HTMLElement>(':scope > .mc-allday-row, :scope > .mc-resource-allday-row');
     const document = scroller.ownerDocument;
     const window = document.defaultView;
     if (!window) return;
@@ -57,18 +57,31 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
     const update = (): void => {
       frame = 0;
       if (disposed) return;
+      const currentAllDay = scroller.querySelector<HTMLElement>(':scope > .mc-allday-row, :scope > .mc-resource-allday-row');
+      if (currentAllDay !== allDay) {
+        restoreAllDay();
+        if (allDay) resizeObserver?.unobserve(allDay);
+        placeholder.remove();
+        allDay = currentAllDay;
+        allDay?.before(placeholder);
+        if (allDay) resizeObserver?.observe(allDay);
+      }
       if (copyDirty) refreshCopy();
       const viewport = scroller.getBoundingClientRect();
       const source = header.getBoundingClientRect();
       const offset = Number.parseFloat(window.getComputedStyle(scroller).getPropertyValue('--mc-sticky-top')) || 0;
       // A consumer can opt into a bounded internal scrollport, whose original header is sticky.
-      const visible = scroller.scrollHeight <= scroller.clientHeight + 1
+      const internal = scroller.scrollHeight > scroller.clientHeight + 1;
+      scroller.classList.toggle('mc-internal-scroll', internal);
+      scroller.style.setProperty('--mc-sticky-header-height', `${source.height}px`);
+      const visible = !internal
         && source.height > 0 && source.top < offset && viewport.bottom > offset + source.height
         && viewport.right > 0 && viewport.left < window.innerWidth;
       overlay.style.display = visible ? 'block' : 'none';
       if (!visible) restoreAllDay();
-      const pinnedHeight = visible ? source.height + (allDay?.getBoundingClientRect().height ?? 0) : 0;
-      const contentTop = Math.max(viewport.top, offset + pinnedHeight);
+      const pinnedHeight = visible || internal && scroller.scrollTop > 0
+        ? source.height + (allDay?.getBoundingClientRect().height ?? 0) : 0;
+      const contentTop = internal ? viewport.top + pinnedHeight : Math.max(viewport.top, offset + pinnedHeight);
       const axisWidth = scroller.querySelector('.mc-time-axis,.mc-timeline-label')?.getBoundingClientRect().width ?? 0;
       for (const content of scroller.querySelectorAll<HTMLElement>('.mc-event-content')) {
         const eventRect = content.parentElement!.getBoundingClientRect();
@@ -105,12 +118,16 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
     const schedule = (): void => {
       if (!frame && !disposed) frame = window.requestAnimationFrame(update);
     };
-    const observer = new window.MutationObserver(() => { copyDirty = true; schedule(); });
-    observer.observe(header, { childList: true, subtree: true, characterData: true, attributes: true });
-    if (allDay) observer.observe(allDay, {childList:true,subtree:true,characterData:true});
+    const observer = new window.MutationObserver(records => {
+      if (records.some(record=>header === record.target || header.contains(record.target))) copyDirty = true;
+      schedule();
+    });
+    // Do not observe styles: content offsets written during scroll must not schedule themselves.
+    observer.observe(scroller, {childList:true,subtree:true,characterData:true});
     const resizeObserver = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(schedule);
     resizeObserver?.observe(scroller);
     resizeObserver?.observe(header);
+    if (allDay) resizeObserver?.observe(allDay);
     window.addEventListener('scroll', schedule, { passive: true, capture: true });
     window.addEventListener('resize', schedule, { passive: true });
     schedule();
@@ -124,6 +141,8 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
       overlay.remove();
       restoreAllDay();
       placeholder.remove();
+      scroller.classList.remove('mc-internal-scroll');
+      scroller.style.removeProperty('--mc-sticky-header-height');
       scroller.querySelectorAll<HTMLElement>('.mc-event-content').forEach(content=>content.style.removeProperty('--mc-content-offset'));
     };
   }, []);
