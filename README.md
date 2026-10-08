@@ -30,6 +30,8 @@ Props devem ser imutáveis. Mudanças são agrupadas e dados equivalentes dedupl
 
 ## Recursos atuais
 
+Para escolher exatamente quais views oferecer, importe suas definições e passe `views={[dayView, monthView]}` ao `<Calendar>`. Sem `view`, a primeira da lista será a inicial. Omitir `views` oferece Semana, Dia, Mês e Agenda; uma lista vazia é inválida. Para acrescentar views ao conjunto padrão, passe `[...BUILTIN_VIEWS, minhaView]`. Recursos podem ser definidos apenas em `resources`, com `createResourceDayView()` e `createTimelineView()` na lista. Veja a [auditoria de API e organização](docs/09-AUDITORIA-API-E-VIEWS.md).
+
 - Dia, semana, mês, agenda, N dias, recursos e timeline; createReactView para views próprias com hooks/providers React.
 - Drag/resize de eventos timed entre dias e de intervalos all-day na faixa de dias; transferência entre recursos, constraints, capacidade/buffers e rollback concorrente.
 - CalendarEventEditor opcional para criação/edição/reagendamento/exclusão, ocorrência/esta e seguintes/série, recursos e validação assíncrona. Forneça validate/onSave/onDelete; monte com key da ocorrência ao trocar de evento. splitEventSeries divide o mestre em passado e nova série futura; veja examples/react-playground.tsx.

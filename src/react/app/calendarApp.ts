@@ -55,9 +55,9 @@ import {
   type CalendarState,
 } from '../../core/index.js';
 
-import { BUILTIN_VIEWS } from '../views/index.js';
-import { weekView } from '../views/timeGridViews.js';
-import { CalendarShell } from '../views/Shell.js';
+import { BUILTIN_VIEWS } from '../views/registry/defaultViews.js';
+import { createViewRegistry } from '../views/registry/createViewRegistry.js';
+import { CalendarShell } from '../components/CalendarShell.js';
 import type {
   CalendarView,
   ViewContext,
@@ -68,7 +68,8 @@ import type {
   MonthMoreInfo,
   MonthMoreRenderSlot,
   ToolbarRenderSlot,
-} from '../views/viewDef.js';
+  DayStyleCallback,
+} from '../viewTypes.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
@@ -90,8 +91,8 @@ export interface CalendarConfig {
   events?: CalendarEvent[];
   constraints?: ConstraintSet;
   options?: Partial<CalendarOptions>;
-  /** Views extras (além das internas). Registrar view nova é 1ª classe. */
-  views?: CalendarView[];
+  /** Complete available views; omitted uses BUILTIN_VIEWS. */
+  views?: readonly CalendarView[];
   /** Injeta Temporal já resolvido (testes/SSR). Ausente → carrega via ensureTemporal(). */
   temporal?: TemporalLike;
   /** Busca eventos por range visível (dispara em cada mudança de range). */
@@ -100,7 +101,7 @@ export interface CalendarConfig {
   renderEvent?: EventRenderSlot;
   renderMonthMore?: MonthMoreRenderSlot;
   renderEventMore?: MonthMoreRenderSlot;
-  getDayStyle?: import("../views/viewDef.js").DayStyleCallback;
+  getDayStyle?: DayStyleCallback;
   onMonthMoreClick?: (info: MonthMoreInfo) => void | false;
   onEventMoreClick?: (info: MonthMoreInfo) => void | false;
   /** Slot para toolbar customizada (render-prop). */
@@ -173,9 +174,10 @@ function equivalentData(left: unknown, right: unknown, seen = new WeakMap<object
   else seen.set(left, new WeakSet([right]));
   const keys = Object.keys(left);
   if (keys.length !== Object.keys(right).length) return false;
-  const a = left as Record<string, unknown>;
-  const b = right as Record<string, unknown>;
-  return keys.every((key) => Object.prototype.hasOwnProperty.call(b, key) && equivalentData(a[key], b[key], seen));
+  const leftProperties = left as Record<string, unknown>;
+  const rightProperties = right as Record<string, unknown>;
+  return keys.every((key) => Object.prototype.hasOwnProperty.call(rightProperties, key)
+    && equivalentData(leftProperties[key], rightProperties[key], seen));
 }
 
 export class CalendarApp {
@@ -190,7 +192,7 @@ export class CalendarApp {
 
   private eventSource: EventSource | undefined;
   private renderEvent: EventRenderSlot | undefined;
-  private getDayStyle: import("../views/viewDef.js").DayStyleCallback | undefined;
+  private getDayStyle: DayStyleCallback | undefined;
   private renderEventMore: MonthMoreRenderSlot | undefined;
   private readonly onEventMoreClick: ((info: MonthMoreInfo) => void | false) | undefined;
   private renderMonthMore: MonthMoreRenderSlot | undefined;
@@ -237,14 +239,17 @@ export class CalendarApp {
     validateCalendarOptions(options);
     const initialState: CalendarState = {
       date: config.date ?? this.localTodayISO(),
-      viewName: config.view ?? 'week',
+      viewName: config.view ?? (config.views ?? BUILTIN_VIEWS)[0]?.name ?? 'week',
       events: config.events ?? [],
       constraints: config.constraints ?? {},
       options,
     };
     this.store = createStore(initialState);
-    for (const view of BUILTIN_VIEWS) this.views.set(view.name, view);
-    for (const view of config.views ?? []) this.views.set(view.name, view);
+    const configuredViews = config.views ?? BUILTIN_VIEWS;
+    for (const [name, view] of createViewRegistry(configuredViews)) this.views.set(name, view);
+    if (!this.views.has(initialState.viewName)) {
+      throw new Error(`[meucalendario] view não registrada: ${initialState.viewName}`);
+    }
     this.engine = new ConstraintEngine(initialState.constraints);
 
     this.eventSource = config.eventSource;
@@ -350,7 +355,11 @@ export class CalendarApp {
     this.renderNow();
   }
 
-  setDayStyle(callback: import("../views/viewDef.js").DayStyleCallback | undefined): void { if(this.getDayStyle===callback)return;this.getDayStyle=callback;this.renderNow(); }
+  setDayStyle(callback: DayStyleCallback | undefined): void {
+    if (this.getDayStyle === callback) return;
+    this.getDayStyle = callback;
+    this.renderNow();
+  }
 
   setRenderEventMore(slot: MonthMoreRenderSlot | undefined): void { if(this.renderEventMore===slot)return;this.renderEventMore=slot;this.renderNow(); }
 
@@ -441,14 +450,15 @@ export class CalendarApp {
     this.renderNow();
   }
 
-  /** Replace declarative custom views, including views removed by the consumer. */
-  setViews(views: readonly CalendarView[]): void {
-    const next = new Map(BUILTIN_VIEWS.map((view) => [view.name, view]));
-    for (const view of views) next.set(view.name, view);
-    if (next.size === this.views.size && [...next].every(([name, view]) => equivalentData(this.views.get(name), view))) return;
+  /** Replace all available views; undefined restores the standard set. */
+  setViews(views: readonly CalendarView[] | undefined): void {
+    const configuredViews = views ?? BUILTIN_VIEWS;
+    const next = createViewRegistry(configuredViews);
+    const previousViews = [...this.views.values()];
+    if (next.size === this.views.size && configuredViews.every((view, index) => equivalentData(previousViews[index], view))) return;
     this.views.clear();
     for (const [name, view] of next) this.views.set(name, view);
-    if (!this.views.has(this.store.getState().viewName)) this.changeView('week');
+    if (!this.views.has(this.store.getState().viewName)) this.changeView(configuredViews[0]!.name);
     else {
       this.renderNow();
       this.refetch();
@@ -528,7 +538,7 @@ export class CalendarApp {
   } {
     const temporal = this.temporal!;
     const state = this.store.getState();
-    const view = this.views.get(state.viewName) ?? weekView;
+    const view = this.views.get(state.viewName)!;
     const context: ViewContext = {
       temporal,
       dateUtils: this.dateUtils!,

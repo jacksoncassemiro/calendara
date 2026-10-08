@@ -12,10 +12,10 @@ import type { CalendarEvent, EventOccurrence } from '../../src/core/index.js';
 import { monthView } from '../../src/react/views/MonthView.js';
 import { listView, createListView } from '../../src/react/views/ListView.js';
 import { createNDaysView, dayView } from '../../src/react/views/timeGridViews.js';
-import { createResourceDayView, createTimelineView } from '../../src/react/views/resourceViews.js';
+import { createResourceDayView, createTimelineView } from '../../src/react/views/index.js';
 import { occurrenceEditableForDay } from '../../src/react/views/layout/occurrenceDays.js';
-import { formatDate, formatHourLabel, timeLabelStep } from '../../src/react/views/format.js';
-import type { CalendarView, ViewRenderContext } from '../../src/react/views/viewDef.js';
+import { formatDate, formatHourLabel, timeLabelStep } from '../../src/react/views/formatting/timeLabels.js';
+import type { CalendarView, ViewRenderContext } from '../../src/react/viewTypes.js';
 
 const temporal = Temporal as unknown as TemporalLike;
 const dateUtils = createDateUtils(temporal);

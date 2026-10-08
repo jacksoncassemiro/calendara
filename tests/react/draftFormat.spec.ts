@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import {formatDraftInterval} from '../../src/react/views/format.js';
+import {formatDraftInterval} from '../../src/react/views/formatting/timeLabels.js';
 
 it('shows candidate clock times and normalizes midnight to the next date',()=>{
   expect(formatDraftInterval({dateISO:'2026-10-07',startMin:570,endMin:675},'pt-BR')).toBe('09:30–11:15');

@@ -1,6 +1,7 @@
 /** @jsxImportSource react */
 import {
 	applyEventTimeChange,
+	BUILTIN_VIEWS,
 	Calendar,
 	CalendarEventEditor,
 	createNDaysView,
@@ -121,6 +122,7 @@ function SummaryView(context: ViewRenderContext) {
 	);
 }
 const views = [
+	...BUILTIN_VIEWS,
 	createResourceDayView(resources),
 	createTimelineView(resources),
 	createNDaysView(3),

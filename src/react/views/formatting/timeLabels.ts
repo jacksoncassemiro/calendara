@@ -2,10 +2,10 @@
  * Formatação de datas determinística via Intl sobre um Date UTC construído a partir do
  * PlainDate (evita quirks de locale do polyfill Temporal e é estável em teste).
  */
-import type { TemporalLike } from '../../core/index.js';
-import type { CalendarOptions } from '../../core/index.js';
-import type { InteractionDraft } from '../../core/index.js';
-import { normalizeCalendarMinute, shiftCalendarDate } from '../../core/interaction/model.js';
+import type { TemporalLike } from '../../../core/index.js';
+import type { CalendarOptions } from '../../../core/index.js';
+import type { InteractionDraft } from '../../../core/index.js';
+import { normalizeCalendarMinute, shiftCalendarDate } from '../../../core/interaction/model.js';
 
 /** Formats the complete candidate interval, never the clipped render segment. */
 export function formatDraftInterval(

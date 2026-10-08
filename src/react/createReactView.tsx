@@ -6,7 +6,7 @@ import type {
 	ViewContext,
 	ViewRange,
 	ViewRenderContext,
-} from './views/viewDef.js';
+} from './viewTypes.js';
 import type { TemporalLike } from '../core/index.js';
 import { createElement as createReactElement, type ReactNode } from 'react';
 

@@ -1,4 +1,4 @@
-import { formatHourLabel } from "./format.js";
+import { formatHourLabel } from "../formatting/timeLabels.js";
 
 /** Focusable background slots; pointer gestures continue through the column. */
 export function SlotCells(props: {

@@ -4,10 +4,10 @@
  * só mudam range/navegação/título.
  */
 import { createElement } from 'react';
-import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from './viewDef.js';
+import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from '../viewTypes.js';
 import type { TemporalLike } from '../../core/index.js';
-import { formatDate } from './format.js';
-import { TimeGrid } from './TimeGrid.js';
+import { formatDate } from './formatting/timeLabels.js';
+import { TimeGrid } from './components/TimeGrid.js';
 import { buildTimeGridVM } from './models/timeGridModel.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;

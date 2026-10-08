@@ -3,10 +3,10 @@
  * Native React calendar. The controller publishes cached React snapshots while the
  * consumer's React tree owns rendering, contexts and component lifecycle.
  */
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore } from 'react';
 import { CalendarApp, type CalendarConfig } from './app/calendarApp.js';
 import { createHandle } from './handle.js';
-import type { CalendarProps } from './types.js';
+import type { CalendarProps, CalendarHandle } from './types.js';
 
 export function Calendar(props: CalendarProps): React.JSX.Element {
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -65,13 +65,11 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	useEffect(() => {
-		const apiRef = props.apiRef;
-		const app = appRef.current;
-		if (!apiRef || !app) return;
-		apiRef.current = createHandle(app);
-		return () => { apiRef.current = null; };
-	}, [props.apiRef]);
+	useImperativeHandle<CalendarHandle | null, CalendarHandle | null>(
+		props.apiRef,
+		() => mountedApp ? createHandle(mountedApp) : null,
+		[mountedApp],
+	);
 
 	const lastRefetchKey = useRef(props.refetchKey);
 	useEffect(() => {
@@ -79,7 +77,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 		if (!app) return;
 		const previous = syncedPropsRef.current;
 		app.batchUpdate(() => {
-			if (!previous || previous.views !== props.views) app.setViews(props.views ?? []);
+			if (!previous || previous.views !== props.views) app.setViews(props.views);
 			if (!previous || previous.eventSource !== props.eventSource) app.setEventSource(props.eventSource);
 			if (!previous || previous.renderEvent !== props.renderEvent) app.setRenderEvent(props.renderEvent);
 			if (!previous || previous.getDayStyle !== props.getDayStyle) app.setDayStyle(props.getDayStyle);

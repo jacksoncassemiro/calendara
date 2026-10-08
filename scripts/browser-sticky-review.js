@@ -3,12 +3,12 @@ async page => {
   await page.reload();
   await page.locator('[data-mc-root]').waitFor();
   await page.evaluate(async()=>{
-    const {CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
+    const { BUILTIN_VIEWS,CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
     document.querySelector('main').style.display='none';
     const host=document.createElement('div');host.id='sticky-fixture';document.body.append(host);
     const resources=Array.from({length:20},(_,index)=>({id:`room-${index}`,title:`Sala ${index+1}`}));
     const app=new CalendarApp({temporal:await ensureTemporal(),date:'2026-10-07',view:'week',resources,
-      views:[createResourceDayView(resources),createTimelineView(resources)],
+      views: [...BUILTIN_VIEWS, createResourceDayView(resources),createTimelineView(resources)],
       options:{timeZone:'UTC',startHour:0,endHour:24,pxPerMinute:1.5}});
     app.mount(host);await app.ready();window.stickyApp=app;
     host.querySelector('[data-mc-root]').style.setProperty('--mc-grid-max-height','350px');

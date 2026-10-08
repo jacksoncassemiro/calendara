@@ -1,13 +1,13 @@
 async page=>{
  await page.mouse.up();await page.reload();await page.setViewportSize({width:700,height:850});
  await page.evaluate(async()=>{
-  const {CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
+  const { BUILTIN_VIEWS,CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
   document.querySelector('main').style.display='none';const host=document.createElement('div');host.id='scroll-content-fixture';document.body.append(host);
   const tail=document.createElement('div');tail.style.height='1000px';document.body.append(tail);
   const resources=Array.from({length:8},(_,i)=>({id:'room'+i,title:'Sala '+i,capacity:false}));
   const event={id:'long',calendarId:'c',title:'Atendimento longo',resourceIds:['room0'],time:{allDay:false,start:{dateTime:'2026-10-07T08:00:00',timeZone:'UTC'},end:{dateTime:'2026-10-07T20:00:00',timeZone:'UTC'}}};
   const allDay={id:'allday',calendarId:'c',title:'Congresso',resourceIds:['room0'],time:{allDay:true,start:{date:'2026-10-07'},end:{date:'2026-10-08'}}};
-  const app=new CalendarApp({temporal:await ensureTemporal(),date:'2026-10-07',view:'resources',resources,events:[event],views:[createResourceDayView(resources),createTimelineView(resources)],options:{timeZone:'UTC',startHour:7,endHour:21,pxPerMinute:2,defaultResourceCapacity:false},onEventClick:()=>{window.scrollEventClicks=(window.scrollEventClicks??0)+1;}});
+  const app=new CalendarApp({temporal:await ensureTemporal(),date:'2026-10-07',view:'resources',resources,events:[event],views: [...BUILTIN_VIEWS, createResourceDayView(resources),createTimelineView(resources)],options:{timeZone:'UTC',startHour:7,endHour:21,pxPerMinute:2,defaultResourceCapacity:false},onEventClick:()=>{window.scrollEventClicks=(window.scrollEventClicks??0)+1;}});
   app.mount(host);await app.ready();window.scrollApp=app;window.scrollEvents=[event,allDay];
  });
  const root=page.locator('#scroll-content-fixture');const frames=()=>page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));

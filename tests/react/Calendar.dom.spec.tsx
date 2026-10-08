@@ -10,7 +10,10 @@ import { Temporal } from '@js-temporal/polyfill';
 import { Calendar } from '../../src/react/Calendar.js';
 import { useCalendar } from '../../src/react/useCalendar.js';
 import { createReactView } from '../../src/react/createReactView.js';
-import { createResourceDayView } from '../../src/react/views/resourceViews.js';
+import { dayView, weekView } from '../../src/react/views/timeGridViews.js';
+import { monthView } from '../../src/react/views/MonthView.js';
+import { CalendarApp } from '../../src/react/app/calendarApp.js';
+import { createResourceDayView } from '../../src/react/views/index.js';
 import type { CalendarEvent } from '../../src/core/index.js';
 import type { CalendarHandle } from '../../src/react/types.js';
 
@@ -110,7 +113,7 @@ describe('<Calendar/> (jsdom)', () => {
     const customToolbar = () => <ThemeLabel kind="toolbar" />;
     function Harness({ theme, currentView }: { theme: string; currentView: string }) {
       return <Theme.Provider value={theme}><Calendar date={REF} view={currentView}
-        views={[view]} temporal={temporal} events={events} options={options}
+        views={[dayView, view]} temporal={temporal} events={events} options={options}
         renderEvent={renderEvent} customToolbar={customToolbar} /></Theme.Provider>;
     }
     const { container, rerender } = render(<Harness theme="light" currentView="day" />);
@@ -227,6 +230,35 @@ describe('<Calendar/> (jsdom)', () => {
     // a toolbar nativa não é desenhada quando há customToolbar.
     expect(container.querySelector('[data-mc-toolbar]')).toBeNull();
     cleanup();
+  });
+
+  it('uses only the chosen views and keeps order when replacing the active view', async () => {
+    const apiRef = { current: null as CalendarHandle | null };
+    const { container, rerender } = render(<Calendar date={REF} views={[monthView, dayView]}
+      apiRef={apiRef} temporal={temporal} options={options} />);
+    await waitFor(() => expect(container.querySelector('.mc-month')).toBeTruthy());
+    expect(apiRef.current!.listViews().map(view => view.name)).toEqual(['month', 'day']);
+    expect(() => apiRef.current!.changeView('week')).toThrow('view não registrada');
+    rerender(<Calendar date={REF} views={[dayView, monthView]} apiRef={apiRef} temporal={temporal} options={options} />);
+    expect(apiRef.current!.listViews().map(view => view.name)).toEqual(['day', 'month']);
+    expect(apiRef.current!.getState().viewName).toBe('month');
+    rerender(<Calendar date={REF} views={[dayView]} apiRef={apiRef} temporal={temporal} options={options} />);
+    await waitFor(() => expect(apiRef.current!.getState().viewName).toBe('day'));
+    expect(container.querySelector('.mc-month')).toBeNull();
+    rerender(<Calendar date={REF} apiRef={apiRef} temporal={temporal} options={options} />);
+    expect(apiRef.current!.listViews().map(view => view.name)).toEqual(['week', 'day', 'month', 'list']);
+  });
+
+  it('rejects invalid registries without changing the mounted selection', () => {
+    expect(() => new CalendarApp({ views: [] })).toThrow('pelo menos uma view');
+    expect(() => new CalendarApp({ views: [dayView, dayView] })).toThrow('view duplicada');
+    expect(() => new CalendarApp({ views: [dayView], view: 'month' })).toThrow('view não registrada');
+    const app = new CalendarApp({ views: [dayView], temporal, date: REF });
+    expect(() => app.setViews([])).toThrow('pelo menos uma view');
+    expect(app.listViews()).toEqual([{ name: 'day', label: dayView.label }]);
+    app.setViews([weekView]);
+    expect(app.getState().viewName).toBe('week');
+    app.destroy();
   });
 
   it('createReactView renders a native React body', async () => {

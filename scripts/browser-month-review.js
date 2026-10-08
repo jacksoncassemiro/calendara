@@ -5,7 +5,7 @@ async page => {
   await page.reload();
   await page.locator('[data-mc-root]').waitFor();
   await page.evaluate(async () => {
-    const { CalendarApp, ensureTemporal, createResourceDayView, createTimelineView } = await import('/src/index.ts');
+    const { BUILTIN_VIEWS, CalendarApp, ensureTemporal, createResourceDayView, createTimelineView } = await import('/src/index.ts');
     document.querySelector('main').style.display = 'none';
     const host = document.createElement('div'); host.id = 'month-fixture'; document.body.append(host);
     const timed = (id, start, end, editable = true) => ({ id, calendarId: 'c', title: id, editable, resourceIds: ['a'],
@@ -18,7 +18,7 @@ async page => {
     const resources = [{ id: 'a', title: 'Sala A', capacity: 100 }, { id: 'b', title: 'Sala B', capacity: 100 }];
     window.monthLog = { moves: [], resizes: [], clicks: 0, dates: 0, blocked: 0, reject: false };
     window.monthApp = new CalendarApp({ temporal: await ensureTemporal(), date: '2026-10-07', view: 'month', events, resources,
-      views: [createResourceDayView(resources), createTimelineView(resources)], options: { timeZone: 'UTC', monthMaxEvents: false },
+      views: [...BUILTIN_VIEWS, createResourceDayView(resources), createTimelineView(resources)], options: { timeZone: 'UTC', monthMaxEvents: false },
       onEventClick: () => window.monthLog.clicks++,
       onDateClick: () => window.monthLog.dates++,
       onEventDrop: change => { window.monthLog.moves.push(change); return !window.monthLog.reject; },

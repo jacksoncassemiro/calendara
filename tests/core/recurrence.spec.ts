@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { ensureTemporal, type TemporalLike } from '../../src/core/date/temporal.js';
 import { parseRRule } from '../../src/core/recurrence/parser.js';
 import { expandRuleAll } from '../../src/core/recurrence/engine.js';
-import { oracle, ours } from './_oracle.js';
+import { expandRRuleOracle, expandCalendarRule } from './_oracle.js';
 import { ALL } from './scenarios.js';
 
 let T: TemporalLike;
@@ -13,7 +13,7 @@ beforeAll(async () => {
 describe('motor de recorrência vs rrule.js (oráculo)', () => {
   for (const [name, dtstart, rule] of ALL) {
     it(name, () => {
-      expect(ours(T, dtstart, rule)).toEqual(oracle(dtstart, rule));
+      expect(expandCalendarRule(T, dtstart, rule)).toEqual(expandRRuleOracle(dtstart, rule));
     });
   }
 });
@@ -28,7 +28,7 @@ describe('regressões de filtros RFC 5545', () => {
   });
   it('BYYEARDAY combines negative days, leap years and positional selection', () => {
     for (const rule of ['FREQ=YEARLY;BYYEARDAY=60,-1;COUNT=8', 'FREQ=YEARLY;BYYEARDAY=1,60,-1;BYSETPOS=-1;COUNT=5']) {
-      expect(ours(T, '2023-01-01', `RRULE:${rule}`)).toEqual(oracle('2023-01-01', `RRULE:${rule}`));
+      expect(expandCalendarRule(T, '2023-01-01', `RRULE:${rule}`)).toEqual(expandRRuleOracle('2023-01-01', `RRULE:${rule}`));
     }
     expect(() => parseRRule('FREQ=MONTHLY;BYYEARDAY=60')).toThrow(/YEARLY/);
   });
@@ -42,17 +42,17 @@ describe('regressões de filtros RFC 5545', () => {
   ];
   for (const [start, rule] of rules) {
     it(`${start}: ${rule}`, () => {
-      expect(ours(T, start!, `RRULE:${rule}`)).toEqual(oracle(start!, `RRULE:${rule}`));
+      expect(expandCalendarRule(T, start!, `RRULE:${rule}`)).toEqual(expandRRuleOracle(start!, `RRULE:${rule}`));
     });
   }
   it('combina entradas BYDAY ordinais e não ordinais como união', () => {
-    expect(ours(T, '2024-01-01', 'RRULE:FREQ=MONTHLY;BYDAY=1MO,FR;COUNT=10')).toEqual([
+    expect(expandCalendarRule(T, '2024-01-01', 'RRULE:FREQ=MONTHLY;BYDAY=1MO,FR;COUNT=10')).toEqual([
       '2024-01-01', '2024-01-05', '2024-01-12', '2024-01-19', '2024-01-26',
       '2024-02-02', '2024-02-05', '2024-02-09', '2024-02-16', '2024-02-23',
     ]);
   });
   it('BYSETPOS selecionando a mesma data duas vezes não duplica ocorrência nem COUNT', () => {
-    expect(ours(T, '2024-01-01', 'RRULE:FREQ=MONTHLY;BYMONTHDAY=1;BYSETPOS=1,-1;COUNT=3')).toEqual([
+    expect(expandCalendarRule(T, '2024-01-01', 'RRULE:FREQ=MONTHLY;BYMONTHDAY=1;BYSETPOS=1,-1;COUNT=3')).toEqual([
       '2024-01-01', '2024-02-01', '2024-03-01',
     ]);
   });

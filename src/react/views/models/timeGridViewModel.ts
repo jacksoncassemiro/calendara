@@ -3,7 +3,9 @@
  * callbacks de ativação e contexto para os componentes de eventos excedentes.
  * Mantém a preparação do layout separada do componente que o renderiza.
  */
-import type { ReactNode } from 'react';
+import type { ReactNode, CSSProperties } from 'react';
+import type { ViewRenderContext } from '../../viewTypes.js';
+import type { DenseOverflowGroup } from '../layout/denseLayout.js';
 import type { GeoBlock } from '../../../core/index.js';
 import type { Segment } from '../../../core/index.js';
 
@@ -39,9 +41,9 @@ export interface AllDayVM {
 }
 
 export interface DayColumnVM {
-  dayStyle?: import("react").CSSProperties;
+  dayStyle?: CSSProperties;
   minWidth?: number;
-  overflowGroups?: import("../layout/denseLayout.js").DenseOverflowGroup[];
+  overflowGroups?: DenseOverflowGroup[];
   dateISO: string;
   weekdayLabel: string;
   dayLabel: string;
@@ -75,7 +77,7 @@ export interface DraftVM {
 }
 
 export interface GridVM {
-  context?: import("../viewDef.js").ViewRenderContext;
+  context?: ViewRenderContext;
   viewName: string;
   startHour: number;
   endHour: number;

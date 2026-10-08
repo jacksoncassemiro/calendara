@@ -7,9 +7,9 @@ import { applyDenseLayout } from '../layout/denseLayout.js';
 import { buildDays, occurrenceKey } from '../../../core/index.js';
 import { layoutDay, type GeoGrid } from '../../../core/index.js';
 import { resolveHour } from '../../../core/index.js';
-import { formatDate, formatHourLabel, timeLabelStep } from '../format.js';
+import { formatDate, formatHourLabel, timeLabelStep } from '../formatting/timeLabels.js';
 import { occurrenceEditableForDay,occurrenceEdges } from '../layout/occurrenceDays.js';
-import type { ViewRenderContext } from '../viewDef.js';
+import type { ViewRenderContext } from '../../viewTypes.js';
 import type { GridVM, DayColumnVM, EventVM, AllDayVM, DraftVM } from './timeGridViewModel.js';
 
 export function buildTimeGridVM(context: ViewRenderContext, viewName: string): GridVM {

@@ -13,7 +13,7 @@ export type {
   MonthMoreRenderSlot,
   ToolbarContext,
   ToolbarRenderSlot,
-} from './viewDef.js';
+} from '../viewTypes.js';
 export {
   weekView,
   dayView,
@@ -22,11 +22,12 @@ export {
 } from './timeGridViews.js';
 export { monthView } from './MonthView.js';
 export { listView, createListView } from './ListView.js';
-export { createResourceDayView, createTimelineView } from './resourceViews.js';
-export { TimeGrid } from './TimeGrid.js';
+export { createResourceDayView } from './ResourceDayView.js';
+export { createTimelineView } from './TimelineView.js';
+export { TimeGrid } from './components/TimeGrid.js';
 export { buildTimeGridVM } from './models/timeGridModel.js';
-export { CalendarShell, type ShellProps } from './Shell.js';
-export { formatDate, formatHourLabel } from './format.js';
+export { CalendarShell, type ShellProps } from '../components/CalendarShell.js';
+export { formatDate, formatHourLabel } from './formatting/timeLabels.js';
 export type {
   GridVM,
   DayColumnVM,
@@ -36,10 +37,4 @@ export type {
   DraftVM,
 } from './models/timeGridViewModel.js';
 
-import { weekView, dayView } from './timeGridViews.js';
-import { monthView } from './MonthView.js';
-import { listView } from './ListView.js';
-import type { CalendarView } from './viewDef.js';
-
-/** Views internas registradas por padrão no CalendarApp. */
-export const BUILTIN_VIEWS: readonly CalendarView[] = [weekView, dayView, monthView, listView];
+export { BUILTIN_VIEWS } from './registry/defaultViews.js';

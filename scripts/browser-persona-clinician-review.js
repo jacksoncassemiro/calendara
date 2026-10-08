@@ -2,7 +2,7 @@ async page => {
   await page.setViewportSize({width:375,height:900});
   await page.reload();await page.locator('[data-mc-root]').waitFor();
   await page.evaluate(async()=>{
-    const {CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
+    const { BUILTIN_VIEWS,CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
     document.querySelector('main').style.display='none';
     const host=document.createElement('div');host.id='clinician-fixture';document.body.append(host);
     const resources=[{id:'triage',title:'Triagem',capacity:3},{id:'collection',title:'Coleta',capacity:3}];
@@ -12,7 +12,7 @@ async page => {
       time:{allDay:true,start:{date:'2026-10-07'},end:{date:'2026-10-09'}}};
     window.clinicianEvents={night,congress};window.clinicianLog=[];
     const app=new CalendarApp({temporal:await ensureTemporal(),date:'2026-10-07',view:'resources',resources,events:[night],
-      views:[createResourceDayView(resources),createTimelineView(resources)],options:{timeZone:'UTC',startHour:7,endHour:21,pxPerMinute:2},
+      views: [...BUILTIN_VIEWS, createResourceDayView(resources),createTimelineView(resources)],options:{timeZone:'UTC',startHour:7,endHour:21,pxPerMinute:2},
       onEventDrop:change=>window.clinicianLog.push(change),onEventResize:change=>window.clinicianLog.push(change)});
     app.mount(host);await app.ready();window.clinicianApp=app;
   });

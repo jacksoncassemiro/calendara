@@ -1,8 +1,9 @@
+import { BUILTIN_VIEWS } from '../../src/react/views/index.js';
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { Temporal } from '@js-temporal/polyfill';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
-import { createResourceDayView, createTimelineView } from '../../src/react/views/resourceViews.js';
+import { createResourceDayView, createTimelineView } from '../../src/react/views/index.js';
 import type { CalendarEvent } from '../../src/core/index.js';
 import type { CalendarResource } from '../../src/core/index.js';
 
@@ -48,7 +49,7 @@ function makeApp(view: string) {
     view,
     events,
     temporal: Temporal as unknown as never,
-    views: [createResourceDayView(resources, 'resources'), createTimelineView(resources, 'timeline')],
+    views: [...BUILTIN_VIEWS,createResourceDayView(resources, 'resources'), createTimelineView(resources, 'timeline')],
     options: {
       timeZone: TZ,
       startHour: 6,

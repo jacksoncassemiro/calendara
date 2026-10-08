@@ -7,15 +7,16 @@
  * (posições absolutas/alturas), que precisa existir no DOM independente de CSS carregado.
  */
 import type { JSX, CSSProperties } from 'react';
-import type { GridVM, DayColumnVM, DraftVM } from './models/timeGridViewModel.js';
-import { GUTTER_PX, toPx, segmentStyle , timedEventWidth } from './layout/geometryStyles.js';
-import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
+import type { ViewRenderContext } from '../../viewTypes.js';
+import type { GridVM, DayColumnVM, DraftVM } from '../models/timeGridViewModel.js';
+import { GUTTER_PX, toPx, segmentStyle , timedEventWidth } from '../layout/geometryStyles.js';
+import { usePageStickyHeaders } from '../hooks/usePageStickyHeaders.js';
 import { EventOverflow } from './EventOverflow.js';
-import { formatDraftInterval } from './format.js';
-import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
+import { formatDraftInterval } from '../formatting/timeLabels.js';
+import { isNestedInteractiveTarget } from '../../../core/interaction/interactiveTarget.js';
 import { SlotCells } from './SlotCells.js';
-import { packDateSpans } from './layout/spanLayout.js';
-import { calendarDayOffset } from '../../core/interaction/model.js';
+import { packDateSpans } from '../layout/spanLayout.js';
+import { calendarDayOffset } from '../../../core/interaction/model.js';
 
 export function TimeGrid(props: { vm: GridVM }): JSX.Element {
   const scrollRef=usePageStickyHeaders();
@@ -163,7 +164,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
 
 function DayColumn(props: {
   activeEventId?: string;
-  context?: import("./viewDef.js").ViewRenderContext;
+  context?: ViewRenderContext;
   column: DayColumnVM;
   first: boolean;
   startMin: number;

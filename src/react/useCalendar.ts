@@ -5,12 +5,12 @@
  * estáveis) em handlers para comandar o calendário (prev/next/changeView/…) sem re-render.
  */
 import { useMemo, useRef } from 'react';
-import type { MutableRefObject } from 'react';
+import type { RefObject } from 'react';
 import type { CalendarHandle } from './types.js';
 
 export interface UseCalendar {
 	/** Ligue em `<Calendar apiRef={ref} />`. */
-	ref: MutableRefObject<CalendarHandle | null>;
+	ref: RefObject<CalendarHandle | null>;
 	/** API estável (delega ao calendário montado; no-op seguro antes da montagem). */
 	api: CalendarHandle;
 }

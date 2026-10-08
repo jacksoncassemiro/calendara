@@ -5,7 +5,7 @@ async page => {
   await page.reload();
   await page.locator('[data-mc-root]').waitFor();
   await page.evaluate(async()=>{
-    const {CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
+    const { BUILTIN_VIEWS,CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
     document.querySelector('main').style.display='none';
     const host=document.createElement('div');host.id='dense-fixture';document.body.append(host);
     const events=Array.from({length:32},(_,index)=>({id:`dense-${index}`,calendarId:'c',title:`Reserva ${index}`,color:'#2563eb',resourceIds:['room'],
@@ -15,7 +15,7 @@ async page => {
         end:{dateTime:`2026-10-07T11:${String(index*5+5).padStart(2,'0')}:00`,timeZone:'UTC'}}});
     const resources=[{id:'room',title:'Sala com eventos concorrentes'}];
     const app=new CalendarApp({temporal:await ensureTemporal(),date:'2026-10-07',view:'day',events,resources,
-      views:[createResourceDayView(resources),createTimelineView(resources)],options:{timeZone:'UTC',startHour:8,endHour:12},onEventClick:()=>{}});
+      views: [...BUILTIN_VIEWS, createResourceDayView(resources),createTimelineView(resources)],options:{timeZone:'UTC',startHour:8,endHour:12},onEventClick:()=>{}});
     app.mount(host);await app.ready();window.denseApp=app;
   });
   const results=[];

@@ -65,7 +65,7 @@ A margem clicável do modo lado a lado fica na borda externa; não ocupa uma fai
 
 O formulário da série ganhou intervalo, dias semanais, dia mensal, mês/dia anual e fim por quantidade/data. Há testes de preservação de regras avançadas e validação, além de criação semanal no navegador. A UI não representa todo o RFC: cláusulas que não têm controles são conservadas. A demonstração valida o intervalo editado; conferir conflitos de todas as ocorrências futuras de uma série exige uma janela e uma política definidas pelo aplicativo.
 
-Arquivos auxiliares separados em views/layout, views/models e views/hooks; exports públicos conservados. resourceViews ainda reúne duas views e é candidato a uma divisão posterior. Removido cálculo duplicado de densidade e de limites de resize. Não houve migração para Preact.
+Arquivos auxiliares separados em views/layout, views/models e views/hooks; exports públicos conservados. Em 08/10, resourceViews foi dividido em ResourceDayView e TimelineView, com apresentação compartilhada em components/ResourcePresentation; contratos e formatação saíram da raiz das views. Removido cálculo duplicado de densidade e de limites de resize. Não houve migração para Preact. A seleção de views e a comparação de API estão no documento 09.
 
 Dias sem nenhum horário disponível na faixa configurada agora recebem indicação no mês, considerando expediente, faixas permitidas e união de bloqueios globais. Dias parcialmente livres não recebem a indicação; eventos existentes continuam acessíveis. O indicador não representa lotação nem indisponibilidade específica de cada recurso. Imagens desktop e mobile inspecionadas em output/layout-review/month-availability-desktop.png e month-availability-mobile.png.
 

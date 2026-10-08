@@ -3,14 +3,14 @@
  * devolve a árvore React do corpo. Registrar view nova é 1ª classe (CalendarApp.registerView) —
  * nada aqui é travado às internas (Week/Day/Month/NDays/List são só implementações deste contrato).
  */
-import type { ReactNode } from 'react';
-import type { TemporalLike } from '../../core/index.js';
-import type { DateUtils } from '../../core/index.js';
-import type { CalendarOptions } from '../../core/index.js';
-import type { CalendarEvent, EventOccurrence } from '../../core/index.js';
-import type { ConstraintSet } from '../../core/index.js';
-import type { InteractionDraft } from '../../core/index.js';
-import type { CalendarResource } from '../../core/index.js';
+import type { ReactNode, CSSProperties } from 'react';
+import type { TemporalLike } from '../core/index.js';
+import type { DateUtils } from '../core/index.js';
+import type { CalendarOptions } from '../core/index.js';
+import type { CalendarEvent, EventOccurrence } from '../core/index.js';
+import type { ConstraintSet } from '../core/index.js';
+import type { InteractionDraft } from '../core/index.js';
+import type { CalendarResource } from '../core/index.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
@@ -55,8 +55,12 @@ export type EventMoreRenderSlot = MonthMoreRenderSlot;
 export type MonthMoreRenderSlot = (info: MonthMoreInfo) => ReactNode;
 
 /** Contexto completo entregue ao `render` da view (já com ocorrências expandidas no range). */
-export interface DayStyleInfo {dateISO:string;viewName:string;resourceId?:string}
-export type DayStyleCallback=(info:DayStyleInfo)=>import('react').CSSProperties | undefined;
+export interface DayStyleInfo {
+  dateISO: string;
+  viewName: string;
+  resourceId?: string;
+}
+export type DayStyleCallback = (info: DayStyleInfo) => CSSProperties | undefined;
 export interface ViewRenderContext {
   viewName?: string;
   getDayStyle?: DayStyleCallback;

@@ -7,11 +7,11 @@ import {
 	useState,
 	type JSX,
 } from "react";
-import { occurrenceKey, occurrenceStart } from "../../core/index.js";
-import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
-import { formatDate, formatHourLabel } from "./format.js";
-import type { DenseOverflowGroup } from "./layout/denseLayout.js";
-import type { MonthMoreInfo, ViewRenderContext } from "./viewDef.js";
+import { occurrenceKey, occurrenceStart } from "../../../core/index.js";
+import { isNestedInteractiveTarget } from '../../../core/interaction/interactiveTarget.js';
+import { formatDate, formatHourLabel } from "../formatting/timeLabels.js";
+import type { DenseOverflowGroup } from "../layout/denseLayout.js";
+import type { MonthMoreInfo, ViewRenderContext } from "../../viewTypes.js";
 const Popover = lazy(() =>
 	import("./MonthMorePopover.js").then((module) => ({
 		default: module.MonthMorePopover,

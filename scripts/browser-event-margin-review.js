@@ -1,11 +1,11 @@
 async page=>{
  await page.mouse.up();await page.reload();await page.setViewportSize({width:1200,height:900});
  await page.evaluate(async()=>{
-  const {CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
+  const { BUILTIN_VIEWS,CalendarApp,ensureTemporal,createResourceDayView,createTimelineView}=await import('/src/index.ts');
   document.querySelector('main').style.display='none';const host=document.createElement('div');host.id='margin-fixture';document.body.append(host);
   const resources=[{id:'room',title:'Sala',capacity:false}];
   const event={id:'margin',calendarId:'c',title:'Evento',resourceIds:['room'],time:{allDay:false,start:{dateTime:'2026-10-07T09:00:00',timeZone:'UTC'},end:{dateTime:'2026-10-07T10:00:00',timeZone:'UTC'}}};
-  const app=new CalendarApp({temporal:await ensureTemporal(),date:'2026-10-07',view:'day',resources,events:[event],views:[createResourceDayView(resources),createTimelineView(resources)],options:{timeZone:'UTC',startHour:8,endHour:12,pxPerMinute:2,defaultResourceCapacity:false},onDateClick:(date,minute)=>{window.marginClick={date,minute};},onEventClick:()=>{window.eventClick=(window.eventClick??0)+1;}});
+  const app=new CalendarApp({temporal:await ensureTemporal(),date:'2026-10-07',view:'day',resources,events:[event],views: [...BUILTIN_VIEWS, createResourceDayView(resources),createTimelineView(resources)],options:{timeZone:'UTC',startHour:8,endHour:12,pxPerMinute:2,defaultResourceCapacity:false},onDateClick:(date,minute)=>{window.marginClick={date,minute};},onEventClick:()=>{window.eventClick=(window.eventClick??0)+1;}});
   app.mount(host);await app.ready();window.marginApp=app;
  });
  const root=page.locator('#margin-fixture');const results=[];

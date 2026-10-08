@@ -2,13 +2,13 @@ async (page) => {
     await page.reload();
     await page.setViewportSize({ width: 1280, height: 1000 });
     await page.evaluate(async () => {
-        const { CalendarApp, ensureTemporal, createResourceDayView, createTimelineView } = await import('/src/index.ts');
+        const { BUILTIN_VIEWS, CalendarApp, ensureTemporal, createResourceDayView, createTimelineView } = await import('/src/index.ts');
         document.querySelector('main').style.display = 'none';
         const host = document.createElement('div');
         host.id = 'draft-fixture';
         document.body.append(host);
         const resources = [{ id: 'room', title: 'Sala', capacity: false }], event = { id: 'feedback', calendarId: 'c', title: 'Consulta', resourceIds: ['room'], time: { allDay: false, start: { dateTime: '2026-10-07T09:00:00', timeZone: 'UTC' }, end: { dateTime: '2026-10-07T10:00:00', timeZone: 'UTC' } } };
-        const app = new CalendarApp({ temporal: await ensureTemporal(), date: '2026-10-07', view: 'day', resources, events: [event], views: [createResourceDayView(resources), createTimelineView(resources)], options: { timeZone: 'UTC', startHour: 8, endHour: 13, pxPerMinute: 2 } });
+        const app = new CalendarApp({ temporal: await ensureTemporal(), date: '2026-10-07', view: 'day', resources, events: [event], views: [...BUILTIN_VIEWS, createResourceDayView(resources), createTimelineView(resources)], options: { timeZone: 'UTC', startHour: 8, endHour: 13, pxPerMinute: 2 } });
         app.mount(host);
         await app.ready();
         window.draftApp = app;

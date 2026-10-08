@@ -42,6 +42,7 @@ try {
   await run(['run-code', '--filename', 'scripts/browser-recurrence-editor-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-draft-feedback-review.js']);
   await run(['run-code', '--filename', 'scripts/browser-month-availability-review.js']);
+  await run(['run-code', '--filename', 'scripts/browser-view-selection-review.js']);
 } finally {
   await run(['close'], false);
   await server.close();

@@ -11,6 +11,9 @@ A biblioteca é um único pacote, @meucalendario/calendar, com renderização Re
 - src/react/Calendar.tsx e hooks: API declarativa para aplicações React.
 - src/react/CalendarEventEditor.tsx: formulário opcional; persistência e validação são callbacks do consumidor.
 - src/react/views: componentes e definições das views.
+- src/react/viewTypes.ts: contrato público das views e slots, sem renderer específico.
+- src/react/components: moldura do calendário; src/react/views/components: componentes compartilhados entre views.
+- src/react/views/formatting e registry: formatação e configuração/validação das views disponíveis.
 - src/react/views/layout: geometria de apresentação, segmentos multiday e políticas de densidade.
 - src/react/views/models: modelo de apresentação do time-grid e sua construção.
 - src/react/views/hooks: comportamento compartilhado de cabeçalhos e conteúdo durante rolagem.
@@ -32,4 +35,4 @@ Views implementam CalendarView: nome, label, range, navegação, título e rende
 
 Mantenha helpers junto à responsabilidade que atendem. Uma extração deve remover repetição ou esclarecer limites, não criar um arquivo por expressão. Evite abreviações ambíguas em novas funções públicas; preservam-se os nomes públicos já documentados. ResourceGrid reutiliza a densidade calculada no componente pai, e o modelo do time-grid calcula os limites de resize uma vez por evento.
 
-Ainda vale dividir resourceViews.tsx em componentes por view em uma rodada própria. Isso é uma melhoria de legibilidade, não requisito funcional nem justificativa para criar outro pacote. Consulte 08-auditoria-personas.md para limitações e evidências; quantidade de testes não prova ausência de rerenders ou de bugs.
+ResourceDayView.tsx e TimelineView.tsx são arquivos distintos; auxiliares realmente compartilhados ficam em components/ResourcePresentation.tsx. A propriedade views seleciona o conjunto completo: omitida usa BUILTIN_VIEWS; informada precisa conter ao menos uma view. Sem view inicial explícita, usa a primeira da lista. Seleção de views não equivale a carregar apenas seus módulos no bundle. Consulte 09-AUDITORIA-API-E-VIEWS.md para decisões, comparações e lacunas; quantidade de testes não prova ausência de rerenders ou de bugs.

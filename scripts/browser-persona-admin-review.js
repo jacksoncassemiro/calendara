@@ -5,7 +5,7 @@ async (page) => {
     await page.reload();
     await page.setViewportSize({ width: 1280, height: 1050 });
     await page.evaluate(async () => {
-        const { CalendarApp, ensureTemporal, createResourceDayView, createTimelineView } = await import('/src/index.ts');
+        const { BUILTIN_VIEWS, CalendarApp, ensureTemporal, createResourceDayView, createTimelineView } = await import('/src/index.ts');
         document.querySelector('main').style.display = 'none';
         const host = document.createElement('div');
         host.id = 'admin-fixture';
@@ -15,7 +15,7 @@ async (page) => {
                 start: { dateTime: `2026-10-07T${start}:00`, timeZone: 'UTC' }, end: { dateTime: `2026-10-07T${end}:00`, timeZone: 'UTC' } } });
         const events = [...Array.from({ length: 8 }, (_, i) => event('admin' + i, '09:00', '10:00')), event('isolated', '11:00', '11:30')];
         const app = new CalendarApp({ temporal: await ensureTemporal(), date: '2026-10-07', view: 'day', events, resources,
-            views: [createResourceDayView(resources), createTimelineView(resources)], options: { timeZone: 'UTC', startHour: 8, endHour: 13,
+            views: [...BUILTIN_VIEWS, createResourceDayView(resources), createTimelineView(resources)], options: { timeZone: 'UTC', startHour: 8, endHour: 13,
                 pxPerMinute: 2, defaultResourceCapacity: false, eventMaxStack: 3, monthMaxEvents: 3 },
             onEventClick: () => { window.adminEditorClicks = (window.adminEditorClicks ?? 0) + 1; } });
         app.mount(host);

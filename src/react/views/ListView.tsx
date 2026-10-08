@@ -4,18 +4,19 @@
  * Mesmo contrato `CalendarView`. Range alinhado à semana (paridade com a Week) por padrão,
  * configurável via `createListView(spanDays)`.
  */
+import { occurrenceKey } from '../../core/render/derive.js';
 import { createElement, type JSX } from "react";
 import type { EventOccurrence, TemporalLike } from "../../core/index.js";
 import { occurrenceStart } from "../../core/index.js";
 import { isNestedInteractiveTarget } from "../../core/interaction/interactiveTarget.js";
-import { formatDate, formatHourLabel } from "./format.js";
+import { formatDate, formatHourLabel } from "./formatting/timeLabels.js";
 import { occurrenceDays } from "./layout/occurrenceDays.js";
 import type {
 	CalendarView,
 	ViewContext,
 	ViewRange,
 	ViewRenderContext,
-} from "./viewDef.js";
+} from "../viewTypes.js";
 
 type PlainDate = InstanceType<TemporalLike["PlainDate"]>;
 
@@ -25,10 +26,6 @@ interface AgendaItem {
 	timeLabel: string;
 	isAllDay: boolean;
 	epochMs: number;
-}
-
-function itemKey(occurrence: EventOccurrence): string {
-	return `${occurrence.masterId}@${occurrence.originalStart}`;
 }
 
 /** Agenda semanal alinhada à semana; spans customizados começam na data de referência. */
@@ -95,7 +92,7 @@ function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
 		for (const dayISO of occurrenceDays(occurrence, props.context)) {
 			const list = itemsByDay.get(dayISO) ?? [];
 			list.push({
-				id: itemKey(occurrence),
+				id: occurrenceKey(occurrence),
 				occurrence,
 				isAllDay: start.isAllDay,
 				epochMs: start.epochMs,

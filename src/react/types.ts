@@ -3,7 +3,7 @@
  * `CalendarHandle` é a API imperativa (via `apiRef`/`useCalendar`) para casos que precisam
  * comandar o calendário (prev/next/troca de view) fora do fluxo de props.
  */
-import type { CSSProperties, MutableRefObject, ReactNode } from 'react';
+import type { CSSProperties, RefObject, ReactNode } from 'react';
 import type {
 	CalendarEvent,
 	EventOccurrence,
@@ -49,8 +49,8 @@ export interface CalendarProps {
 	options?: Partial<CalendarOptions>;
 	/** Recursos (capacity/buffers) — habilitam a validação dura de ocupação no drag. */
 	resources?: readonly CalendarResource[];
-	/** Views extras registradas (1ª classe). */
-	views?: CalendarView[];
+	/** Lista completa de views disponíveis. Ausente usa as views padrão; a primeira é a inicial. */
+	views?: readonly CalendarView[];
 	/** Temporal injetado (SSR/testes). Ausente → o core carrega via ensureTemporal(). */
 	temporal?: TemporalLike;
 	/** Busca eventos por range visível (expansão lazy). */
@@ -61,7 +61,7 @@ export interface CalendarProps {
 	renderEvent?: (info: EventSlotInfo) => ReactNode;
 	renderMonthMore?: MonthMoreRenderSlot;
   renderEventMore?: MonthMoreRenderSlot;
-  getDayStyle?: import("./views/viewDef.js").DayStyleCallback;
+  getDayStyle?: DayStyleCallback;
 	onMonthMoreClick?: (info: MonthMoreInfo) => void | false;
   onEventMoreClick?: (info: MonthMoreInfo) => void | false;
 	/** Toolbar custom em React (React nativo). Presente ⇒ substitui a toolbar nativa. */
@@ -74,10 +74,10 @@ export interface CalendarProps {
 	onDropBlocked?: (info: BlockedInfo) => void;
 	onClickBlocked?: (info: BlockedInfo) => void;
 	/** Recebe a API imperativa (use com `useCalendar`). */
-	apiRef?: MutableRefObject<CalendarHandle | null>;
+	apiRef?: RefObject<CalendarHandle | null>;
 	className?: string;
 	style?: CSSProperties;
 }
 
-import type { CalendarView, ToolbarContext, EventSlotInfo, MonthMoreInfo, MonthMoreRenderSlot } from './views/viewDef.js';
+import type { CalendarView, ToolbarContext, EventSlotInfo, MonthMoreInfo, MonthMoreRenderSlot, DayStyleCallback } from './viewTypes.js';
 import type { RangeChange } from './app/calendarApp.js';

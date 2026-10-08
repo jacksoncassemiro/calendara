@@ -1,4 +1,4 @@
-# Estado vigente — 07/10/2026
+# Estado vigente — 08/10/2026
 
 Pacote único **@meucalendario/calendar**, React nativo. Fontes em src/core e src/react; testes em tests/core e tests/react. Workspaces/manifests antigos removidos. Um tarball distribui ESM, CJS, tipos e styles.css. /core é uma entrada opcional do mesmo pacote, sem renderer.
 
@@ -7,7 +7,7 @@ Pacote único **@meucalendario/calendar**, React nativo. Fontes em src/core e sr
 - Mês compacto com contagem e lista do dia, toolbar compacta e rolagem interna; ativação por teclado abre o editor. Layout verificado em 320/375/768px no Edge. Não houve teste físico em iOS/Android/Safari.
 - Navegação por setas/Home/End nas células de horário em dia/semana/N dias/recursos/timeline; Enter/Espaço selecionam com validação de constraints/capacidade. No mês, setas navegam por dia/semana sem criar evento antes da ativação. Listeners são removidos em remount/destroy.
 - rrule-temporal 2.2.8 adotado e fixado como dependência de produção para os inícios de ocorrências. Composição de duração, RDATE/EXDATE e overrides permanece na biblioteca; Temporal/fallback continua necessário. Iterador civil e entrada expandRule permanecem utilitários de datas independentes, com referência para comparação. DTSTART num gap é rejeitado em vez de alterar silenciosamente o horário da série.
-- Validação: **320 testes em 27 arquivos** aprovados; tipos/build/tarball/consumidor aprovados; **22 roteiros no Edge**, incluindo quatro personas, 35 verificações do roteiro base e 18 combinações de view/largura, sem erros de execução registrados. Audit em 07/10 após promover a dependência: zero advisories conhecidos.
+- Validação: **322 testes em 27 arquivos** aprovados; tipos/build/tarball/consumidor aprovados; **23 roteiros no Edge**, incluindo quatro personas, 35 verificações do roteiro base e 18 combinações de view/largura, sem erros de execução registrados. Audit em 07/10 após promover a dependência: zero advisories conhecidos.
 - Recorrência: **1440 comparações diferenciais**, 50 cenários e 13 integrações do experimento, probes DST que comprovam divergências do protótipo antigo. Benchmark compara rrule 2.8.1, ical.js 2.2.1 e rrule-temporal 2.2.8; mediana/p95 com cache desligado. Ver experiments/civil-recurrence/ADOPTION.md.
 
 - Integração validada também nos 50 cenários existentes para all-day e timed UTC, além das regressões de DST/overrides/cancelamentos e browser. Mediana de 366 ocorrências na composição de produção adotada: 47,648 ms, frente aos 315,669 ms anteriores. O adapter isolado é menor que a composição real. Main chunk da demo: 135,94 KB gzip, contra 86,67 KB antes; chunk lazy Temporal: 49,57 KB gzip. Ganho de CPU com custo adicional de aproximadamente 49 KB gzip na demo, sem alegar redução de dependências ou tamanho.
@@ -17,6 +17,8 @@ Limites explícitos: RFC 5545 inteiro, frequências subdiárias/BYHOUR/BYMINUTE/
 Próximas técnicas de recorrência: máscaras mensais, rank/count por ciclo gregoriano para seek com COUNT, cache limitado de timezone, testes gerados mais amplos e medições de memória/latência em outros navegadores. A adoção atual não removeu o polyfill da biblioteca inteira.
 
 Comandos: yarn verify; yarn test:browser; yarn audit:dependencies; node scripts/compare-recurrence.mjs; node scripts/compare-recurrence-events.mjs; node experiments/civil-recurrence/validate.mjs 10. Artefatos gerados em output/; métricas comparativas versionadas no experimento. Não houve publicação, commit ou PR.
+
+Auditoria de API em 08/10: views agora seleciona a lista completa; defaults continuam opcionais. ResourceDayView/TimelineView separados, contratos em viewTypes e auxiliares em componentes/formatação/registro. Imports inline de tipos consolidados; RefObject/useImperativeHandle substituem MutableRefObject. Consumidor de tipos React 18 verificado em pasta isolada; runtime de navegador usa React 19. Comparações, reclamações de usuários e prioridades de nomes/duplicação em docs/09-AUDITORIA-API-E-VIEWS.md.
 
 ## Histórico anterior (não representa o estado vigente)
 

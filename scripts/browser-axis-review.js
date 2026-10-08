@@ -1,6 +1,6 @@
 async page => {
  await page.mouse.up(); await page.reload(); await page.setViewportSize({width:1400,height:900});
- const source=await page.evaluate(async()=>await (await fetch('/src/react/views/format.ts')).text());
+ const source=await page.evaluate(async()=>await (await fetch('/src/react/views/formatting/timeLabels.ts')).text());
  if(!source.includes('return options.timeLabelInterval'))throw new Error('Server is serving stale label contract');
  const results=[];
  for(const name of ['Dia','Semana','Recursos']) {

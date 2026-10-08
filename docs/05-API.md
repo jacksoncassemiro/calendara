@@ -4,6 +4,25 @@ Guia prático: para cada conceito, **um exemplo preenchido**, o **propósito** d
 
 ---
 
+## Escolher as views no React
+
+```tsx
+import { Calendar, dayView, monthView, createResourceDayView, type CalendarEvent } from '@meucalendario/calendar';
+
+const views = [dayView, monthView, createResourceDayView()];
+const resources = [{ id: 'triagem', title: 'Triagem', capacity: 3 }];
+const events: CalendarEvent[] = [];
+// Defina resources uma vez; a view de recursos recebe os dados atuais do Calendar.
+export function Agenda() {
+  return <Calendar views={views} resources={resources} events={events}
+    date="2026-10-08" options={{ timeZone: 'America/Sao_Paulo' }} />;
+}
+```
+
+`views` define a lista completa e a ordem dos botões. Sem `view`, inicia na primeira da lista. Omitir `views` usa o conjunto padrão; `[]` é inválido. Para o comportamento anterior de acrescentar views, use `[...BUILTIN_VIEWS, minhaView]`. `CalendarApp.setViews` substitui o conjunto; `registerView` acrescenta ou substitui uma definição individual. Uma view inicial precisa estar registrada. Nomes duplicados na lista são recusados.
+
+O handle usa `RefObject<CalendarHandle | null>`; `useCalendar`, `useRef` e `createRef` podem ser usados em `apiRef`. `MutableRefObject` deixou de ser exposto pela biblioteca. A análise dos contratos que ainda precisam evolução está em `09-AUDITORIA-API-E-VIEWS.md`.
+
 ## 1. Um evento
 
 O tipo mínimo que você monta. Exemplo de uma consulta das 9h às 10h:

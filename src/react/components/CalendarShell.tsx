@@ -5,7 +5,7 @@
  * reaproveita este nó e só troca o corpo (nada é recriado do zero).
  */
 import { createElement, type JSX } from 'react';
-import type { ToolbarContext, ToolbarRenderSlot } from './viewDef.js';
+import type { ToolbarContext, ToolbarRenderSlot } from '../viewTypes.js';
 import type { ReactNode } from 'react';
 
 export interface ShellProps {
