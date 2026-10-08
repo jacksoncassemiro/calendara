@@ -32,4 +32,4 @@ Public bundle comparison remains in `docs/en/bundle-comparison.md` and its Portu
 - Sticky geometry: zero column/event/all-day displacement in desktop and narrow horizontal scrolling; month and agenda sticky headers checked.
 - Production site under /calendara/: documentation and playground scenarios passed in Edge, including themes, English/Portuguese, feature links and transfer rejection.
 - Screenshots inspected: dark English documentation and playground; narrow 320/375px layouts. Physical mobile/Safari and screen-reader validation are not claimed.
-- Full browser rerun passed: all 28 scripts in Edge, with no runtime errors. Remote CI/deployment remain pending; release draft requires the configured release-environment approval.
+- Full browser rerun passed: all 28 scripts in Edge, with no runtime errors. PR #13 passed required CI in Chrome (run 37828822314) and merged into develop; deployment remains pending; release draft requires the configured release-environment approval.
