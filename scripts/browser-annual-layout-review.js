@@ -59,13 +59,14 @@ async (page) => {
     .evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height));
   if (Math.max(...heights) - Math.min(...heights) > 1)
     throw new Error('Annual month rows depend on event count');
-  await planner.locator('[data-mc-year-planner-date="2026-10-07"] summary').click();
+  await planner.locator('[data-mc-year-planner-date="2026-10-07"] .mc-month-more').click();
+  await page.locator('.mc-month-popover').waitFor();
   const expandedHeights = await planner
     .locator('tbody tr')
     .evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height));
   if (expandedHeights.some((height, index) => Math.abs(height - heights[index]) > 1))
     throw new Error('Annual overflow expands month row');
-  await planner.locator('[data-mc-year-planner-date="2026-10-07"] summary').click();
+  await page.keyboard.press('Escape');
   await page.evaluate(() => window.scrollTo(0, 0));
   await scrollbar.evaluate((element) => {
     element.scrollLeft = 350;

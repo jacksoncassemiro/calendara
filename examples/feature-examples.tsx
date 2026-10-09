@@ -189,7 +189,9 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
       (view) =>
         view.name === definition.view ||
         (id === 'week' && view.name === 'day') ||
-        (id === 'month' && view.name === 'day'),
+        (id === 'month' && view.name === 'day') ||
+        (id === 'day-style' &&
+          ['month', 'quarter', 'year', 'year-planner', 'timeline-week'].includes(view.name)),
     );
     const englishLabels: Record<string, string> = {
       week: 'Week',
@@ -617,7 +619,11 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
                   <>
                     {defaultContent}
                     {dateStatuses[dateISO] && (
-                      <small className="focused-day-status" data-day-status={dateStatuses[dateISO]}>
+                      <small
+                        className="focused-day-status"
+                        data-day-status={dateStatuses[dateISO]}
+                        title={dateStatusLabels[dateStatuses[dateISO]!]}
+                      >
                         {dateStatuses[dateISO] === 'unavailable' && (
                           <span aria-hidden="true">⊘ </span>
                         )}
