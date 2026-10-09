@@ -2,6 +2,11 @@
 import { createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { keyboardGrid } from './keyboardGrid.js';
+import {
+  buildCalendarPrintDocument,
+  printCalendarDocument,
+  type CalendarPrintOptions,
+} from '../printing.js';
 import { flushSync } from 'react-dom';
 
 import { createStore, type Store } from '../../core/index.js';
@@ -686,6 +691,27 @@ export class CalendarApp {
   getVisibleRange(): RangeChange {
     const { range } = this.resolveView();
     return { start: range.startDate.toString(), end: range.endDate.toString() };
+  }
+
+  /** Print the complete loaded visible range, including hidden events. / PT: Imprime o período carregado completo, incluindo eventos ocultos. */
+  print(options?: CalendarPrintOptions): boolean {
+    if (!this.temporal)
+      throw new Error('[calendara] print requires ready() / print requer ready().');
+    const range = this.getVisibleRange();
+    const state = this.store.getState();
+    return printCalendarDocument(
+      buildCalendarPrintDocument({
+        temporal: this.temporal,
+        events: state.events,
+        resources: this.resources,
+        startISO: range.start,
+        endISO: range.end,
+        locale: state.options.locale,
+        timeZone: state.options.timeZone,
+        title: this.getTitle(),
+        options,
+      }),
+    );
   }
 
   evaluateSlot(slot: Slot): SlotEvaluation {

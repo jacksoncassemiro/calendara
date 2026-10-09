@@ -2,7 +2,7 @@
 
 # Plano de desenvolvimento
 
-O plano ativo segue especificação, implementação e validação por fatias. Consulte [tarefas e evidências](../../specs/calendar-remediation/tasks.md) e o [status atual](status-0.1.0.md).
+O plano segue especificação, implementação e validação por fatias. Consulte [tarefas e evidências](../../specs/calendar-remediation/tasks.md). O [snapshot 0.1.0](status-0.1.0.md) descreve somente aquela versão.
 
 ## Fluxo
 

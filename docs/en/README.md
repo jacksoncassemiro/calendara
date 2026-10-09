@@ -4,6 +4,7 @@
 
 - [Getting started](getting-started.md): GitHub asset installation and first React app.
 - [Feature scenarios](features.md): live workflows and supported limits.
+- [Extended views and printing](extended-views.md): resource periods, annual planning and browser PDF.
 - [API guide](api.md): views, persistence, forms, resources, recurrence and styling.
 - [Comparison](comparison.md): integration tradeoffs and licensing.
 - [Bundle measurements](bundle-comparison.md): reproducible sizes and packaging tradeoffs.

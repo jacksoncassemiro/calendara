@@ -21,6 +21,7 @@ export function useCalendar(): UseCalendar {
   const api = useMemo<CalendarHandle>(
     () => ({
       prev: () => ref.current?.prev(),
+      print: (options) => ref.current?.print(options) ?? false,
       next: () => ref.current?.next(),
       today: () => ref.current?.today(),
       setDate: (dateISO) => ref.current?.setDate(dateISO),

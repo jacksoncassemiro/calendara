@@ -152,4 +152,55 @@ export const demos: DemoDefinition[] = [
     view: 'three-days',
     code: 'const threeDays = createNDaysView(3, "three-days");\n<Calendar views={[threeDays]} initialView="three-days" />',
   },
+  {
+    id: 'resource-week',
+    title: ['Recursos por semana', 'Resources across a week'],
+    view: 'resource-week',
+    code: `const resourceWeek = createResourceView({ days: 7, alignment: 'week', groupBy: 'resource', name: 'resource-week' });
+<Calendar views={[resourceWeek]} initialView="resource-week" initialDate="2026-10-07" resources={rooms} events={events} options={demoOptions} />`,
+  },
+  {
+    id: 'timeline-week',
+    title: ['Timeline semanal e grupos', 'Weekly timeline and groups'],
+    view: 'timeline-week',
+    code: `const timelineWeek = createResourceTimelineView({ duration: 'week', name: 'timeline-week', groupBy: (resource) => resource.id === 'room' ? 'Rooms / Salas' : 'Open / Livre' });
+<Calendar views={[timelineWeek]} initialView="timeline-week" initialDate="2026-10-07" resources={rooms} events={events} options={demoOptions} />`,
+  },
+  {
+    id: 'timeline-month',
+    title: ['Timeline mensal e grupos', 'Monthly timeline and groups'],
+    view: 'timeline-month',
+    code: `const timelineMonth = createResourceTimelineView({ duration: 'month', name: 'timeline-month', groupBy: (resource) => resource.id === 'room' ? 'Rooms / Salas' : 'Open / Livre' });
+<Calendar views={[timelineMonth]} initialView="timeline-month" initialDate="2026-10-07" resources={rooms} events={events} options={demoOptions} />`,
+  },
+  {
+    id: 'year',
+    title: ['Ano em meses', 'Year in month panels'],
+    view: 'year',
+    code: '<Calendar views={[yearView]} initialView="year" initialDate="2026-10-07" events={events} options={demoOptions} />',
+  },
+  {
+    id: 'quarter',
+    title: ['Trimestre', 'Quarter'],
+    view: 'quarter',
+    code: '<Calendar views={[quarterView]} initialView="quarter" initialDate="2026-10-07" events={events} options={demoOptions} />',
+  },
+  {
+    id: 'year-planner',
+    title: ['Planejamento anual', 'Year planner'],
+    view: 'year-planner',
+    code: '<Calendar views={[yearPlannerView]} initialView="year-planner" initialDate="2026-10-07" events={events} options={demoOptions} />',
+  },
+  {
+    id: 'day-agenda',
+    title: ['Agenda do dia', 'Day agenda'],
+    view: 'day-agenda',
+    code: '<Calendar views={[dayAgendaView]} initialView="day-agenda" initialDate="2026-10-07" events={events} resources={rooms} options={demoOptions} />',
+  },
+  {
+    id: 'print',
+    title: ['Impressão e PDF', 'Printing and PDF'],
+    view: 'week',
+    code: '<button onClick={() => api.print({ title: "Calendar / Agenda", orientation: "landscape" })}>Print / Imprimir</button>\n<Calendar apiRef={apiRef} views={[weekView]} initialDate="2026-10-07" events={events} options={demoOptions} />',
+  },
 ];
