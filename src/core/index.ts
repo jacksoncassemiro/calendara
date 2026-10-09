@@ -1,10 +1,19 @@
-/**
- * Headless date, recurrence, constraint, layout and interaction contracts.
- * Português: Contratos de datas, recorrência, regras, layout e interação, sem React.
- */
 export * from './types/index.js';
 
-// Temporal (shim de compatibilidade)
+export type { LayoutDayInput } from './geometry/geometry.js';
+export type { ResourceConstraintSetInput } from './render/resourceConstraints.js';
+export type {
+  ResourceCapacityInput,
+  OccurrencesForResourceInput,
+} from './render/resourceDerive.js';
+export type {
+  ShiftCalendarDateInput,
+  NormalizeCalendarMinuteInput,
+  MinutesToDateTimeInput,
+  ApplyEventTimeChangeInput,
+} from './interaction/model.js';
+export type { ValidateOccupancyInput } from './interaction/occupancy.js';
+
 export {
   ensureTemporal,
   getTemporal,
@@ -12,7 +21,6 @@ export {
   type TemporalLike,
 } from './date/temporal.js';
 
-// DateUtils
 export {
   createDateUtils,
   dayOfWeekToCode,
@@ -21,9 +29,32 @@ export {
   WEEKDAY_CODES,
   weekdayCodeToDayOfWeek,
   type DateUtils,
+  type StartOfWeekInput,
+  type DateRangeInput,
+  type NthWeekdayInMonthInput,
+  type ZonedDateTimeInput,
 } from './date/dateUtils.js';
 
-// Recorrência
+export type { HasAvailableTimeInput } from './constraint/constraintEngine.js';
+export type {
+  ComputeMoveDraftInput,
+  ComputeResizeDraftInput,
+  ComputeSelectDraftInput,
+} from './interaction/gestureGeometry.js';
+export type {
+  ExpandRuleInput,
+  ExpandTemporalRuleInput,
+  ExpandRuleAllInput,
+} from './recurrence/engine.js';
+export type { SplitEventSeriesInput } from './recurrence/splitSeries.js';
+export type {
+  ExpandRangeInput,
+  ResourceBusyIntervalsInput,
+  BuildDaysInput,
+} from './render/derive.js';
+export type { ResourceSlotBandsInput } from './render/resourceConstraints.js';
+export type { BuildResourceColumnsInput } from './render/resourceDerive.js';
+
 export {
   expandEvent,
   expandRule,
@@ -36,24 +67,23 @@ export {
   type CivilWindow,
   type ExpandOptions,
   type ExpandWindow,
+  type ExpandEventInput,
+  type IterateCivilDatesInput,
 } from './recurrence/index.js';
 
-// Constraints
 export { ConstraintEngine, jsDayOfWeek, type Slot } from './constraint/index.js';
 
-// Store observável (diff granular)
 export { createStore, memoize, type Store, type Listener } from './store/index.js';
 
-// Geometria (layout de eventos)
 export {
   layoutDay,
   gridBodyHeight,
   type GeoInput,
   type GeoGrid,
   type GeoBlock,
+  type GridBodyHeightInput,
 } from './geometry/index.js';
 
-// Interação (Fase 4): drag & drop + resize + seleção
 export {
   InteractionEngine,
   snapMinute,
@@ -78,6 +108,9 @@ export {
   type CommitResult,
   type OutsideDropTarget,
   type SnapRounding,
+  type SnapMinuteInput,
+  type ClampSpanToGridInput,
+  type ReassignResourceInput,
   type BusyInterval,
   type ResourceOccupancy,
   type OccupancyResult,
@@ -87,7 +120,6 @@ export {
   type InteractionDeps,
 } from './interaction/index.js';
 
-// Pure state and render derivations (no renderer dependency)
 export {
   DEFAULT_OPTIONS,
   resolveHour,
@@ -107,5 +139,6 @@ export {
   type Segment,
   type TimedPlacement,
   type OccurrenceStart,
+  type OccurrenceStartInput,
   type ResourceColumnData,
 } from './render/index.js';

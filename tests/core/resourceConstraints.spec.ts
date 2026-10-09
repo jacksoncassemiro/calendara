@@ -4,8 +4,8 @@ import { resourceConstraintSet } from '../../src/core/render/resourceConstraints
 
 describe('resource constraints composition', () => {
   it('intersects global and local windows instead of treating their union as availability', () => {
-    const effective = resourceConstraintSet(
-      {
+    const effective = resourceConstraintSet({
+      resource: {
         id: 'room',
         title: 'Room',
         businessHours: [{ daysOfWeek: [3], startTime: '07:00', endTime: '19:00' }],
@@ -15,13 +15,13 @@ describe('resource constraints composition', () => {
           ],
         },
       },
-      {
+      global: {
         businessHours: [{ daysOfWeek: [3], startTime: '08:00', endTime: '18:00' }],
         allowedRanges: [
           { start: '2026-07-22', end: '2026-07-23', startTime: '10:00', endTime: '16:00' },
         ],
       },
-    );
+    });
     const engine = new ConstraintEngine(effective);
     expect(engine.evaluate({ date: '2026-07-22', startMin: 450, endMin: 480 }).reason).toBe(
       'outside-business-hours',
@@ -33,8 +33,8 @@ describe('resource constraints composition', () => {
   });
 
   it('keeps disjoint allowed windows and weekday rules explicitly closed', () => {
-    const effective = resourceConstraintSet(
-      {
+    const effective = resourceConstraintSet({
+      resource: {
         id: 'room',
         title: 'Room',
         constraints: {
@@ -42,11 +42,11 @@ describe('resource constraints composition', () => {
           allowedRanges: [{ start: '2026-08-01', end: '2026-08-02' }],
         },
       },
-      {
+      global: {
         businessHours: [{ daysOfWeek: [3], startTime: '08:00', endTime: '18:00' }],
         allowedRanges: [{ start: '2026-07-22', end: '2026-07-23' }],
       },
-    );
+    });
     const engine = new ConstraintEngine(effective);
     expect(engine.isValid({ date: '2026-07-22', startMin: 600, endMin: 660 })).toBe(false);
     expect(

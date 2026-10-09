@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
-/** Observe the calendar container, including narrow desktop panels. */
+/** Observe container width, including narrow desktop panels. @remarks Português: Observa a largura do container, incluindo painéis estreitos no desktop.
+ * @param breakpoint Container-width threshold in pixels; default 640. PT: Limite de largura do container em pixels; padrão 640. */
 export function useCompactCalendar(breakpoint = 640) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [compact, setCompact] = useState(false);

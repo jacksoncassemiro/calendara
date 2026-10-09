@@ -1,10 +1,4 @@
-/**
- * Testes do InteractionEngine em ambiente NODE, com um DOM FALSO mínimo (o motor toca só um
- * punhado de APIs de DOM). Assim a máquina de gesto — mover/redimensionar/selecionar, clique vs.
- * arrasto, preview/commit/blocked, e o localizador por retângulos — é validada sem o custo do
- * jsdom. A integração real com Preact/DOM fica em `interactionApp.spec.ts` (jsdom, CI).
- */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   InteractionEngine,
   type InteractionDeps,
@@ -17,8 +11,6 @@ import type {
   PlacementInfo,
 } from '../../src/core/interaction/model.js';
 import type { EventOccurrence } from '../../src/core/types/event.js';
-
-// --- DOM falso ---------------------------------------------------------------
 
 interface FakeRect {
   left: number;
@@ -59,7 +51,7 @@ class FakeElement {
   }
 
   matches(selector: string): boolean {
-    const attributeName = selector.slice(1, -1); // '[data-mc-day]' → 'data-mc-day'
+    const attributeName = selector.slice(1, -1);
     return this.attributes.has(attributeName);
   }
 
@@ -106,8 +98,6 @@ class FakeElement {
   }
 }
 
-// O motor faz `coords.target instanceof Element`; no node não há `Element` global.
-// Registramos o DOM falso como o `Element` global para o instanceof funcionar.
 (globalThis as unknown as { Element: unknown }).Element = FakeElement;
 
 class FakeDocument {
@@ -124,16 +114,19 @@ class FakeDocument {
   }
 }
 
-function makeEvent(
-  target: FakeElement | FakeDocument,
-  clientX: number,
-  clientY: number,
+function makeEvent({
+  target,
+  clientX,
+  clientY,
   pointerId = 0,
-) {
+}: {
+  target: FakeElement | FakeDocument;
+  clientX: number;
+  clientY: number;
+  pointerId?: number;
+}) {
   return { target, clientX, clientY, pointerId, button: 0 };
 }
-
-// --- fixture -----------------------------------------------------------------
 
 const occurrence: EventOccurrence = {
   event: {
@@ -216,7 +209,7 @@ function makeEngine(
     allowEventTypeChange: () => options.allowEventTypeChange ?? false,
     ...(options.span ? { resolveSpan: () => options.span! } : {}),
     evaluate: (input) => {
-      const blockedZone = input.startMin >= 720; // ≥12:00 inválido neste stub
+      const blockedZone = input.startMin >= 720;
       return blockedZone ? { valid: false, reason: 'blocked' } : { valid: true, reason: 'ok' };
     },
     resolveOccurrence: () => occurrence,
@@ -232,19 +225,16 @@ function makeEngine(
   };
   const useInjected = options.injectLocator !== false;
   if (useInjected) {
-    // localizador determinístico: minuto == clientY.
     deps.locateSlot = (_clientX: number, clientY: number): PointerSlot => ({
       dateISO: '2026-07-22',
       minuteOfDay: clientY,
     });
   }
   const engine = new InteractionEngine(deps);
-  // attach espera um HTMLElement; o DOM falso implementa a superfície usada.
+
   engine.attach(dom.container as unknown as HTMLElement);
   return { engine, calls };
 }
-
-// --- testes ------------------------------------------------------------------
 
 describe('InteractionEngine — gesto com localizador injetado', () => {
   let dom: Harness;
@@ -254,9 +244,18 @@ describe('InteractionEngine — gesto com localizador injetado', () => {
 
   it('MOVER commita a nova posição (duração preservada)', () => {
     const { calls } = makeEngine(dom);
-    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660));
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.eventNode, clientX: 5, clientY: 540 }),
+    );
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660 }),
+    );
     expect(calls.move).toHaveLength(1);
     expect(calls.move[0]!.startMin).toBe(660);
     expect(calls.move[0]!.endMin).toBe(720);
@@ -265,9 +264,18 @@ describe('InteractionEngine — gesto com localizador injetado', () => {
 
   it('drop inválido chama blocked e NÃO commita', () => {
     const { calls } = makeEngine(dom);
-    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 780));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 780));
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.eventNode, clientX: 5, clientY: 540 }),
+    );
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 780 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 780 }),
+    );
     expect(calls.move).toHaveLength(0);
     expect(calls.blocked).toHaveLength(1);
     expect(calls.blocked[0]!.reason).toBe('blocked');
@@ -276,28 +284,87 @@ describe('InteractionEngine — gesto com localizador injetado', () => {
 
   it('REDIMENSIONAR (alça) mantém o início e move o fim', () => {
     const { calls } = makeEngine(dom);
-    dom.container.emit('pointerdown', makeEvent(dom.handle, 5, 600));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 690));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 690));
+    dom.container.emit('pointerdown', makeEvent({ target: dom.handle, clientX: 5, clientY: 600 }));
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 690 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 690 }),
+    );
     expect(calls.resize).toHaveLength(1);
     expect(calls.resize[0]!.startMin).toBe(540);
     expect(calls.resize[0]!.endMin).toBe(690);
   });
 
+  it('touch swipes cancel before any draft or click, while a held touch can move', () => {
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(0);
+    try {
+      const { calls } = makeEngine(dom);
+      for (const target of [dom.column, dom.eventNode]) {
+        dom.container.emit('pointerdown', {
+          ...makeEvent({ target, clientX: 5, clientY: 540 }),
+          pointerType: 'touch',
+        });
+        dom.documentRef.emit('pointermove', {
+          ...makeEvent({ target: dom.documentRef, clientX: 5, clientY: 560 }),
+          pointerType: 'touch',
+        });
+        dom.documentRef.emit(
+          'pointerup',
+          makeEvent({ target: dom.documentRef, clientX: 5, clientY: 560 }),
+        );
+      }
+      expect(calls.drafts.filter(Boolean)).toHaveLength(0);
+      expect(calls.clickEmpty).toHaveLength(0);
+      expect(calls.clickEvent).toHaveLength(0);
+      dom.container.emit('pointerdown', {
+        ...makeEvent({ target: dom.eventNode, clientX: 5, clientY: 540 }),
+        pointerType: 'touch',
+      });
+      clock.mockReturnValue(500);
+      dom.documentRef.emit('pointermove', {
+        ...makeEvent({ target: dom.documentRef, clientX: 5, clientY: 600 }),
+        pointerType: 'touch',
+      });
+      dom.documentRef.emit(
+        'pointerup',
+        makeEvent({ target: dom.documentRef, clientX: 5, clientY: 600 }),
+      );
+      expect(calls.move).toHaveLength(1);
+      expect(calls.move[0]!.startMin).toBe(600);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it('SELECIONAR em área vazia emite intervalo', () => {
     const { calls } = makeEngine(dom);
-    // 10:00 (600) → 11:00 (660), abaixo da zona inválida do stub (≥720).
-    dom.container.emit('pointerdown', makeEvent(dom.column, 5, 600));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660));
+
+    dom.container.emit('pointerdown', makeEvent({ target: dom.column, clientX: 5, clientY: 600 }));
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660 }),
+    );
     expect(calls.select).toHaveLength(1);
     expect(calls.select[0]).toEqual({ dateISO: '2026-07-22', startMin: 600, endMin: 660 });
   });
 
   it('clique (sem arrasto) no evento dispara clickEvent, não move', () => {
     const { calls } = makeEngine(dom);
-    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 540));
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.eventNode, clientX: 5, clientY: 540 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 540 }),
+    );
     expect(calls.move).toHaveLength(0);
     expect(calls.clickEvent).toHaveLength(1);
     expect(calls.clickEvent[0]!.eventId).toBe('e1@2026-07-22T09:00:00');
@@ -305,8 +372,11 @@ describe('InteractionEngine — gesto com localizador injetado', () => {
 
   it('clique em área vazia dispara clickEmpty', () => {
     const { calls } = makeEngine(dom);
-    dom.container.emit('pointerdown', makeEvent(dom.column, 5, 780));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 780));
+    dom.container.emit('pointerdown', makeEvent({ target: dom.column, clientX: 5, clientY: 780 }));
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 780 }),
+    );
     expect(calls.clickEmpty).toHaveLength(1);
     expect(calls.clickEmpty[0]!.dateISO).toBe('2026-07-22');
   });
@@ -314,65 +384,112 @@ describe('InteractionEngine — gesto com localizador injetado', () => {
   it('evento NÃO editável não arrasta (vira clique)', () => {
     dom.eventNode.dataset.mcEditable = 'false';
     const { calls } = makeEngine(dom);
-    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660));
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.eventNode, clientX: 5, clientY: 540 }),
+    );
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660 }),
+    );
     expect(calls.move).toHaveLength(0);
     expect(calls.clickEvent).toHaveLength(1);
   });
 
   it('um segundo pointerdown (pointerId diferente) durante um gesto ativo é ignorado — o gesto original continua e commita normalmente', () => {
     const { calls } = makeEngine(dom);
-    // pointerId 1 inicia um MOVER no evento.
-    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540, 1));
-    // segundo "dedo" (pointerId 2) toca a coluna vazia enquanto o gesto 1 ainda está ativo — deve
-    // ser ignorado (sem sobrescrever `this.gesture`), não deve iniciar um gesto de seleção.
-    dom.container.emit('pointerdown', makeEvent(dom.column, 5, 600, 2));
-    // pointermove/pointerup do gesto ORIGINAL (pointerId 1) seguem funcionando e commitam.
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660, 1));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660, 1));
+
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.eventNode, clientX: 5, clientY: 540, pointerId: 1 }),
+    );
+
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.column, clientX: 5, clientY: 600, pointerId: 2 }),
+    );
+
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660, pointerId: 1 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660, pointerId: 1 }),
+    );
     expect(calls.move).toHaveLength(1);
     expect(calls.move[0]!.startMin).toBe(660);
     expect(calls.move[0]!.endMin).toBe(720);
-    // o segundo pointerdown não iniciou gesto nenhum próprio.
+
     expect(calls.select).toHaveLength(0);
     expect(calls.clickEmpty).toHaveLength(0);
   });
 
   it('pointercancel aborta o gesto ativo: limpa o estado sem commitar e limpa o fantasma', () => {
     const { calls } = makeEngine(dom);
-    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540, 1));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660, 1)); // passa o threshold ⇒ gera fantasma
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.eventNode, clientX: 5, clientY: 540, pointerId: 1 }),
+    );
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660, pointerId: 1 }),
+    );
     expect(calls.drafts.length).toBeGreaterThan(0);
     expect(calls.drafts[calls.drafts.length - 1]).not.toBeNull();
 
-    dom.documentRef.emit('pointercancel', makeEvent(dom.documentRef, 5, 660, 1));
+    dom.documentRef.emit(
+      'pointercancel',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660, pointerId: 1 }),
+    );
 
-    // aborto, não "soltar": nenhum commit/blocked disparado.
     expect(calls.move).toHaveLength(0);
     expect(calls.resize).toHaveLength(0);
     expect(calls.select).toHaveLength(0);
     expect(calls.blocked).toHaveLength(0);
-    // onDraftChange(null) foi chamado ⇒ fantasma limpo.
+
     expect(calls.drafts[calls.drafts.length - 1]).toBeNull();
 
-    // `this.gesture` foi limpo: um pointerdown NOVO (pointerId diferente) é aceito e completa
-    // normalmente — prova de que o cancel não deixou o motor "travado" para sempre.
-    dom.container.emit('pointerdown', makeEvent(dom.column, 5, 600, 2));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660, 2));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660, 2));
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.column, clientX: 5, clientY: 600, pointerId: 2 }),
+    );
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660, pointerId: 2 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660, pointerId: 2 }),
+    );
     expect(calls.select).toHaveLength(1);
     expect(calls.select[0]).toEqual({ dateISO: '2026-07-22', startMin: 600, endMin: 660 });
   });
 
   it('pointercancel com pointerId de outro ponteiro (não o do gesto ativo) é ignorado', () => {
     const { calls } = makeEngine(dom);
-    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 540, 1));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 660, 1));
-    // pointercancel de um pointerId que NÃO é o do gesto ativo (ex.: segundo dedo que nunca virou gesto).
-    dom.documentRef.emit('pointercancel', makeEvent(dom.documentRef, 5, 660, 2));
-    // gesto original continua vivo e ainda commita normalmente no pointerup dele.
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 660, 1));
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.eventNode, clientX: 5, clientY: 540, pointerId: 1 }),
+    );
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660, pointerId: 1 }),
+    );
+
+    dom.documentRef.emit(
+      'pointercancel',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660, pointerId: 2 }),
+    );
+
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 660, pointerId: 1 }),
+    );
     expect(calls.move).toHaveLength(1);
   });
 });
@@ -390,9 +507,18 @@ describe('InteractionEngine — localizador padrão por retângulos', () => {
     };
     const { dom } = setup();
     const { calls } = makeEngine(dom, { injectLocator: false, allowEventTypeChange: true });
-    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 180));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, -25));
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, -25));
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.eventNode, clientX: 5, clientY: 180 }),
+    );
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: -25 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: -25 }),
+    );
     expect(calls.move[0]).toMatchObject({
       allDay: true,
       dateISO: '2026-07-22',
@@ -412,9 +538,18 @@ describe('InteractionEngine — localizador padrão por retângulos', () => {
         allDay: true,
       },
     });
-    reverse.dom.container.emit('pointerdown', makeEvent(reverse.dom.eventNode, 5, -25));
-    reverse.dom.documentRef.emit('pointermove', makeEvent(reverse.dom.documentRef, 5, 120));
-    reverse.dom.documentRef.emit('pointerup', makeEvent(reverse.dom.documentRef, 5, 120));
+    reverse.dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: reverse.dom.eventNode, clientX: 5, clientY: -25 }),
+    );
+    reverse.dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: reverse.dom.documentRef, clientX: 5, clientY: 120 }),
+    );
+    reverse.dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: reverse.dom.documentRef, clientX: 5, clientY: 120 }),
+    );
     expect(result.calls.move[0]).toMatchObject({
       allDay: false,
       startDateTime: '2026-07-22T08:00:00',
@@ -427,10 +562,16 @@ describe('InteractionEngine — localizador padrão por retângulos', () => {
     dom.handle.dataset.mcResize = 'start';
     dom.handle.setAttribute('data-mc-resize', 'start');
     const { calls } = makeEngine(dom);
-    dom.container.emit('pointerdown', makeEvent(dom.handle, 5, 540));
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 480));
+    dom.container.emit('pointerdown', makeEvent({ target: dom.handle, clientX: 5, clientY: 540 }));
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 480 }),
+    );
     expect(calls.drafts.at(-1)).toMatchObject({ kind: 'resize', startMin: 480, endMin: 600 });
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 480));
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 480 }),
+    );
     expect(calls.move).toHaveLength(0);
     expect(calls.resize).toHaveLength(1);
     expect(calls.resize[0]).toMatchObject({
@@ -441,11 +582,20 @@ describe('InteractionEngine — localizador padrão por retângulos', () => {
 
   it('projeta clientY na coluna via getBoundingClientRect (sem locateSlot injetado)', () => {
     const dom = buildDom();
-    // sem injeção: usa rects. Coluna: top 0, height 840, span 360..1200 ⇒ minuto = 360 + clientY.
+
     const { calls } = makeEngine(dom, { injectLocator: false });
-    dom.container.emit('pointerdown', makeEvent(dom.eventNode, 5, 180)); // minuto 540
-    dom.documentRef.emit('pointermove', makeEvent(dom.documentRef, 5, 300)); // minuto 660
-    dom.documentRef.emit('pointerup', makeEvent(dom.documentRef, 5, 300));
+    dom.container.emit(
+      'pointerdown',
+      makeEvent({ target: dom.eventNode, clientX: 5, clientY: 180 }),
+    );
+    dom.documentRef.emit(
+      'pointermove',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 300 }),
+    );
+    dom.documentRef.emit(
+      'pointerup',
+      makeEvent({ target: dom.documentRef, clientX: 5, clientY: 300 }),
+    );
     expect(calls.move).toHaveLength(1);
     expect(calls.move[0]!.startMin).toBe(660);
     expect(calls.move[0]!.endMin).toBe(720);

@@ -15,7 +15,7 @@ describe('createStore (diff granular)', () => {
     store.subscribe((changed) => changedKeySets.push(changed));
 
     store.setState({ count: 2 });
-    store.setState({ count: 2 }); // mesmo valor → NÃO notifica
+    store.setState({ count: 2 });
     store.setState({ label: 'y' });
 
     expect(changedKeySets).toHaveLength(2);
@@ -30,9 +30,9 @@ describe('createStore (diff granular)', () => {
     const store = createStore<StoreState>({ count: 1, label: 'x', nestedState });
     const subscriber = vi.fn();
     store.subscribe(subscriber);
-    store.setState({ nestedState }); // mesma ref → sem notificação
+    store.setState({ nestedState });
     expect(subscriber).not.toHaveBeenCalled();
-    store.setState({ nestedState: { value: 0 } }); // nova ref → notifica
+    store.setState({ nestedState: { value: 0 } });
     expect(subscriber).toHaveBeenCalledTimes(1);
   });
 
@@ -65,7 +65,7 @@ describe('memoize', () => {
     memoizedCompute(inputValues);
     memoizedCompute(inputValues);
     expect(compute).toHaveBeenCalledTimes(1);
-    memoizedCompute([1, 2, 3]); // nova ref
+    memoizedCompute([1, 2, 3]);
     expect(compute).toHaveBeenCalledTimes(2);
   });
 });

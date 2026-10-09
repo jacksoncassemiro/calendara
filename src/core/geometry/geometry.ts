@@ -1,62 +1,97 @@
-/**
- * GeometryEngine — posicionamento de eventos "timed" numa coluna de dia (time grid).
- *
- * Puro e sem Temporal: trabalha em **minutos-do-dia**. Duas responsabilidades:
- *  1. Vertical: converter [startMin,endMin] em top/height (px) a partir da escala do grid.
- *  2. Horizontal: empacotar eventos que se sobrepõem em colunas e aplicar **expansão waterfall**
- *     (um evento cresce para a direita ocupando colunas livres à frente — padrão FullCalendar).
- *
- * Colisão usa o intervalo "renderizado com altura mínima" (`collisionEnd`), de modo que eventos
- * que apenas se tocam (fim de A == início de B) NÃO são considerados sobrepostos.
+/** Event interval projected into minutes of a display day.
+ * @remarks Português: Intervalo do evento projetado em minutos do dia exibido.
  */
-
-/** Item de entrada: uma ocorrência já reduzida a minutos-do-dia. */
 export interface GeoInput {
-  /** Chave estável (ex.: `${masterId}@${originalStart}`). */
+  /** Stable event placement identifier.
+   * @remarks Português: Identificador estável da posição do evento.
+   */
   id: string;
-  /** Minuto de início no dia (0..1440). */
+
+  /** Inclusive start in minutes relative to the day.
+   * @remarks Português: Início inclusivo em minutos relativos ao dia.
+   */
   startMin: number;
-  /** Minuto de fim no dia (exclusivo). */
+
+  /** Exclusive end in minutes relative to the day.
+   * @remarks Português: Fim exclusivo em minutos relativos ao dia.
+   */
   endMin: number;
 }
 
-/** Parâmetros do grid (escala dinâmica de horário). */
+/** Visible time window and event layout scale.
+ * @remarks Português: Janela de horário visível e escala do layout de eventos.
+ */
 export interface GeoGrid {
-  /** Hora do topo do grid (0..24). */
+  /** Visible grid start in hours, from 0 to 24.
+   * @remarks Português: Início visível da grade em horas, de 0 a 24.
+   */
   startHour: number;
-  /** Hora da base do grid (0..24, > startHour). */
+
+  /** Exclusive grid end in hours, greater than startHour and at most 24.
+   * @remarks Português: Fim exclusivo em horas, maior que startHour e no máximo 24.
+   */
   endHour: number;
-  /** Pixels por minuto (escala vertical). */
+
+  /** Vertical scale in pixels per minute.
+   * @remarks Português: Escala vertical em pixels por minuto.
+   */
   pxPerMinute: number;
-  /** Altura mínima visual, em minutos (default 15). */
+
+  /** Minimum visual duration in minutes; default 15.
+   * @remarks Português: Duração visual mínima em minutos; padrão 15.
+   */
   minEventMinutes?: number;
-  /** Folga horizontal entre blocos, fração 0..1 da largura da coluna (default 0). */
+
+  /** Gap as a fraction of the day-column width; default 0.
+   * @remarks Português: Espaçamento como fração da largura da coluna do dia; padrão 0.
+   */
   gutter?: number;
 }
 
-/** Bloco posicionado. `left/width` são frações 0..1 da largura da coluna do dia. */
+/** Positioned event; horizontal values are fractions of the day column.
+ * @remarks Português: Evento posicionado; valores horizontais são frações da coluna do dia.
+ */
 export interface GeoBlock {
+  /** Stable event placement identifier.
+   * @remarks Português: Identificador estável da posição do evento.
+   */
   id: string;
+  /** Vertical offset from the grid start in pixels.
+   * @remarks Português: Deslocamento vertical desde o início da grade em pixels.
+   */
   top: number;
+  /** Rendered event height in pixels.
+   * @remarks Português: Altura renderizada do evento em pixels.
+   */
   height: number;
+  /** Horizontal offset as a fraction of the day-column width.
+   * @remarks Português: Deslocamento horizontal como fração da largura da coluna do dia.
+   */
   left: number;
+  /** Rendered width as a fraction of the day-column width.
+   * @remarks Português: Largura renderizada como fração da largura da coluna do dia.
+   */
   width: number;
-  /** Índice da coluna atribuída dentro do cluster. */
+
+  /** Zero-based assigned column within the overlap cluster.
+   * @remarks Português: Coluna atribuída no grupo de sobreposição, começando em zero.
+   */
   column: number;
-  /** Total de colunas no cluster (para depuração/estilo). */
+
+  /** Total columns in the overlap cluster.
+   * @remarks Português: Total de colunas no grupo de sobreposição.
+   */
   columns: number;
 }
 
-/** Altura mínima visual padrão (minutos) quando o grid não especifica. */
 const DEFAULT_MIN_EVENT_MINUTES = 15;
-/** Largura mínima de um bloco como fração da coluna (evita blocos "sumirem" ao empacotar). */
+
 const MIN_WIDTH_FRACTION_OF_COLUMN = 0.5;
 
 interface WorkItem extends GeoInput {
-  /** Início/fim recortados ao grid (para px). */
   renderStart: number;
   renderEnd: number;
-  /** Fim usado para colisão (com altura mínima aplicada). */
+
   collisionEnd: number;
   column: number;
 }
@@ -65,17 +100,29 @@ function overlaps(first: WorkItem, second: WorkItem): boolean {
   return first.startMin < second.collisionEnd && second.startMin < first.collisionEnd;
 }
 
-/**
- * Posiciona os eventos timed de UM dia. Eventos totalmente fora da janela [startHour,endHour)
- * são descartados; parcialmente fora são recortados.
+/** Day event layout inputs.
+ * @remarks Português: Entradas do layout de eventos do dia.
  */
-export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[] {
+export interface LayoutDayInput {
+  /** Event intervals in minutes of the display day.
+   * @remarks Português: Intervalos dos eventos em minutos do dia exibido.
+   */
+  items: readonly GeoInput[];
+  /** Visible time window and pixel scale.
+   * @remarks Português: Janela visível de horário e escala em pixels.
+   */
+  grid: GeoGrid;
+}
+
+/** Clip timed events to the grid and pack overlapping intervals into columns.
+ * @remarks Português: Recorta eventos à grade e distribui intervalos sobrepostos em colunas.
+ */
+export function layoutDay({ items, grid }: LayoutDayInput): GeoBlock[] {
   const gridStartMin = grid.startHour * 60;
   const gridEndMin = grid.endHour * 60;
   const minimumMinutes = grid.minEventMinutes ?? DEFAULT_MIN_EVENT_MINUTES;
   const gutter = grid.gutter ?? 0;
 
-  // 1) Recorte ao grid + normalização.
   const workItems: WorkItem[] = [];
   for (const item of items) {
     const clippedStart = Math.max(item.startMin, gridStartMin);
@@ -83,7 +130,7 @@ export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[]
     const outsideGrid = clippedEnd <= gridStartMin || clippedStart >= gridEndMin;
     if (outsideGrid) continue;
     const renderStart = clippedStart;
-    const renderEnd = Math.max(clippedEnd, clippedStart); // nunca negativo
+    const renderEnd = Math.max(clippedEnd, clippedStart);
     const collisionEnd = Math.min(gridEndMin, Math.max(renderEnd, renderStart + minimumMinutes));
     workItems.push({
       id: item.id,
@@ -96,7 +143,6 @@ export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[]
     });
   }
 
-  // 2) Ordena por início asc, depois por duração desc (mais longos primeiro), depois id.
   workItems.sort(
     (first, second) =>
       first.startMin - second.startMin ||
@@ -106,13 +152,18 @@ export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[]
 
   const blocks: GeoBlock[] = [];
 
-  // 3) Agrupa em clusters (conjuntos conectados por sobreposição) e resolve cada um.
   let cluster: WorkItem[] = [];
   let clusterEnd = -Infinity;
 
   const flushCluster = (): void => {
     if (cluster.length === 0) return;
-    resolveCluster(cluster, grid, gridStartMin, gutter, blocks);
+    resolveCluster({
+      cluster,
+      grid,
+      gridStartMin,
+      gutter,
+      blocks,
+    });
     cluster = [];
     clusterEnd = -Infinity;
   };
@@ -128,14 +179,39 @@ export function layoutDay(items: readonly GeoInput[], grid: GeoGrid): GeoBlock[]
   return blocks;
 }
 
-function resolveCluster(
-  cluster: WorkItem[],
-  grid: GeoGrid,
-  gridStartMin: number,
-  gutter: number,
-  blocks: GeoBlock[],
-): void {
-  // Atribuição gulosa de colunas: reusa a primeira coluna livre.
+/** Named inputs for resolveCluster.
+ * @remarks Português: Entradas nomeadas de resolveCluster.
+ */
+interface ResolveClusterInput {
+  /** Connected group of overlapping intervals.
+   * @remarks Português: Grupo conectado de intervalos sobrepostos.
+   */
+  cluster: WorkItem[];
+  /** Visible hour window.
+   * @remarks Português: Janela de horas visíveis.
+   */
+  grid: GeoGrid;
+  /** Inclusive grid start in minutes.
+   * @remarks Português: Início inclusivo da grade em minutos.
+   */
+  gridStartMin: number;
+  /** Horizontal gap fraction of the day column.
+   * @remarks Português: Fração de espaçamento horizontal da coluna do dia.
+   */
+  gutter: number;
+  /** Output collection receiving positioned events.
+   * @remarks Português: Coleção de saída que recebe eventos posicionados.
+   */
+  blocks: GeoBlock[];
+}
+
+function resolveCluster({
+  cluster,
+  grid,
+  gridStartMin,
+  gutter,
+  blocks,
+}: ResolveClusterInput): void {
   const NO_COLUMN = -1;
   const columnEnds: number[] = [];
   for (const workItem of cluster) {
@@ -158,8 +234,6 @@ function resolveCluster(
   }
   const columnCount = columnEnds.length;
 
-  // Expansão waterfall: cada evento cresce à direita enquanto as colunas seguintes
-  // não tiverem nenhum evento que o sobreponha no tempo.
   for (const workItem of cluster) {
     let columnSpan = 1;
     for (let columnIndex = workItem.column + 1; columnIndex < columnCount; columnIndex++) {

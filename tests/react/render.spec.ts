@@ -16,10 +16,8 @@ it('rejects invalid option updates without corrupting state', async () => {
   app.destroy();
 });
 
-// 2026-07-22 é uma quarta-feira; semana (WKST=MO) = 2026-07-20 .. 2026-07-26.
 const REF = '2026-07-22';
 
-// Relógio fixo p/ a linha "agora": 2026-07-22 10:00 em SP.
 const NOW_MS = Number(
   Temporal.PlainDateTime.from('2026-07-22T10:00').toZonedDateTime(TZ).epochMilliseconds,
 );
@@ -88,12 +86,10 @@ describe('CalendarApp — render Week/Day (jsdom)', () => {
 
     const evs = container.querySelectorAll('[data-mc-event]');
     expect(evs.length).toBe(2);
-    // 09:00–10:00 em grid startHour 6 → top 180px, height 60px.
     const e1 = container.querySelector('[data-mc-event="e1@2026-07-22T09:00:00"]') as HTMLElement;
     expect(e1).toBeTruthy();
     expect(e1.style.top).toBe('180px');
     expect(e1.style.height).toBe('60px');
-    // Concurrent events occupy distinct lanes; real widths are verified in the browser.
     expect(new Set([...evs].map((node) => (node as HTMLElement).style.left)).size).toBe(2);
     app.destroy();
   });
@@ -102,9 +98,7 @@ describe('CalendarApp — render Week/Day (jsdom)', () => {
     const { app, container } = makeApp('week');
     await app.ready();
 
-    // fora do expediente sombreado em dias com regra
     expect(container.querySelectorAll('[data-mc-nonbusiness]').length).toBeGreaterThan(0);
-    // bloqueio 12:00–13:00 na quarta
     const wed = container.querySelector('[data-mc-day="2026-07-22"]') as HTMLElement;
     expect(wed.querySelectorAll('[data-mc-blocked]').length).toBe(1);
     app.destroy();
@@ -114,8 +108,7 @@ describe('CalendarApp — render Week/Day (jsdom)', () => {
     const { app, container } = makeApp('week');
     await app.ready();
     const now = container.querySelectorAll('[data-mc-now]');
-    expect(now).toHaveLength(1); // só na quarta (hoje)
-    // 10:00 em grid startHour 6 → top 240px
+    expect(now).toHaveLength(1);
     expect((now[0] as HTMLElement).style.top).toBe('240px');
     app.destroy();
   });
@@ -130,7 +123,6 @@ describe('CalendarApp — render Week/Day (jsdom)', () => {
 
     app.next();
     const rootAfter = container.querySelector('[data-mc-root]');
-    // Preact reaproveita o mesmo nó DOM raiz (nada foi recriado do zero).
     expect(rootAfter).toBe(rootBefore);
     const firstDayAfter = (container.querySelector('[data-mc-day]') as HTMLElement).dataset.mcDay;
     expect(firstDayAfter).toBe('2026-07-27');
@@ -142,8 +134,6 @@ describe('CalendarApp — render Week/Day (jsdom)', () => {
     );
 
     app.today();
-    // hoje cai na semana de 2026-07-20..26 apenas se a data atual do sistema estiver nela;
-    // garantimos ao menos que continua com 7 colunas e o mesmo nó raiz.
     expect(container.querySelector('[data-mc-root]')).toBe(rootBefore);
     expect(container.querySelectorAll('[data-mc-day]')).toHaveLength(7);
     app.destroy();
@@ -167,9 +157,7 @@ describe('CalendarApp — render Week/Day (jsdom)', () => {
     await app.ready();
     expect(app.getTitle()).toMatch(/\d/);
     expect(app.getVisibleRange()).toEqual({ start: '2026-07-20', end: '2026-07-26' });
-    // 12:30 na quarta está bloqueado
     expect(app.evaluateSlot({ date: '2026-07-22', startMin: 750, endMin: 780 }).valid).toBe(false);
-    // 09:00 na quarta é válido (dentro do expediente, sem bloqueio)
     expect(app.evaluateSlot({ date: '2026-07-22', startMin: 540, endMin: 600 }).valid).toBe(true);
     app.destroy();
   });

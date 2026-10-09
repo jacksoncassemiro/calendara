@@ -1,24 +1,10 @@
-/**
- * CalendarApp — controlador do renderer React.
- *
- * Responsabilidade: manter o store (fonte de verdade), resolver o Temporal, expor uma API
- * imperativa (prev/next/today/changeView/setEvents/setConstraints/…) e publicar snapshots
- * React. Calendar monta esses snapshots na árvore do consumidor. A montagem direta do
- * controlador cria seu próprio root React. Mudanças de estado atualizam o snapshot.
- *
- * Pipeline por render: expandir recorrência (memoizada) no range → montar ViewRenderContext →
- * a view ativa desenha o corpo → o Shell envolve com a toolbar → React.
- *
- * eventSource: quando fornecido, o range visível dispara `fetch({start,end})` (expansão lazy);
- * o resultado vira os eventos do store.
- */
+/** React calendar controller and consumer persistence bridge. @remarks Português: Controlador React e integração com persistência do consumidor. */
 import { createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { keyboardGrid } from './keyboardGrid.js';
 import { flushSync } from 'react-dom';
 
 import { createStore, type Store } from '../../core/index.js';
-import { memoize } from '../../core/index.js';
 import { ensureTemporal, type TemporalLike } from '../../core/index.js';
 import { createDateUtils, type DateUtils } from '../../core/index.js';
 import { ConstraintEngine, type Slot } from '../../core/index.js';
@@ -27,7 +13,7 @@ import type { ConstraintSet, SlotEvaluation } from '../../core/index.js';
 import type { CalendarResource } from '../../core/index.js';
 
 import { expandRange, occurrenceKey } from '../../core/index.js';
-import { resourceBusyIntervals } from '../../core/render/derive.js';
+import { resourceBusyIntervals, type ExpandRangeInput } from '../../core/render/derive.js';
 import { occurrencesForResource, resourceConstraintSet } from '../../core/index.js';
 import { InteractionEngine, type EvaluationInput, type DraftEvaluation } from '../../core/index.js';
 import {
@@ -69,6 +55,7 @@ import type {
   MonthMoreRenderSlot,
   ToolbarRenderSlot,
   DayStyleCallback,
+  DayHeaderRenderSlot,
 } from '../viewTypes.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
@@ -77,61 +64,141 @@ export type CalendarEventName =
   'render' | 'dateChange' | 'viewChange' | 'rangeChange' | 'loadingChange' | 'error';
 
 export interface RangeChange {
+  /** Inclusive first date, YYYY-MM-DD.
+   * @remarks Português: Primeira data inclusiva, YYYY-MM-DD.
+   */
   start: string;
+  /** Inclusive last date, YYYY-MM-DD.
+   * @remarks Português: Última data inclusiva, YYYY-MM-DD.
+   */
   end: string;
 }
 
-/** Pass signal to fetch or another abort-aware client to cancel obsolete requests. */
 export interface EventSourceContext {
+  /** Abort obsolete requests.
+   * @remarks Português: Cancela requisições obsoletas.
+   */
   signal: AbortSignal;
 }
 
-/** Fonte de eventos por range (expansão lazy). Pode ser síncrona ou assíncrona. */
 export type EventSource = (
   range: RangeChange,
   context: EventSourceContext,
 ) => CalendarEvent[] | Promise<CalendarEvent[]>;
 
+/** Imperative controller setup.
+ * @remarks Português: Configuração inicial do controlador imperativo.
+ */
 export interface CalendarConfig {
-  /** Used only during construction; date takes precedence when both are present. */
+  /** Initial ISO date; date takes precedence.
+   * @remarks Português: Data ISO inicial; date tem precedência.
+   */
   initialDate?: string;
-  /** Used only during construction; view takes precedence when both are present. */
+  /** Initial view; defaults to the first registered.
+   * @remarks Português: View inicial; padrão é a primeira registrada.
+   */
   initialView?: string;
+  /** Reference date, YYYY-MM-DD; overrides initialDate.
+   * @remarks Português: Data de referência; substitui initialDate.
+   */
   date?: string;
+  /** Registered view name; overrides initialView.
+   * @remarks Português: Nome da view registrada; substitui initialView.
+   */
   view?: string;
+  /** Initial events; persistence belongs to the consumer.
+   * @remarks Português: Eventos iniciais; consumidor persiste alterações.
+   */
   events?: CalendarEvent[];
+  /** Global availability and blocks.
+   * @remarks Português: Disponibilidade e bloqueios gerais.
+   */
   constraints?: ConstraintSet;
+  /** Overrides DEFAULT_OPTIONS.
+   * @remarks Português: Sobrescreve DEFAULT_OPTIONS.
+   */
   options?: Partial<CalendarOptions>;
   /** Complete, nonempty available view selection. @remarks Português: Seleção explícita, não vazia. */
   views: readonly CalendarView[];
-  /** Injeta Temporal já resolvido (testes/SSR). Ausente → carrega via ensureTemporal(). */
+  /** Inject Temporal; otherwise resolve automatically.
+   * @remarks Português: Injeta Temporal; ausente resolve automaticamente.
+   */
   temporal?: TemporalLike;
-  /** Busca eventos por range visível (dispara em cada mudança de range). */
+  /** Load events for each visible range.
+   * @remarks Português: Busca eventos a cada período visível.
+   */
   eventSource?: EventSource;
-  /** Slot para conteúdo customizado de evento. */
+  /** Replace card content, preserving geometry.
+   * @remarks Português: Substitui conteúdo do cartão mantendo geometria.
+   */
   renderEvent?: EventRenderSlot;
+  /** Month overflow content.
+   * @remarks Português: Conteúdo de ver mais no mês.
+   */
   renderMonthMore?: MonthMoreRenderSlot;
+  /** Timed overflow content.
+   * @remarks Português: Conteúdo de ver mais na grade de horários.
+   */
   renderEventMore?: MonthMoreRenderSlot;
+  /** Decorate dates without blocking them.
+   * @remarks Português: Decora datas sem bloqueá-las.
+   */
   getDayStyle?: DayStyleCallback;
+  /** Custom date/resource headings.
+   * @remarks Português: Títulos personalizados de datas/recursos.
+   */
+  renderDayHeader?: DayHeaderRenderSlot;
+  /** Return false to replace default opening.
+   * @remarks Português: Retorne false para substituir a abertura padrão.
+   */
   onMonthMoreClick?: (info: MonthMoreInfo) => void | false;
+  /** Return false to replace timed overflow opening.
+   * @remarks Português: Retorne false para substituir ver mais dos horários.
+   */
   onEventMoreClick?: (info: MonthMoreInfo) => void | false;
-  /** Slot para toolbar customizada (render-prop). */
+  /** Replace navigation using its actions/context.
+   * @remarks Português: Substitui navegação usando ações/contexto.
+   */
   renderToolbar?: ToolbarRenderSlot;
-  /** Recursos (capacity/buffers/businessHours) — habilitam a validação DURA de ocupação (Fase 4). */
+  /** Resource capacity, buffers and availability.
+   * @remarks Português: Capacidade, buffers e disponibilidade dos recursos.
+   */
   resources?: readonly CalendarResource[];
+  /** Activate an occurrence; no automatic editor.
+   * @remarks Português: Ativa ocorrência; não abre editor automaticamente.
+   */
   onEventClick?: (occurrence: EventOccurrence) => void;
+  /** Activate a date; minutes since midnight when timed.
+   * @remarks Português: Ativa data; minutos desde meia-noite se houver horário.
+   */
   onDateClick?: (dateISO: string, minuteOfDay?: number) => void;
-  /** Evento arrastado para novo horário/dia. Retornar `false`/rejeitar ⇒ reverter (revert em falha). */
+  /** Persist a move; false/rejection rolls back.
+   * @remarks Português: Persiste movimento; false/rejeição reverte.
+   */
   onEventDrop?: (change: EventChange) => CommitResult;
+  /** Accept an incoming external event.
+   * @remarks Português: Recebe evento arrastado de fora.
+   */
   onExternalEventDrop?: ExternalEventDropHandler;
+  /** Handle outgoing drops; consumer owns removal.
+   * @remarks Português: Recebe saída; consumidor decide remover.
+   */
   onEventDropOutside?: (info: EventDropOutsideInfo) => void | Promise<void>;
-  /** Evento redimensionado (nova duração). Retornar `false`/rejeitar ⇒ reverter. */
+  /** Persist duration changes; false/rejection rolls back.
+   * @remarks Português: Persiste duração; false/rejeição reverte.
+   */
   onEventResize?: (change: EventChange) => CommitResult;
-  /** Seleção de intervalo em área vazia (drag). */
+  /** Receive a selected empty interval.
+   * @remarks Português: Recebe intervalo selecionado em área vazia.
+   */
   onDateSelect?: (selection: SelectionChange) => void;
-  /** Drop de evento barrado (fora de expediente/bloqueio/lotação/buffer). */
+  /** Placement refused by rules/capacity/buffers.
+   * @remarks Português: Posicionamento recusado por regras/capacidade/buffers.
+   */
   onDropBlocked?: (info: BlockedInfo) => void;
-  /** Seleção/click barrado. */
+  /** Click/selection refused by scheduling rules.
+   * @remarks Português: Clique/seleção recusado pelas regras.
+   */
   onClickBlocked?: (info: BlockedInfo) => void;
 }
 
@@ -158,11 +225,6 @@ function validateResources(resources: readonly CalendarResource[] | undefined): 
   }
 }
 
-/**
- * rAF com fallback (ambientes sem `requestAnimationFrame` — node puro fora do jsdom). jsdom 24
- * já implementa rAF nativamente, então isto só protege SSR/testes exóticos. `setTimeout(~16ms)`
- * aproxima 1 frame quando não há um relógio de vídeo de verdade.
- */
 function scheduleFrame(callback: () => void): number {
   const globalRaf = (globalThis as { requestAnimationFrame?: (cb: FrameRequestCallback) => number })
     .requestAnimationFrame;
@@ -180,12 +242,18 @@ function cancelFrame(handle: number): void {
   clearTimeout(handle);
 }
 
-/** Compare immutable plain data, retaining callback and class-instance identity. */
-function equivalentData(
-  left: unknown,
-  right: unknown,
+function equivalentData({
+  left,
+  right,
   seen = new WeakMap<object, WeakSet<object>>(),
-): boolean {
+}: {
+  /** First value to compare. @remarks Português: Primeiro valor a comparar. */
+  left: unknown;
+  /** Second value to compare. @remarks Português: Segundo valor a comparar. */
+  right: unknown;
+  /** Visited object pairs; omitted starts a fresh traversal. @remarks Português: Pares de objetos visitados; ausente inicia nova travessia. */
+  seen?: WeakMap<object, WeakSet<object>>;
+}): boolean {
   if (Object.is(left, right)) return true;
   if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object')
     return false;
@@ -204,8 +272,30 @@ function equivalentData(
   return keys.every(
     (key) =>
       Object.prototype.hasOwnProperty.call(rightProperties, key) &&
-      equivalentData(leftProperties[key], rightProperties[key], seen),
+      equivalentData({ left: leftProperties[key], right: rightProperties[key], seen }),
   );
+}
+
+/** Cache expansion by its input fields rather than the wrapper object's identity.
+ * @remarks Português: Mantém o cache pelos campos de entrada, não pela identidade do objeto envolvente.
+ */
+function createMemoizedRangeExpansion(): (input: ExpandRangeInput) => EventOccurrence[] {
+  let previousInput: ExpandRangeInput | undefined;
+  let previousResult: EventOccurrence[] = [];
+  return (input) => {
+    if (
+      !previousInput ||
+      previousInput.temporal !== input.temporal ||
+      previousInput.events !== input.events ||
+      previousInput.startISO !== input.startISO ||
+      previousInput.endISO !== input.endISO ||
+      previousInput.displayTimeZone !== input.displayTimeZone
+    ) {
+      previousResult = expandRange(input);
+      previousInput = input;
+    }
+    return previousResult;
+  };
 }
 
 export class CalendarApp {
@@ -214,13 +304,14 @@ export class CalendarApp {
   private readonly engine: ConstraintEngine;
   private readonly listeners = new Map<CalendarEventName, Set<(payload: unknown) => void>>();
   private readonly readyPromise: Promise<void>;
-  private readonly memoExpand = memoize(expandRange);
-  private readonly memoBufferExpand = memoize(expandRange);
-  private readonly memoOccupancyExpand = memoize(expandRange);
+  private readonly memoExpand = createMemoizedRangeExpansion();
+  private readonly memoBufferExpand = createMemoizedRangeExpansion();
+  private readonly memoOccupancyExpand = createMemoizedRangeExpansion();
 
   private eventSource: EventSource | undefined;
   private renderEvent: EventRenderSlot | undefined;
   private getDayStyle: DayStyleCallback | undefined;
+  private renderDayHeader: DayHeaderRenderSlot | undefined;
   private renderEventMore: MonthMoreRenderSlot | undefined;
   private readonly onEventMoreClick: ((info: MonthMoreInfo) => void | false) | undefined;
   private renderMonthMore: MonthMoreRenderSlot | undefined;
@@ -240,10 +331,9 @@ export class CalendarApp {
   private unregisterExternalReceiver: (() => void) | undefined;
   private resources: readonly CalendarResource[];
   private hasResourceConfig: boolean;
-  /** Índice das ocorrências do render atual (id do bloco → ocorrência), para a interação. */
+
   private occurrenceIndex = new Map<string, EventOccurrence>();
-  /** Ocorrências do render atual (base da validação de ocupação). */
-  /** Rascunho vivo do gesto (desenhado como fantasma). */
+
   private draft: InteractionDraft | null = null;
 
   private container: HTMLElement | null = null;
@@ -266,7 +356,7 @@ export class CalendarApp {
   private fetchPending = false;
   private rangePending = false;
   private readonly rejectedOptimistic = new WeakMap<CalendarEvent, CalendarEvent>();
-  /** rAF pendente do render de rascunho (throttle do fantasma durante drag — ver scheduleDraftRender). */
+
   private draftRenderHandle: number | null = null;
 
   constructor(config: CalendarConfig) {
@@ -292,6 +382,7 @@ export class CalendarApp {
     this.eventSource = config.eventSource;
     this.renderEvent = config.renderEvent;
     this.getDayStyle = config.getDayStyle;
+    this.renderDayHeader = config.renderDayHeader;
     this.renderEventMore = config.renderEventMore;
     this.onEventMoreClick = config.onEventMoreClick;
     this.renderMonthMore = config.renderMonthMore;
@@ -326,9 +417,6 @@ export class CalendarApp {
     });
   }
 
-  // ---- ciclo de vida ---------------------------------------------------------
-
-  /** Monta o calendário no container. Renderiza assim que Temporal + fetch inicial estiverem prontos. */
   mount(container: HTMLElement, options: { external?: boolean } = {}): void {
     if (this.destroyed) throw new Error('[calendara] calendário destruído');
     if (this.container === container) return;
@@ -340,18 +428,21 @@ export class CalendarApp {
     if (!this.unsubscribe) {
       this.unsubscribe = this.store.subscribe(() => this.renderNow());
     }
-    // Delegação de Pointer Events no container (persiste entre re-renders do React).
+
     this.interaction.attach(container);
     this.unregisterExternalReceiver?.();
-    this.unregisterExternalReceiver = registerExternalDragReceiver(container, {
-      canReceive: (clientX, clientY) =>
-        Boolean(
-          this.onExternalEventDrop &&
-          this.temporal &&
-          this.interaction.locatePointerSlot(clientX, clientY),
-        ),
-      start: (event, pointer) => this.startExternalEvent(event, pointer),
-      cancel: () => this.interaction.cancelDrag(),
+    this.unregisterExternalReceiver = registerExternalDragReceiver({
+      root: container,
+      receiver: {
+        canReceive: (clientX, clientY) =>
+          Boolean(
+            this.onExternalEventDrop &&
+            this.temporal &&
+            this.interaction.locatePointerSlot(clientX, clientY),
+          ),
+        start: (event, pointer) => this.startExternalEvent(event, pointer),
+        cancel: () => this.interaction.cancelDrag(),
+      },
     });
     void this.readyPromise
       .then(() => {
@@ -362,7 +453,6 @@ export class CalendarApp {
       });
   }
 
-  /** Resolve quando Temporal + fetch inicial estão prontos e um primeiro render (se montado) ocorreu. */
   ready(): Promise<void> {
     return this.readyPromise.then(() => {
       if (this.container && this.snapshot === null) this.renderNow();
@@ -390,12 +480,15 @@ export class CalendarApp {
     this.listeners.clear();
   }
 
-  /** Atualiza a lista de recursos usada pela validação DURA de ocupação. */
   setResources(resources: readonly CalendarResource[] | undefined): void {
     validateResources(resources);
     const hasConfig = resources !== undefined;
     const normalized = resources ?? [];
-    if (hasConfig === this.hasResourceConfig && equivalentData(this.resources, normalized)) return;
+    if (
+      hasConfig === this.hasResourceConfig &&
+      equivalentData({ left: this.resources, right: normalized })
+    )
+      return;
     this.hasResourceConfig = hasConfig;
     this.resources = normalized;
     this.renderNow();
@@ -420,6 +513,11 @@ export class CalendarApp {
     this.getDayStyle = callback;
     this.renderNow();
   }
+  setRenderDayHeader(slot: DayHeaderRenderSlot | undefined): void {
+    if (this.renderDayHeader === slot) return;
+    this.renderDayHeader = slot;
+    this.renderNow();
+  }
 
   setRenderEventMore(slot: MonthMoreRenderSlot | undefined): void {
     if (this.renderEventMore === slot) return;
@@ -438,8 +536,6 @@ export class CalendarApp {
     this.renderToolbar = slot;
     this.renderNow();
   }
-
-  // ---- API imperativa --------------------------------------------------------
 
   getState(): Readonly<CalendarState> {
     return this.store.getState();
@@ -478,14 +574,14 @@ export class CalendarApp {
   }
 
   setEvents(events: readonly CalendarEvent[]): void {
-    if (equivalentData(this.store.getState().events, events)) return;
+    if (equivalentData({ left: this.store.getState().events, right: events })) return;
     this.cancelFetch();
     this.setLoading(false);
     this.store.setState({ events });
   }
 
   setConstraints(constraints: ConstraintSet): void {
-    if (equivalentData(this.store.getState().constraints, constraints)) return;
+    if (equivalentData({ left: this.store.getState().constraints, right: constraints })) return;
     this.engine.update(constraints);
     this.store.setState({ constraints });
   }
@@ -494,7 +590,6 @@ export class CalendarApp {
     this.applyOptions({ ...this.store.getState().options, ...patch });
   }
 
-  /** Declarative options reset omitted keys to their defaults. */
   replaceOptions(options: Partial<CalendarOptions> | undefined): void {
     this.applyOptions({ ...DEFAULT_OPTIONS, ...options });
   }
@@ -503,40 +598,39 @@ export class CalendarApp {
     const previousOptions = this.store.getState().options;
     const previousRange = this.temporal ? this.getVisibleRange() : null;
     validateCalendarOptions(options);
-    if (equivalentData(this.store.getState().options, options)) return;
+    if (equivalentData({ left: this.store.getState().options, right: options })) return;
     this.store.setState({ options });
     const nextRange = this.temporal ? this.getVisibleRange() : null;
     if (
       previousOptions.timeZone !== options.timeZone ||
-      !equivalentData(previousRange, nextRange)
+      !equivalentData({ left: previousRange, right: nextRange })
     ) {
       this.emitRange();
       this.refetch();
     }
   }
 
-  /** Toggle de visibilidade de recursos nas views de recurso (undefined = todos). */
   setVisibleResources(resourceIds: readonly string[] | undefined): void {
     this.setOptions({ visibleResourceIds: resourceIds });
   }
 
-  /** Registra/subscreve view nova (1ª classe). */
   registerView(view: CalendarView): void {
     createViewRegistry([view]);
-    if (equivalentData(this.views.get(view.name), view)) return;
+    if (equivalentData({ left: this.views.get(view.name), right: view })) return;
     const previousRange = this.temporal ? this.getVisibleRange() : null;
     this.views.set(view.name, view);
     this.renderNow();
     this.refetchChangedRange(previousRange);
   }
 
-  /** Replace the complete, nonempty available view selection. */
   setViews(configuredViews: readonly CalendarView[]): void {
     const next = createViewRegistry(configuredViews);
     const previousViews = [...this.views.values()];
     if (
       next.size === this.views.size &&
-      configuredViews.every((view, index) => equivalentData(previousViews[index], view))
+      configuredViews.every((view, index) =>
+        equivalentData({ left: previousViews[index], right: view }),
+      )
     )
       return;
     const previousRange = this.temporal ? this.getVisibleRange() : null;
@@ -554,13 +648,12 @@ export class CalendarApp {
 
   private refetchChangedRange(previousRange: RangeChange | null): void {
     if (!this.temporal) return;
-    if (!equivalentData(previousRange, this.getVisibleRange())) {
+    if (!equivalentData({ left: previousRange, right: this.getVisibleRange() })) {
       this.emitRange();
       this.refetch();
     }
   }
 
-  /** Apply a declarative update as one snapshot and one request for its final range. */
   batchUpdate(update: () => void): void {
     this.updateDepth++;
     try {
@@ -581,34 +674,28 @@ export class CalendarApp {
     }
   }
 
-  /** Views disponíveis (nome + rótulo). */
   listViews(): { name: string; label: string }[] {
     return [...this.views.values()].map((view) => ({ name: view.name, label: view.label }));
   }
 
-  /** Título da view/data atuais. */
   getTitle(): string {
     const { view, range, context } = this.resolveView();
     return view.getTitle(range, context);
   }
 
-  /** Range visível (datas ISO inclusivas) — dispara eventSource.fetch. */
   getVisibleRange(): RangeChange {
     const { range } = this.resolveView();
     return { start: range.startDate.toString(), end: range.endDate.toString() };
   }
 
-  /** Delegação ao ConstraintEngine (mesma fonte da camada de fundo). */
   evaluateSlot(slot: Slot): SlotEvaluation {
     return this.engine.evaluate(slot);
   }
 
-  /** Evaluate creation or editing with the same resource rules used by pointer gestures. */
   evaluatePlacement(input: EvaluationInput): DraftEvaluation {
     return this.evaluateDraft(input);
   }
 
-  /** Validate an editor candidate against the same constraints and occupancy as gestures. */
   evaluateEvent(event: CalendarEvent, occurrence?: EventOccurrence): DraftEvaluation {
     if (!this.temporal) {
       throw new Error('[calendara] evaluateEvent requer o calendário pronto; aguarde ready().');
@@ -639,13 +726,11 @@ export class CalendarApp {
     return () => listenerSet!.delete(callback);
   }
 
-  // ---- interno ---------------------------------------------------------------
-
   private navigate(direction: 'prev' | 'next'): void {
     if (!this.temporal || !this.dateUtils) return;
     const { view, context } = this.resolveView();
     const currentDate = this.temporal.PlainDate.from(this.store.getState().date);
-    const nextDate = view.navigate(direction, currentDate, context);
+    const nextDate = view.navigate({ direction, date: currentDate, context });
     this.setDate(nextDate.toString());
   }
 
@@ -673,17 +758,16 @@ export class CalendarApp {
     const state = this.store.getState();
     const startISO = range.startDate.toString();
     const endISO = range.endDate.toString();
-    // Memoizada por (temporal, events, start, end): trocar constraints não recomputa ocorrências.
-    const occurrences: EventOccurrence[] = this.memoExpand(
+
+    const occurrences = this.memoExpand({
       temporal,
-      state.events,
+      events: state.events,
       startISO,
       endISO,
-      state.options.timeZone,
-    );
+      displayTimeZone: state.options.timeZone,
+    });
     const nowMs = state.options.nowMs ?? Date.now();
 
-    // Índice para a interação (id do bloco → ocorrência) e base da validação de ocupação.
     this.occurrenceIndex = new Map(
       occurrences.map((occurrence) => [occurrenceKey(occurrence), occurrence]),
     );
@@ -708,17 +792,18 @@ export class CalendarApp {
       ) / 1440,
     );
     if (bufferPaddingDays > 0)
-      context.resourceBufferOccurrences = this.memoBufferExpand(
+      context.resourceBufferOccurrences = this.memoBufferExpand({
         temporal,
-        state.events,
-        range.startDate.subtract({ days: bufferPaddingDays }).toString(),
-        range.endDate.add({ days: bufferPaddingDays }).toString(),
-        state.options.timeZone,
-      );
+        events: state.events,
+        startISO: range.startDate.subtract({ days: bufferPaddingDays }).toString(),
+        endISO: range.endDate.add({ days: bufferPaddingDays }).toString(),
+        displayTimeZone: state.options.timeZone,
+      });
     if (this.draft) context.draft = this.draft;
     if (this.renderEvent) context.renderEvent = this.renderEvent;
     context.viewName = state.viewName;
     if (this.getDayStyle) context.getDayStyle = this.getDayStyle;
+    if (this.renderDayHeader) context.renderDayHeader = this.renderDayHeader;
     if (this.renderEventMore) context.renderEventMore = this.renderEventMore;
     if (this.onEventMoreClick) context.onEventMoreClick = this.onEventMoreClick;
     if (this.renderMonthMore) context.renderMonthMore = this.renderMonthMore;
@@ -730,15 +815,19 @@ export class CalendarApp {
       });
     if (this.onEventClick) context.onEventClick = this.onEventClick;
     if (this.onDateClick)
-      context.onDateClick = (dateISO, minuteOfDay) => this.clickDate(dateISO, minuteOfDay);
+      context.onDateClick = (dateISO, minuteOfDay) => this.clickDate({ dateISO, minuteOfDay });
     return context;
   }
 
-  private buildToolbarContext(
-    view: CalendarView,
-    range: ViewRange,
-    context: ViewContext,
-  ): ToolbarContext {
+  private buildToolbarContext({
+    view,
+    range,
+    context,
+  }: {
+    view: CalendarView;
+    range: ViewRange;
+    context: ViewContext;
+  }): ToolbarContext {
     return {
       title: view.getTitle(range, context),
       viewName: this.store.getState().viewName,
@@ -760,7 +849,7 @@ export class CalendarApp {
     const { view, range, context } = this.resolveView();
     const renderContext = this.buildRenderContext(range);
     const body = view.render(renderContext);
-    const toolbar = this.buildToolbarContext(view, range, context);
+    const toolbar = this.buildToolbarContext({ view, range, context });
     const tree = createElement(CalendarShell, {
       toolbar,
       body,
@@ -772,23 +861,19 @@ export class CalendarApp {
     this.emit('render', renderContext);
   }
 
-  /** Agenda (no máx. 1 por frame) o render do rascunho vivo — ver `onDraftChange` acima. */
   private scheduleDraftRender(): void {
-    if (this.draftRenderHandle !== null) return; // já agendado: pegará o `this.draft` mais recente
+    if (this.draftRenderHandle !== null) return;
     this.draftRenderHandle = scheduleFrame(() => {
       this.draftRenderHandle = null;
       this.renderNow();
     });
   }
 
-  /** Cancela um render de rascunho pendente (fim de gesto, destroy). */
   private cancelScheduledDraftRender(): void {
     if (this.draftRenderHandle === null) return;
     cancelFrame(this.draftRenderHandle);
     this.draftRenderHandle = null;
   }
-
-  // ---- interação (Fase 4) ----------------------------------------------------
 
   setExternalDragCallbacks(
     receive: ExternalEventDropHandler | undefined,
@@ -848,8 +933,10 @@ export class CalendarApp {
 
   private notifyExternalDrop(change: EventChange): void {
     change.timeZone = this.store.getState().options.timeZone;
-    const receivedEvent = applyEventTimeChange([change.event], change)[0]!;
-    receivedEvent.resourceIds = [...this.resourceIdsAfterDrop(change.occurrence, change)];
+    const receivedEvent = applyEventTimeChange({ events: [change.event], change })[0]!;
+    receivedEvent.resourceIds = [
+      ...this.resourceIdsAfterDrop({ occurrence: change.occurrence, input: change }),
+    ];
     change.event = receivedEvent;
     this.runTransferCallback(() => this.onExternalEventDrop?.(change));
   }
@@ -864,7 +951,6 @@ export class CalendarApp {
     }
   }
 
-  /** Constrói o InteractionEngine ligado a este app (dados vivos + política de avaliação). */
   private createInteractionEngine(): InteractionEngine {
     return new InteractionEngine({
       getGridBounds: () => {
@@ -882,7 +968,7 @@ export class CalendarApp {
       evaluate: (input) => this.evaluateDraft(input),
       resolveOccurrence: (eventId) => this.occurrenceIndex.get(eventId) ?? null,
       resolveSpan: (occurrence) => this.resolveOccurrenceSpan(occurrence),
-      normalizeDraft: (draft, origin, kind) => {
+      normalizeDraft: ({ draft, origin, kind }) => {
         if (kind !== 'move' || draft.allDay || origin.durationMinutes === undefined) return draft;
         const start = this.temporal!.PlainDate.from(draft.dateISO)
           .toPlainDateTime()
@@ -896,20 +982,17 @@ export class CalendarApp {
         onDraftChange: (draft) => {
           this.draft = draft;
           if (draft === null) {
-            // Fim do gesto (commit/revert/blocked/cancel): não há motivo pra esperar o próximo
-            // frame — renderiza já e descarta qualquer render de rascunho ainda agendado, pra
-            // nenhum render "atrasado" pisar em cima do estado final.
             this.cancelScheduledDraftRender();
             this.renderNow();
             return;
           }
-          // Rascunho vivo (arrasto em andamento): `pointermove` bruto dispara MUITAS vezes por
-          // segundo; sem throttle, cada um vira um `renderNow()` (React completo) síncrono +
-          // `locateByRects` relendo `getBoundingClientRect()` de cada coluna — layout thrashing.
-          // Coalesce em no máximo 1 render por frame, sempre com o rascunho mais recente.
+
+          /** Coalesce pointer previews into one render per animation frame.
+           * @remarks Português: Agrupa prévias do ponteiro em uma renderização por quadro de animação.
+           */
           this.scheduleDraftRender();
         },
-        commitMove: (change) => this.applyEventChange(change, this.onEventDrop),
+        commitMove: (change) => this.applyEventChange({ change, callback: this.onEventDrop }),
         commitExternal: (change) => this.notifyExternalDrop(change),
         dropOutside: (placement, target) => {
           if (this.onEventDropOutside)
@@ -917,18 +1000,19 @@ export class CalendarApp {
               this.onEventDropOutside?.({ ...target, occurrence: placement.occurrence }),
             );
         },
-        commitResize: (change) => this.applyEventChange(change, this.onEventResize),
+        commitResize: (change) => this.applyEventChange({ change, callback: this.onEventResize }),
         commitSelect: (selection) => this.onDateSelect?.(selection),
         clickEvent: (placement) => this.onEventClick?.(placement.occurrence),
         clickEmpty: (slot: PointerSlot) =>
-          this.clickDate(
-            slot.dateISO,
-            slot.dateOnly || slot.allDay
-              ? undefined
-              : Math.floor(slot.minuteOfDay / this.store.getState().options.slotMinutes) *
+          this.clickDate({
+            dateISO: slot.dateISO,
+            minuteOfDay:
+              slot.dateOnly || slot.allDay
+                ? undefined
+                : Math.floor(slot.minuteOfDay / this.store.getState().options.slotMinutes) *
                   this.store.getState().options.slotMinutes,
-            slot.resourceId,
-          ),
+            resourceId: slot.resourceId,
+          }),
         blocked: (info: BlockedInfo) => {
           const isSelection = info.kind === 'select';
           if (isSelection) this.onClickBlocked?.(info);
@@ -938,23 +1022,34 @@ export class CalendarApp {
     });
   }
 
-  /** Avalia um candidato: ConstraintEngine (business/blocked/allowed) + ocupação de recurso. */
   private readonly onGridKeyDown = (event: KeyboardEvent): void => {
     if (!this.container || !this.temporal) return;
-    keyboardGrid(event, this.container, (dateISO, startMin, endMin, resourceId) => {
-      const input: EvaluationInput = { kind: 'select', dateISO, startMin, endMin, resourceId };
-      const evaluation = this.evaluateDraft(input);
-      if (!evaluation.valid) {
-        this.onClickBlocked?.({ ...input, reason: evaluation.reason });
-      } else if (this.onDateSelect) {
-        this.onDateSelect({ dateISO, startMin, endMin, resourceId });
-      } else {
-        this.onDateClick?.(dateISO, startMin);
-      }
+    keyboardGrid({
+      event,
+      root: this.container,
+      activate: ({ dateISO, startMin, endMin, resourceId }) => {
+        const input: EvaluationInput = { kind: 'select', dateISO, startMin, endMin, resourceId };
+        const evaluation = this.evaluateDraft(input);
+        if (!evaluation.valid) {
+          this.onClickBlocked?.({ ...input, reason: evaluation.reason });
+        } else if (this.onDateSelect) {
+          this.onDateSelect({ dateISO, startMin, endMin, resourceId });
+        } else {
+          this.onDateClick?.(dateISO, startMin);
+        }
+      },
     });
   };
 
-  private clickDate(dateISO: string, minuteOfDay?: number, resourceId?: string): void {
+  private clickDate({
+    dateISO,
+    minuteOfDay,
+    resourceId,
+  }: {
+    dateISO: string;
+    minuteOfDay?: number | undefined;
+    resourceId?: string | undefined;
+  }): void {
     const startMin = minuteOfDay ?? 0;
     const endMin =
       minuteOfDay === undefined
@@ -1019,7 +1114,7 @@ export class CalendarApp {
       : { date: input.dateISO, startMin: input.startMin, endMin: input.endMin };
     const occurrence = input.occurrence;
     const resourceIds = occurrence
-      ? this.resourceIdsAfterDrop(occurrence, input)
+      ? this.resourceIdsAfterDrop({ occurrence, input })
       : input.resourceId === undefined
         ? []
         : [input.resourceId];
@@ -1041,67 +1136,80 @@ export class CalendarApp {
       for (const resourceId of resourceIds) {
         const resource = this.resources.find((candidate) => candidate.id === resourceId);
         if (!resource) continue;
-        const occupancyResult = this.evaluateResourceOccupancy(resource.id, input);
+        const occupancyResult = this.evaluateResourceOccupancy({
+          resourceId: resource.id,
+          input,
+        });
         if (!occupancyResult.valid) return occupancyResult;
       }
     }
     return { valid: true, reason: 'ok' };
   }
 
-  /**
-   * Recursos que o evento passará a ocupar SE o candidato for aceito — o que a ocupação precisa
-   * validar. Numa view de data é o conjunto atual; numa view de recurso é o conjunto atual com a
-   * coluna de origem trocada pela de destino (mesma função que o commit aplica, para fantasma e
-   * commit nunca discordarem). Um evento sala+profissional arrastado entre profissionais continua
-   * sendo validado contra a sala.
-   */
-  private resourceIdsAfterDrop(
-    occurrence: EventOccurrence,
-    input: EvaluationInput,
-  ): readonly string[] {
+  private resourceIdsAfterDrop({
+    occurrence,
+    input,
+  }: {
+    /** Original occurrence retaining its identity. @remarks Português: Ocorrência original com identidade preservada. */
+    occurrence: EventOccurrence;
+    /** Candidate placement to validate. @remarks Português: Posicionamento candidato a validar. */
+    input: EvaluationInput;
+  }): readonly string[] {
     const current = occurrence.event.resourceIds ?? [];
     if (input.resourceId === undefined) return current;
     if (input.fromResourceId === undefined) return [...new Set([...current, input.resourceId])];
-    return reassignResource(current, input.fromResourceId, input.resourceId);
+    return reassignResource({
+      resourceIds: current,
+      fromResourceId: input.fromResourceId,
+      toResourceId: input.resourceId,
+    });
   }
 
-  /**
-   * Resolve the same effective global and resource rules used by background bands.
-   * Each resource assigned to an event is evaluated, including in ordinary date views.
-   */
   private constraintEngineFor(resource: CalendarResource | undefined): ConstraintEngine {
     if (!resource) return this.engine;
-    return new ConstraintEngine(resourceConstraintSet(resource, this.store.getState().constraints));
+    return new ConstraintEngine(
+      resourceConstraintSet({ resource, global: this.store.getState().constraints }),
+    );
   }
 
-  /** Ocupação de UM recurso: concorrência (lotação) + buffers na nova posição do candidato. */
-  private evaluateResourceOccupancy(resourceId: string, input: EvaluationInput): DraftEvaluation {
+  private evaluateResourceOccupancy({
+    resourceId,
+    input,
+  }: {
+    /** Resource whose occupancy is evaluated. @remarks Português: Recurso cuja ocupação será avaliada. */
+    resourceId: string;
+    /** Candidate placement to validate. @remarks Português: Posicionamento candidato a validar. */
+    input: EvaluationInput;
+  }): DraftEvaluation {
     const temporal = this.temporal!;
     const resource = this.resources.find((candidate) => candidate.id === resourceId)!;
     const movedId = input.occurrence ? occurrenceKey(input.occurrence) : '';
     const dayPlain = temporal.PlainDate.from(input.dateISO);
     const state = this.store.getState();
-    // Both the existing reservation and candidate acquire buffers. Fetch the
-    // neighbouring dates before clipping; a 23:50 end can occupy tomorrow.
+
+    /** Include neighboring dates whose buffers reach this day.
+     * @remarks Português: Inclui datas vizinhas cujos intervalos de preparação alcançam este dia.
+     */
     const bufferDays = Math.ceil(
       ((resource.bufferBefore ?? 0) + (resource.bufferAfter ?? 0)) / 1440,
     );
-    const candidates = this.memoOccupancyExpand(
+    const candidates = this.memoOccupancyExpand({
       temporal,
-      state.events,
-      dayPlain.subtract({ days: bufferDays }).toString(),
-      dayPlain.add({ days: bufferDays }).toString(),
-      state.options.timeZone,
-    );
-    const resourceOccurrences = occurrencesForResource(candidates, resourceId).filter(
-      (occurrence) => occurrenceKey(occurrence) !== movedId,
-    );
-    const busy = resourceBusyIntervals(
+      events: state.events,
+      startISO: dayPlain.subtract({ days: bufferDays }).toString(),
+      endISO: dayPlain.add({ days: bufferDays }).toString(),
+      displayTimeZone: state.options.timeZone,
+    });
+    const resourceOccurrences = occurrencesForResource({
+      occurrences: candidates,
+      resourceId,
+    }).filter((occurrence) => occurrenceKey(occurrence) !== movedId);
+    const busy = resourceBusyIntervals({
       temporal,
-      dayPlain,
-      resourceOccurrences,
-      state.options.timeZone,
-    );
+      day: dayPlain,
+      occurrences: resourceOccurrences,
+      displayTimeZone: state.options.timeZone,
+    });
     const occupancy: ResourceOccupancy = {
       capacity:
         resource.capacity === false
@@ -1114,24 +1222,30 @@ export class CalendarApp {
       bufferAfter: resource.bufferAfter ?? 0,
       busy,
     };
-    return validateOccupancy({ startMin: input.startMin, endMin: input.endMin }, occupancy);
+    return validateOccupancy({
+      candidate: { startMin: input.startMin, endMin: input.endMin },
+      occupancy,
+    });
   }
 
-  /**
-   * Commit otimista de mover/redimensionar: aplica a mudança no store e chama o callback.
-   * Se o callback retornar `false` ou rejeitar, REVERTE ao estado anterior (revert em falha).
-   */
-  private applyEventChange(
-    change: EventChange,
-    callback: ((change: EventChange) => CommitResult) | undefined,
-  ): void {
+  private applyEventChange({
+    change,
+    callback,
+  }: {
+    /** Optimistic event change to apply. @remarks Português: Alteração otimista do evento a aplicar. */
+    change: EventChange;
+    /** Consumer persistence callback; undefined accepts locally. @remarks Português: Callback de persistência do consumidor; undefined aceita localmente. */
+    callback: ((change: EventChange) => CommitResult) | undefined;
+  }): void {
     change.timeZone = this.store.getState().options.timeZone;
     const previousEvents = this.store.getState().events;
-    const nextEvents = applyEventTimeChange(previousEvents, change);
+    const nextEvents = applyEventTimeChange({ events: previousEvents, change });
     this.setEvents(nextEvents);
     if (!callback) return;
-    // Revert only optimistic objects still owned by this operation. Newer edits
-    // and updates of other events must survive an older rejection.
+
+    /** Roll back changed identities without overwriting newer consumer updates.
+     * @remarks Português: Reverte identidades alteradas sem sobrescrever atualizações posteriores do consumidor.
+     */
     const originals = new Map<CalendarEvent, CalendarEvent>();
     nextEvents.forEach((event, index) => {
       if (event !== previousEvents[index]) originals.set(event, previousEvents[index]!);
@@ -1167,12 +1281,10 @@ export class CalendarApp {
       .catch(rollback);
   }
 
-  /** Initial request belongs to ready(), while navigation requests run independently. */
   private runInitialFetch(): void | Promise<void> {
     return this.fetchEvents();
   }
 
-  /** Refetch the final visible range, cancelling any superseded request. */
   refetch(): void {
     if (this.updateDepth > 0) {
       this.fetchPending = true;
@@ -1213,7 +1325,7 @@ export class CalendarApp {
         if (
           isCurrentRequest() &&
           events !== undefined &&
-          !equivalentData(this.store.getState().events, events)
+          !equivalentData({ left: this.store.getState().events, right: events })
         ) {
           this.store.setState({ events });
         }

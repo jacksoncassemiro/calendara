@@ -8,7 +8,7 @@ import type { CalendarEvent } from '../../src/core/index.js';
 import { createNDaysView } from '../../src/react/views/timeGridViews.js';
 
 const TZ = 'America/Sao_Paulo';
-const REF = '2026-07-22'; // quarta-feira
+const REF = '2026-07-22';
 const NOW_MS = Number(
   Temporal.PlainDateTime.from('2026-07-22T10:00').toZonedDateTime(TZ).epochMilliseconds,
 );
@@ -79,9 +79,7 @@ describe('Fase 3 — Month / List / NDays', () => {
     app.changeView('month');
 
     expect(container.querySelectorAll('[data-mc-month-day]')).toHaveLength(35);
-    // e3 (semanal, quartas) aparece em 01, 08, 15, 22, 29 de julho.
     expect(container.querySelectorAll('[data-mc-month-event^="e3@"]').length).toBe(5);
-    // 22/07 tem a consulta (e1) e a reunião semanal (e3).
     const wed22 = container.querySelector('[data-mc-month-day="2026-07-22"]') as HTMLElement;
     expect(wed22.querySelectorAll('[data-mc-month-event]').length).toBe(2);
     app.destroy();
@@ -92,7 +90,6 @@ describe('Fase 3 — Month / List / NDays', () => {
     await app.ready();
     app.changeView('list');
 
-    // Semana 20–26/07: e1 (22), e3 (22) e e2 all-day (23) = 3 itens em 2 dias.
     expect(container.querySelectorAll('[data-mc-list-item]')).toHaveLength(3);
     expect(container.querySelectorAll('[data-mc-list-day]')).toHaveLength(2);
     app.destroy();
@@ -113,7 +110,6 @@ describe('Fase 3 — eventSource (fetch por range)', () => {
     const calls: RangeChange[] = [];
     const eventSource = (range: RangeChange): CalendarEvent[] => {
       calls.push(range);
-      // devolve a consulta só quando o range cobre 22/07
       return range.start <= '2026-07-22' && range.end >= '2026-07-22' ? [events[0]!] : [];
     };
     const container = document.createElement('div');
@@ -139,14 +135,13 @@ describe('Fase 3 — eventSource (fetch por range)', () => {
     expect(calls[0]).toEqual({ start: '2026-07-20', end: '2026-07-26' });
     expect(container.querySelectorAll('[data-mc-event]').length).toBe(1);
 
-    app.next(); // dispara refetch com o novo range
+    app.next();
     await Promise.resolve();
     await Promise.resolve();
     expect(calls[calls.length - 1]).toEqual({
       start: '2026-07-27',
       end: '2026-08-02',
     });
-    // fora do range de 22/07 → sem eventos
     expect(container.querySelectorAll('[data-mc-event]').length).toBe(0);
     app.destroy();
   });
@@ -172,7 +167,7 @@ describe('Fase 3 — slots customizados', () => {
     });
     await app.ready();
     expect(container.querySelector('[data-mc-custom-toolbar]')).toBeTruthy();
-    expect(container.querySelector('[data-mc-toolbar]')).toBeNull(); // toolbar padrão ausente
+    expect(container.querySelector('[data-mc-toolbar]')).toBeNull();
     app.destroy();
   });
 

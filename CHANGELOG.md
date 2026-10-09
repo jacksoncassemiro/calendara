@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- Named-input contracts for core utilities and custom-view navigation; positional overloads and compatibility adapters are removed (breaking change).
+- Contract audit and generated EN/PT reference cover controller, editor and custom-view integration types.
+
+- `renderDayHeader` customizes day/resource headers while retaining their default content; day decoration responds to consumer API data.
+- Synchronized horizontal scrollbar above overflowing time grids and resource timelines.
+
+### Fixed
+
+- Touch swipes scroll without briefly creating a gesture preview; holding enables intentional moves.
+- All-day labels stay aligned with the time axis during combined page and horizontal scrolling.
+- Bounded month weeks share a consistent height; narrow overflow labels stay within their cells and today's number uses compact emphasis.
+- Day-status demo colors support both themes. Focused examples display their actual configuration and custom-view source.
+- Publishing guides contain reusable maintainer instructions rather than conversation or approval history.
+
 ## [0.1.1] - 2026-10-08
 
 ### Added

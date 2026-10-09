@@ -25,7 +25,6 @@ function intersectBusinessHours(first: BusinessHours[], second: BusinessHours[])
       }
     }
   }
-  // An empty array means unrestricted to ConstraintEngine. Keep an explicit closed rule.
   return intersections.length > 0
     ? intersections
     : [{ daysOfWeek: [], startTime: '00:00', endTime: '24:00' }];
@@ -51,11 +50,27 @@ function intersectAllowedRanges(first: DateRange[], second: DateRange[]): DateRa
   return intersections.length > 0 ? intersections : [{ start: LAST_DATE, end: FIRST_DATE }];
 }
 
-/** Local availability narrows global rules; local blocks never affect another resource. */
-export function resourceConstraintSet(
-  resource: CalendarResource,
-  global: ConstraintSet,
-): ConstraintSet {
+/** Global and resource-local availability inputs.
+ * @remarks Português: Entradas de disponibilidade geral e local do recurso.
+ */
+export interface ResourceConstraintSetInput {
+  /** Resource whose local rules are evaluated.
+   * @remarks Português: Recurso cujas regras locais serão avaliadas.
+   */
+  resource: CalendarResource;
+  /** Global availability retained for this resource.
+   * @remarks Português: Disponibilidade geral preservada para este recurso.
+   */
+  global: ConstraintSet;
+}
+
+/** Combine global and local availability; local rules never relax global restrictions.
+ * @remarks Português: Combina disponibilidade geral e local; regras locais não relaxam restrições gerais.
+ */
+export function resourceConstraintSet({
+  resource,
+  global,
+}: ResourceConstraintSetInput): ConstraintSet {
   const local = resource.constraints ?? {};
   const businessHours = intersectBusinessHours(
     intersectBusinessHours(global.businessHours ?? [], resource.businessHours ?? []),
@@ -73,13 +88,38 @@ export function resourceConstraintSet(
   return result;
 }
 
-/** Background bands use the same engine as placement, including allowed date/time windows. */
-export function resourceSlotBands(
-  constraints: ConstraintSet,
-  date: string,
-  startMin: number,
-  endMin: number,
-): Segment[] {
+/** Named inputs for resourceSlotBands.
+ * @remarks Português: Entradas nomeadas de resourceSlotBands.
+ */
+export interface ResourceSlotBandsInput {
+  /** Availability rules to evaluate.
+   * @remarks Português: Regras de disponibilidade a avaliar.
+   */
+  constraints: ConstraintSet;
+  /** Evaluated ISO date in YYYY-MM-DD.
+   * @remarks Português: Data ISO avaliada em YYYY-MM-DD.
+   */
+  date: string;
+  /** Inclusive minute-of-day window start.
+   * @remarks Português: Início inclusivo da janela em minutos do dia.
+   */
+  startMin: number;
+  /** Exclusive minute-of-day window end.
+   * @remarks Português: Fim exclusivo da janela em minutos do dia.
+   */
+  endMin: number;
+}
+
+/** Derive unavailable background intervals using the same rules as placement validation.
+ * @remarks Português: Deriva faixas de fundo indisponíveis com as mesmas regras da validação de posicionamento.
+ */
+
+export function resourceSlotBands({
+  constraints,
+  date,
+  startMin,
+  endMin,
+}: ResourceSlotBandsInput): Segment[] {
   const boundaries = new Set([startMin, endMin]);
   const addBoundary = (time: string | undefined): void => {
     if (time === undefined) return;

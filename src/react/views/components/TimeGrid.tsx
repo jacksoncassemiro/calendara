@@ -1,16 +1,13 @@
 /** @jsxImportSource react */
-/**
- * Componente React do time-grid (Semana/Dia). Puramente apresentacional: recebe um GridVM já
- * pronto (dias, rótulos, geometria, camada de fundo, linha "agora") e desenha.
- *
- * Estilo: classes `mc-*` para tema (styles.css) + estilos inline apenas para a GEOMETRIA
- * (posições absolutas/alturas), que precisa existir no DOM independente de CSS carregado.
+/** Render the time-grid model; inline styles provide required geometry.
+ * @remarks Português: Renderiza o modelo da grade horária; estilos inline definem a geometria necessária.
  */
 import type { JSX } from 'react';
 import type { ViewRenderContext } from '../../viewTypes.js';
 import type { GridVM, DayColumnVM, DraftVM } from '../models/timeGridViewModel.js';
 import { GUTTER_PX, toPx, segmentStyle, timedEventWidth } from '../layout/geometryStyles.js';
 import { usePageStickyHeaders } from '../hooks/usePageStickyHeaders.js';
+import { DayHeaderContent } from './DayHeaderContent.js';
 import { EventOverflow } from './EventOverflow.js';
 import { formatDraftInterval } from '../formatting/timeLabels.js';
 import { getViewLabels } from '../formatting/viewLabels.js';
@@ -19,8 +16,14 @@ import { SlotCells } from './SlotCells.js';
 import { packDateSpans } from '../layout/spanLayout.js';
 import { calendarDayOffset } from '../../../core/interaction/model.js';
 
-export function TimeGrid(props: { vm: GridVM }): JSX.Element {
-  const scrollRef = usePageStickyHeaders();
+/** Render the resolved day columns and shared time axis.
+ * @remarks Português: Renderiza colunas de dias resolvidas e eixo horário compartilhado.
+ */
+export function TimeGrid(props: {
+  /** Resolved time-grid presentation model. @remarks Português: Modelo resolvido de apresentação da grade horária. */
+  vm: GridVM;
+}): JSX.Element {
+  const scrollRef = usePageStickyHeaders(props.vm.context?.options.locale);
   const vm = props.vm;
   const labels = getViewLabels(vm.context?.options.locale);
   const gridTopMin = vm.startHour * 60;
@@ -53,12 +56,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
 
   return (
     <div className="mc-timegrid" data-mc-view={vm.viewName}>
-      {/* Scroller horizontal ÚNICO das três faixas (cabeçalho + dia-inteiro + corpo). Em tela
-          estreita as colunas ganham um piso de largura (`--mc-day-min-width`, ver styles) e o grid
-          passa a rolar na horizontal; sem este wrapper compartilhado cada faixa rolaria sozinha e
-          os rótulos de dia sairiam do lugar sobre suas colunas. Só estrutura: zero geometria. */}
       <div ref={scrollRef} className="mc-hscroll" data-mc-hscroll>
-        {/* Cabeçalho dos dias */}
         <div className="mc-header-row" style={{ display: 'flex' }}>
           <div className="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
           {vm.columns.map((column) => (
@@ -73,13 +71,20 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
                 minWidth: column.minWidth || undefined,
               }}
             >
-              <div className="mc-weekday">{column.weekdayLabel}</div>
-              <div className="mc-daynum">{column.dayLabel}</div>
+              <DayHeaderContent
+                context={vm.context}
+                dateISO={column.dateISO}
+                viewName={vm.viewName}
+                defaultContent={
+                  <>
+                    <div className="mc-weekday">{column.weekdayLabel}</div>
+                    <div className="mc-daynum">{column.dayLabel}</div>
+                  </>
+                }
+              />
             </div>
           ))}
         </div>
-
-        {/* Faixa "dia inteiro" */}
         <div className="mc-allday-row" data-mc-allday style={{ display: 'flex' }}>
           <div
             className="mc-gutter-label mc-allday-label"
@@ -115,7 +120,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
                   }}
                 >
                   <span className="mc-draft-time">
-                    {formatDraftInterval(vm.draft, vm.context?.options.locale)}
+                    {formatDraftInterval({ draft: vm.draft, locale: vm.context?.options.locale })}
                   </span>
                   {' · '}
                   <span className="mc-draft-title">{vm.draft.title ?? labels.newInterval}</span>
@@ -188,10 +193,7 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
             </div>
           ))}
         </div>
-
-        {/* Corpo com eixo de horas + colunas de dia */}
         <div className="mc-body" data-mc-body style={{ display: 'flex', position: 'relative' }}>
-          {/* Eixo de horas */}
           <div
             className="mc-time-axis"
             style={{
@@ -211,8 +213,6 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
               </div>
             ))}
           </div>
-
-          {/* Colunas de dia */}
           {vm.columns.map((column) => {
             const fullDraft = vm.draft;
             const columnDraft =
@@ -257,18 +257,31 @@ export function TimeGrid(props: { vm: GridVM }): JSX.Element {
 }
 
 function DayColumn(props: {
+  /** Original occurrence key of the active gesture. @remarks Português: Chave da ocorrência original do gesto ativo. */
   activeEventId?: string;
+  /** Resolved view data and consumer callbacks. @remarks Português: Dados resolvidos da view e callbacks do consumidor. */
   context?: ViewRenderContext;
+  /** Resolved event and availability data for the column. @remarks Português: Dados resolvidos dos eventos e disponibilidade da coluna. */
   column: DayColumnVM;
+  /** Allow initial keyboard focus in this column. @remarks Português: Permite o foco inicial por teclado nesta coluna. */
   first: boolean;
+  /** Inclusive start in minutes since midnight. @remarks Português: Início inclusivo em minutos desde meia-noite. */
   startMin: number;
+  /** Exclusive end in minutes since midnight. @remarks Português: Fim exclusivo em minutos desde meia-noite. */
   endMin: number;
+  /** Minutes represented by each background slot. @remarks Português: Minutos representados por cada slot de fundo. */
   slotMinutes: number;
+  /** Time-grid body height in pixels. @remarks Português: Altura do corpo da grade horária em pixels. */
   bodyHeight: number;
+  /** Visible grid-line positions in minutes since midnight. @remarks Português: Posições das linhas visíveis em minutos desde meia-noite. */
   hourMinutes: number[];
+  /** Convert minutes since midnight to vertical pixels. @remarks Português: Converte minutos desde meia-noite em pixels verticais. */
   minuteToY: (minuteOfDay: number) => number;
+  /** Pixels per minute along the time axis. @remarks Português: Pixels por minuto no eixo de tempo. */
   pxPerMinute: number;
+  /** Gesture preview for this column. @remarks Português: Prévia do gesto nesta coluna. */
   draft?: DraftVM;
+  /** Full gesture interval before clipping to the column. @remarks Português: Intervalo completo do gesto antes do recorte para a coluna. */
   fullDraft?: DraftVM;
 }): JSX.Element {
   const { column, bodyHeight, hourMinutes, minuteToY, pxPerMinute, draft } = props;
@@ -278,6 +291,7 @@ function DayColumn(props: {
       className={`mc-day-col${column.isToday ? ' mc-today' : ''}`}
       data-mc-day={column.dateISO}
       style={{
+        ...column.dayStyle,
         flex: '1 1 0',
         minWidth: column.minWidth || undefined,
         position: 'relative',
@@ -285,27 +299,22 @@ function DayColumn(props: {
         touchAction: 'pan-x pan-y',
       }}
     >
-      {/* Fundo: fora do expediente */}
       {column.nonBusiness.map((segment, index) => (
         <div
           key={`nonbusiness-${index}`}
           className="mc-nonbusiness"
           data-mc-nonbusiness
-          style={segmentStyle(segment, minuteToY, pxPerMinute)}
+          style={segmentStyle({ segment, minuteToY, pxPerMinute })}
         />
       ))}
-
-      {/* Fundo: bloqueios (precedência visual) */}
       {column.blocked.map((segment, index) => (
         <div
           key={`blocked-${index}`}
           className="mc-blocked"
           data-mc-blocked
-          style={segmentStyle(segment, minuteToY, pxPerMinute)}
+          style={segmentStyle({ segment, minuteToY, pxPerMinute })}
         />
       ))}
-
-      {/* Linhas de hora */}
       {hourMinutes.map((minute) => (
         <div
           key={`hourline-${minute}`}
@@ -313,8 +322,6 @@ function DayColumn(props: {
           style={{ position: 'absolute', left: 0, right: 0, top: toPx(minuteToY(minute)) }}
         />
       ))}
-
-      {/* Eventos posicionados */}
       <SlotCells
         dateISO={column.dateISO}
         first={props.first}
@@ -351,9 +358,12 @@ function DayColumn(props: {
             top: toPx(eventItem.block.top),
             height: toPx(eventItem.block.height),
             left: `${eventItem.block.left * 100}%`,
-            width: timedEventWidth(eventItem.block, props.context?.options.slotEventOverlap),
+            width: timedEventWidth({
+              block: eventItem.block,
+              overlap: props.context?.options.slotEventOverlap,
+            }),
             zIndex: eventItem.block.column + 1,
-            ...(eventItem.editable ? { touchAction: 'none' } : {}),
+            touchAction: 'auto',
             ...(props.activeEventId === eventItem.id ? { visibility: 'hidden' as const } : {}),
             ...(eventItem.color
               ? {
@@ -370,7 +380,6 @@ function DayColumn(props: {
               </>
             )}
           </div>
-          {/* Alça de redimensionamento (borda inferior) — só em eventos editáveis. */}
           {eventItem.editable && eventItem.resizeStart !== false && (
             <div
               className="mc-resize-handle mc-resize-start"
@@ -413,7 +422,6 @@ function DayColumn(props: {
             context={props.context!}
           />
         ))}
-      {/* Fantasma do gesto (preview de drag/resize/select) */}
       {draft && (
         <div
           className={`mc-draft mc-draft-${draft.kind}${draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid'}`}
@@ -431,7 +439,10 @@ function DayColumn(props: {
           }}
         >
           <span className="mc-draft-time">
-            {formatDraftInterval(props.fullDraft ?? draft, props.context?.options.locale)}
+            {formatDraftInterval({
+              draft: props.fullDraft ?? draft,
+              locale: props.context?.options.locale,
+            })}
           </span>
           {' · '}
           <span className="mc-draft-title">
@@ -439,8 +450,6 @@ function DayColumn(props: {
           </span>
         </div>
       )}
-
-      {/* Linha "agora" */}
       {column.nowMinutes !== null && (
         <div
           className="mc-now-line"

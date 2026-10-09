@@ -10,6 +10,9 @@ const Popover = lazy(() =>
     default: module.MonthMorePopover,
   })),
 );
+/** Open hidden timed events with the configured overflow behavior.
+ * @remarks Português: Abre eventos horários ocultos conforme o comportamento configurado.
+ */
 export function EventOverflow({
   group,
   dateISO,
@@ -17,10 +20,15 @@ export function EventOverflow({
   context,
   horizontalHeight,
 }: {
+  /** Hidden event group and its geometry. @remarks Português: Grupo de eventos ocultos e sua geometria. */
   group: DenseOverflowGroup;
+  /** Visible date in YYYY-MM-DD format. @remarks Português: Data visível no formato YYYY-MM-DD. */
   dateISO: string;
+  /** Resource associated with this surface. @remarks Português: Recurso associado a esta superfície. */
   resourceId?: string;
+  /** Resolved view data and consumer callbacks. @remarks Português: Dados resolvidos da view e callbacks do consumidor. */
   context: ViewRenderContext;
+  /** Timeline row height in pixels; omitted uses vertical layout. @remarks Português: Altura da linha da timeline em pixels; ausente usa layout vertical. */
   horizontalHeight?: number;
 }): JSX.Element {
   const id = useId();
@@ -89,8 +97,12 @@ export function EventOverflow({
             id={id}
             anchor={anchor.current}
             container={root}
-            label={formatDate(context.temporal.PlainDate.from(dateISO), context.options.locale, {
-              dateStyle: 'full',
+            label={formatDate({
+              date: context.temporal.PlainDate.from(dateISO),
+              locale: context.options.locale,
+              options: {
+                dateStyle: 'full',
+              },
             })}
             onClose={close}
             locale={context.options.locale}
@@ -100,14 +112,17 @@ export function EventOverflow({
             ) : (
               <div className="mc-month-detail" data-mc-slot-resource={resourceId}>
                 {occurrences.map((occurrence) => {
-                  const start = occurrenceStart(
-                    context.temporal,
+                  const start = occurrenceStart({
+                    temporal: context.temporal,
                     occurrence,
-                    context.options.timeZone,
-                  );
+                    displayTimeZone: context.options.timeZone,
+                  });
                   const label = start.isAllDay
                     ? labels.allDay
-                    : formatHourLabel(start.minuteOfDay, context.options.locale);
+                    : formatHourLabel({
+                        minuteOfDay: start.minuteOfDay,
+                        locale: context.options.locale,
+                      });
                   return (
                     <div
                       key={occurrenceKey(occurrence)}

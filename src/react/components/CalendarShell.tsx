@@ -1,17 +1,22 @@
 /** @jsxImportSource react */
-/**
- * Shell do calendário: dono do nó raiz (`data-mc-root`), desenha a toolbar (padrão ou custom
- * via render-prop) e o corpo da view ativa. Fica estável entre navegação/troca de view — o React
- * reaproveita este nó e só troca o corpo (nada é recriado do zero).
+/** Stable root, toolbar and active view body.
+ * @remarks Português: Raiz estável, navegação e corpo da view ativa.
  */
 import { createElement, type JSX } from 'react';
 import type { ToolbarContext, ToolbarRenderSlot } from '../viewTypes.js';
 import type { ReactNode } from 'react';
 
+/** Navigation and content of the persistent calendar root.
+ * @remarks Português: Navegação e conteúdo da raiz persistente do calendário.
+ */
 export interface ShellProps {
+  /** Current navigation actions and title. @remarks Português: Ações de navegação e título atuais. */
   toolbar: ToolbarContext;
+  /** Language tag for labels. @remarks Português: Código de idioma dos rótulos. */
   locale?: string;
+  /** Replace the built-in navigation content. @remarks Português: Substitui o conteúdo padrão da navegação. */
   renderToolbar?: ToolbarRenderSlot;
+  /** Active view content. @remarks Português: Conteúdo da view ativa. */
   body: ReactNode;
 }
 
@@ -29,7 +34,12 @@ export function CalendarShell(props: ShellProps): JSX.Element {
   );
 }
 
-function DefaultToolbar(props: { toolbar: ToolbarContext; locale?: string }): JSX.Element {
+function DefaultToolbar(props: {
+  /** Current navigation actions and title. @remarks Português: Ações de navegação e título atuais. */
+  toolbar: ToolbarContext;
+  /** Language tag for labels. @remarks Português: Código de idioma dos rótulos. */
+  locale?: string;
+}): JSX.Element {
   const { toolbar } = props;
   const english = props.locale?.startsWith('en') ?? false;
   return (

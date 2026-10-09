@@ -1,7 +1,7 @@
-/** Cenários RFC 5545 compartilhados pelos testes de expansão e pelo oráculo independente. */
+/** Named RFC 5545 fixture: start date and recurrence text. / PT: Cenário RFC 5545: data inicial e texto da recorrência. */
 export type Scenario = [name: string, dtstart: string, rule: string];
 
-/** Frequências, intervalos, filtros e limites de quantidade ou data. */
+/** Frequency and limit combinations. / PT: Combinações de frequência e limites. */
 export const BASE: Scenario[] = [
   ['Daily count 5', '2024-01-01', 'RRULE:FREQ=DAILY;COUNT=5'],
   ['Daily interval 3 count 6', '2024-01-01', 'RRULE:FREQ=DAILY;INTERVAL=3;COUNT=6'],
@@ -53,7 +53,7 @@ export const BASE: Scenario[] = [
   ['Daily count+until both', '2024-01-01', 'RRULE:FREQ=DAILY;COUNT=10;UNTIL=20240105T000000Z'],
 ];
 
-/** Combinações de filtros e limites do calendário civil. */
+/** Civil-calendar boundaries and combined filters. / PT: Limites do calendário civil e filtros combinados. */
 export const EDGE: Scenario[] = [
   [
     'WKST: Weekly int2 from Sunday',
@@ -93,7 +93,7 @@ export const EDGE: Scenario[] = [
   ['Monthly int3 day15 c5', '2024-01-15', 'RRULE:FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=15;COUNT=5'],
 ];
 
-/** Múltiplos dias da semana com posição ordinal no mesmo período. */
+/** Multiple ordinal weekdays in one period. / PT: Vários dias da semana ordinais no mesmo período. */
 export const MULTI_ORDINAL: Scenario[] = [
   ['Monthly 2FR,4FR count6', '2024-01-01', 'RRULE:FREQ=MONTHLY;BYDAY=2FR,4FR;COUNT=6'],
   ['Monthly 1MO,3MO count6', '2024-01-01', 'RRULE:FREQ=MONTHLY;BYDAY=1MO,3MO;COUNT=6'],
@@ -101,7 +101,7 @@ export const MULTI_ORDINAL: Scenario[] = [
   ['Yearly 1MO,3MO BYMONTH3 c4', '2024-01-01', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=1MO,3MO;COUNT=4'],
 ];
 
-/** Início de semana explícito diferente de segunda-feira. */
+/** Explicit non-Monday week starts. / PT: Inícios de semana explícitos diferentes de segunda-feira. */
 export const WKST: Scenario[] = [
   [
     'WKST=SU Weekly int2 SU,SA c8',

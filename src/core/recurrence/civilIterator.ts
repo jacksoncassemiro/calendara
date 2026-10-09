@@ -1,18 +1,27 @@
-/** Gregorian RRULE date iterator. UTC Date is only a carrier of civil fields;
- * timezone/DST and event composition remain in recurrenceSet. No Temporal API. */
 import type { RRuleModel } from '../types/recurrence.js';
 import { validateRRuleModel } from './parser.js';
 import { hasPossibleMonthDay } from './monthDayFilters.js';
 const MILLISECONDS_PER_DAY = 86400000;
 const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-function civilDayNumber(year: number, month: number, day: number): number {
+function civilDayNumber({
+  year,
+  month,
+  day,
+}: {
+  /** Calendar year. @remarks Português: Ano do calendário. */
+  year: number;
+  /** Calendar month, 1..12. @remarks Português: Mês do calendário, 1..12. */
+  month: number;
+  /** Day of the month. @remarks Português: Dia do mês. */
+  day: number;
+}): number {
   const value = new Date(0);
   value.setUTCFullYear(year, month - 1, day);
   return value.getTime() / MILLISECONDS_PER_DAY;
 }
 function parseCivilDayNumber(iso: string): number {
   const [year, month, day] = iso.split('-').map(Number);
-  const value = civilDayNumber(year!, month!, day!);
+  const value = civilDayNumber({ year: year!, month: month!, day: day! });
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(iso) ||
     new Date(value * MILLISECONDS_PER_DAY).toISOString().slice(0, 10) !== iso
@@ -29,22 +38,63 @@ function civilDateFields(day: number) {
     month,
     date: value.getUTCDate(),
     weekday: value.getUTCDay(),
-    monthDays: new Date(civilDayNumber(year, month + 1, 0) * MILLISECONDS_PER_DAY).getUTCDate(),
-    yearDay: day - civilDayNumber(year, 1, 1) + 1,
-    yearDays: civilDayNumber(year + 1, 1, 1) - civilDayNumber(year, 1, 1),
+    monthDays: new Date(
+      civilDayNumber({ year, month: month + 1, day: 0 }) * MILLISECONDS_PER_DAY,
+    ).getUTCDate(),
+    yearDay: day - civilDayNumber({ year, month: 1, day: 1 }) + 1,
+    yearDays:
+      civilDayNumber({ year: year + 1, month: 1, day: 1 }) -
+      civilDayNumber({ year, month: 1, day: 1 }),
   };
 }
+/** Inclusive ISO date window and recurrence expansion budgets.
+ * @remarks Português: Janela inclusiva de datas ISO e limites de trabalho da expansão recorrente.
+ */
 export interface CivilWindow {
+  /** Inclusive first ISO date; omitted uses the series anchor.
+   * @remarks Português: Primeira data ISO inclusiva; ausente usa a âncora da série.
+   */
   start?: string;
+  /** Inclusive last ISO date; required to bound infinite rules.
+   * @remarks Português: Última data ISO inclusiva; necessária para limitar regras infinitas.
+   */
   end?: string;
+  /** Maximum visited periods; default 50000, exhaustion throws.
+   * @remarks Português: Máximo de períodos visitados; padrão 50000, exceder lança erro.
+   */
   maxPeriods?: number;
+  /** Maximum consecutive empty periods; default 2000.
+   * @remarks Português: Máximo de períodos vazios consecutivos; padrão 2000.
+   */
   maxEmptyPeriods?: number;
 }
-export function* iterateCivilDates(
-  model: RRuleModel,
-  startDateISO: string,
-  window: CivilWindow = {},
-): Generator<string> {
+/** Named inputs for iterateCivilDates.
+ * @remarks Português: Entradas nomeadas de iterateCivilDates.
+ */
+export interface IterateCivilDatesInput {
+  /** Validated structured recurrence filters.
+   * @remarks Português: Filtros estruturados da recorrência validada.
+   */
+  model: RRuleModel;
+  /** Series anchor date in YYYY-MM-DD.
+   * @remarks Português: Data âncora da série em YYYY-MM-DD.
+   */
+  startDateISO: string;
+  /** Expansion bounds and iteration budgets; omitted uses defaults.
+   * @remarks Português: Limites de expansão e iteração; ausente usa padrões.
+   */
+  window?: CivilWindow | undefined;
+}
+
+/** Iterate Gregorian RRULE dates; timezone and occurrence exceptions are applied separately.
+ * @remarks Português: Itera datas gregorianas RRULE; fuso e exceções de ocorrência são aplicados separadamente.
+ */
+
+export function* iterateCivilDates({
+  model,
+  startDateISO,
+  window = {},
+}: IterateCivilDatesInput): Generator<string> {
   validateRRuleModel(model);
   const start = parseCivilDayNumber(startDateISO),
     seriesStartFields = civilDateFields(start),
@@ -54,8 +104,7 @@ export function* iterateCivilDates(
     window.end ? parseCivilDayNumber(window.end) : Infinity,
     model.until ? parseCivilDayNumber(model.until.slice(0, 10)) : Infinity,
   );
-  // Lazy consumers may stop after counting valid timezone-aware starts. The
-  // period budget still bounds work when an unbounded consumer fails to stop.
+
   const maxPeriods = window.maxPeriods ?? 50000,
     maxEmptyPeriods = window.maxEmptyPeriods ?? 2000;
   if (
@@ -73,36 +122,38 @@ export function* iterateCivilDates(
     monthDays = [seriesStartFields.date];
   } else if (model.freq === 'MONTHLY' && !byDay.length && !monthDays.length)
     monthDays = [seriesStartFields.date];
-  if (!hasPossibleMonthDay(months, monthDays)) return;
+  if (!hasPossibleMonthDay({ months, monthDays })) return;
   const weekStart = WEEKDAY_CODES.indexOf(model.weekStart ?? 'MO');
   let periodStartDay =
     model.freq === 'YEARLY'
-      ? civilDayNumber(seriesStartFields.year, 1, 1)
+      ? civilDayNumber({ year: seriesStartFields.year, month: 1, day: 1 })
       : model.freq === 'MONTHLY'
-        ? civilDayNumber(seriesStartFields.year, seriesStartFields.month, 1)
+        ? civilDayNumber({ year: seriesStartFields.year, month: seriesStartFields.month, day: 1 })
         : model.freq === 'WEEKLY'
           ? start - ((seriesStartFields.weekday - weekStart + 7) % 7)
           : start;
   if (model.count === undefined && windowStartDay > periodStartDay) {
     const target = civilDateFields(windowStartDay);
     if (model.freq === 'YEARLY')
-      periodStartDay = civilDayNumber(
-        seriesStartFields.year +
+      periodStartDay = civilDayNumber({
+        year:
+          seriesStartFields.year +
           Math.floor((target.year - seriesStartFields.year) / interval) * interval,
-        1,
-        1,
-      );
+        month: 1,
+        day: 1,
+      });
     else if (model.freq === 'MONTHLY')
-      periodStartDay = civilDayNumber(
-        seriesStartFields.year,
-        seriesStartFields.month +
+      periodStartDay = civilDayNumber({
+        year: seriesStartFields.year,
+        month:
+          seriesStartFields.month +
           Math.floor(
             ((target.year - seriesStartFields.year) * 12 + target.month - seriesStartFields.month) /
               interval,
           ) *
             interval,
-        1,
-      );
+        day: 1,
+      });
     else
       periodStartDay +=
         Math.floor(
@@ -114,8 +165,7 @@ export function* iterateCivilDates(
   let occurrenceCount = 0,
     visitedPeriods = 0,
     consecutiveEmptyPeriods = 0;
-  // DAILY without filters has exactly one candidate per period. Its rank is
-  // arithmetic, so COUNT and exclusions remain correct without walking history.
+
   if (
     model.count !== undefined &&
     model.freq === 'DAILY' &&
@@ -136,12 +186,12 @@ export function* iterateCivilDates(
     const periodFields = civilDateFields(periodStartDay);
     const end =
       model.freq === 'YEARLY'
-        ? civilDayNumber(periodFields.year + 1, 1, 1)
+        ? civilDayNumber({ year: periodFields.year + 1, month: 1, day: 1 })
         : model.freq === 'MONTHLY'
-          ? civilDayNumber(periodFields.year, periodFields.month + 1, 1)
+          ? civilDayNumber({ year: periodFields.year, month: periodFields.month + 1, day: 1 })
           : periodStartDay + (model.freq === 'WEEKLY' ? 7 : 1);
     let candidates: number[] = [];
-    // Direct construction avoids scanning every day for explicit month-day rules.
+
     const days: number[] = [];
     if (monthDays.length && (model.freq === 'MONTHLY' || model.freq === 'YEARLY')) {
       for (const month of model.freq === 'MONTHLY'
@@ -149,10 +199,13 @@ export function* iterateCivilDates(
         : months.length
           ? months
           : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
-        const length = civilDateFields(civilDayNumber(periodFields.year, month, 1)).monthDays;
+        const length = civilDateFields(
+          civilDayNumber({ year: periodFields.year, month, day: 1 }),
+        ).monthDays;
         for (const requested of monthDays) {
           const day = requested > 0 ? requested : length + requested + 1;
-          if (day >= 1 && day <= length) days.push(civilDayNumber(periodFields.year, month, day));
+          if (day >= 1 && day <= length)
+            days.push(civilDayNumber({ year: periodFields.year, month, day }));
         }
       }
       days.sort((firstDay, secondDay) => firstDay - secondDay);
@@ -219,9 +272,13 @@ export function* iterateCivilDates(
       throw new RangeError('RRULE empty period budget exceeded');
     periodStartDay =
       model.freq === 'YEARLY'
-        ? civilDayNumber(periodFields.year + interval, 1, 1)
+        ? civilDayNumber({ year: periodFields.year + interval, month: 1, day: 1 })
         : model.freq === 'MONTHLY'
-          ? civilDayNumber(periodFields.year, periodFields.month + interval, 1)
+          ? civilDayNumber({
+              year: periodFields.year,
+              month: periodFields.month + interval,
+              day: 1,
+            })
           : periodStartDay + interval * (model.freq === 'WEEKLY' ? 7 : 1);
   }
 }

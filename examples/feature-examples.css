@@ -1,3 +1,29 @@
+:root {
+  --demo-day-free-bg: #d8efe3;
+  --demo-day-free-fg: #214c3a;
+  --demo-day-near-bg: #fff0c7;
+  --demo-day-near-fg: #664400;
+  --demo-day-full-bg: #f7dcd4;
+  --demo-day-full-fg: #703425;
+  --demo-day-unavailable-bg: #e4e7ed;
+  --demo-day-unavailable-fg: #344254;
+}
+:root[data-theme='dark'] {
+  --demo-day-free-bg: #244637;
+  --demo-day-free-fg: #d4f1e1;
+  --demo-day-near-bg: #4b3c19;
+  --demo-day-near-fg: #f9e9b8;
+  --demo-day-full-bg: #512f28;
+  --demo-day-full-fg: #ffded4;
+  --demo-day-unavailable-bg: #354253;
+  --demo-day-unavailable-fg: #e1e9f3;
+}
+.focused-day-status {
+  display: block;
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
 .focused-main {
   max-width: 1500px;
   margin: 0 auto;

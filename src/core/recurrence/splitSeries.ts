@@ -5,24 +5,58 @@ import { parseRRule } from './parser.js';
 import { expandEvent } from './recurrenceSet.js';
 import { ruleStarts } from './ruleStarts.js';
 
+/** Masters to persist after splitting a recurring series.
+ * @remarks Português: Mestres a persistir após dividir uma série recorrente.
+ */
 export interface SplitSeriesResult {
-  /** Replace the old master, or remove it when the cut is its first occurrence. */
+  /** Replacement for the previous master; null removes it at the first occurrence.
+   * @remarks Português: Substituição do mestre anterior; null o remove na primeira ocorrência.
+   */
   before: CalendarEvent | null;
-  /** Persist as a new master with a caller-provided unique id. */
+
+  /** New master to persist with the caller-provided unique ID.
+   * @remarks Português: Novo mestre a persistir com ID único fornecido pelo consumidor.
+   */
   following: CalendarEvent;
 }
 
-/** Split at a generated RRULE start, counting EXDATE/cancellations before the cut.
- * RDATE-only cuts and changes between all-day/timed are rejected explicitly.
- * Future exceptions/overrides move by the wall-clock offset of the new anchor.
+/** Named inputs for splitEventSeries.
+ * @remarks Português: Entradas nomeadas de splitEventSeries.
  */
-export function splitEventSeries(
-  temporal: TemporalLike,
-  event: CalendarEvent,
-  originalStart: string,
-  newId: string,
-  changes: Partial<Omit<CalendarEvent, 'id' | 'recurrence'>> = {},
-): SplitSeriesResult {
+export interface SplitEventSeriesInput {
+  /** Injected date/time implementation.
+   * @remarks Português: Implementação de datas e horários injetada.
+   */
+  temporal: TemporalLike;
+  /** Recurring master to split.
+   * @remarks Português: Mestre recorrente a dividir.
+   */
+  event: CalendarEvent;
+  /** Unchanged occurrence identity at the split.
+   * @remarks Português: Identidade original preservada da ocorrência na divisão.
+   */
+  originalStart: string;
+  /** Unique ID for the following series master.
+   * @remarks Português: ID único do mestre da série seguinte.
+   */
+  newId: string;
+  /** Changes applied to the following master; default empty.
+   * @remarks Português: Alterações aplicadas ao mestre seguinte; padrão vazio.
+   */
+  changes?: Partial<Omit<CalendarEvent, 'id' | 'recurrence'>> | undefined;
+}
+
+/** Split at a generated RRULE start; shift future exceptions by the new wall-clock anchor.
+ * @remarks Português: Divide no início gerado por RRULE; desloca exceções futuras pela nova âncora de horário local.
+ */
+
+export function splitEventSeries({
+  temporal,
+  event,
+  originalStart,
+  newId,
+  changes = {},
+}: SplitEventSeriesInput): SplitSeriesResult {
   if (!newId || newId === event.id)
     throw new RangeError('[calendara] nova série exige um id diferente');
   const recurrence = event.recurrence;
@@ -42,9 +76,11 @@ export function splitEventSeries(
   const precedingCount = starts.indexOf(cut);
   if (
     precedingCount < 0 ||
-    !expandEvent(temporal, event, { start: cutDate, end: cutDate }).some(
-      (item) => item.originalStart === cut,
-    )
+    !expandEvent({
+      temporal,
+      event,
+      window: { start: cutDate, end: cutDate },
+    }).some((item) => item.originalStart === cut)
   ) {
     throw new RangeError('[calendara] corte deve pertencer a uma ocorrência ativa da RRULE');
   }

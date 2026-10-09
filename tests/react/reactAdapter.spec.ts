@@ -1,8 +1,3 @@
-/**
- * Testes NODE (sem DOM) da lógica pura do adapter React: a delegação do `createHandle` e os
- * defaults do `createReactView`. A montagem real do <Calendar/> (React + ilha + jsdom) fica em
- * `Calendar.dom.spec.tsx` (CI) — o sandbox não boota jsdom no tempo disponível.
- */
 import { describe, it, expect } from 'vitest';
 import { createHandle } from '../../src/react/handle.js';
 import { createReactView } from '../../src/react/createReactView.js';
@@ -23,8 +18,11 @@ describe('createHandle — delega ao CalendarApp', () => {
       listViews: () => [{ name: 'week', label: 'Semana' }],
       evaluateSlot: () => ({ valid: true, reason: 'ok' as const }),
       evaluatePlacement: (input: {
+        /** ISO date to shift. / PT: Data ISO a deslocar. */
         dateISO: string;
+        /** Start in minutes since midnight. / PT: Início em minutos desde meia-noite. */
         startMin: number;
+        /** Exclusive end in minutes since midnight. / PT: Fim exclusivo em minutos desde meia-noite. */
         endMin: number;
         resourceId?: string;
         kind: string;
@@ -71,8 +69,14 @@ describe('createHandle — delega ao CalendarApp', () => {
 });
 
 describe('createReactView — configuração de view', () => {
-  // PlainDate falso (só o que a view usa: toString/add/subtract).
-  function shiftISO(dateISO: string, days: number): string {
+  function shiftISO({
+    dateISO,
+    days,
+  }: {
+    /** ISO date to shift. / PT: Data ISO a deslocar. */
+    dateISO: string; /** Signed day offset. / PT: Deslocamento em dias com sinal. */
+    days: number;
+  }): string {
     const date = new Date(`${dateISO}T00:00:00Z`);
     date.setUTCDate(date.getUTCDate() + days);
     return date.toISOString().slice(0, 10);
@@ -80,8 +84,18 @@ describe('createReactView — configuração de view', () => {
   function fakeDate(dateISO: string): unknown {
     return {
       toString: () => dateISO,
-      add: ({ days }: { days: number }) => fakeDate(shiftISO(dateISO, days)),
-      subtract: ({ days }: { days: number }) => fakeDate(shiftISO(dateISO, -days)),
+      add: ({
+        days,
+      }: {
+        /** Signed day offset. / PT: Deslocamento em dias com sinal. */
+        days: number;
+      }) => fakeDate(shiftISO({ dateISO, days })),
+      subtract: ({
+        days,
+      }: {
+        /** Signed day offset. / PT: Deslocamento em dias com sinal. */
+        days: number;
+      }) => fakeDate(shiftISO({ dateISO, days: -days })),
     };
   }
 
@@ -95,8 +109,8 @@ describe('createReactView — configuração de view', () => {
     const range = view.getRange(date, context);
     expect(range.days).toHaveLength(1);
     expect(range.startDate.toString()).toBe('2026-07-22');
-    expect(view.navigate('next', date, context).toString()).toBe('2026-07-23');
-    expect(view.navigate('prev', date, context).toString()).toBe('2026-07-21');
+    expect(view.navigate({ direction: 'next', date, context }).toString()).toBe('2026-07-23');
+    expect(view.navigate({ direction: 'prev', date, context }).toString()).toBe('2026-07-21');
     expect(view.getTitle(range, context)).toBe('2026-07-22');
   });
 
@@ -106,7 +120,7 @@ describe('createReactView — configuração de view', () => {
         name: 'x',
         label: 'X',
         getRange: (date) => ({ days: [date, date], startDate: date, endDate: date }),
-        navigate: (_direction, date) => date,
+        navigate: ({ date }) => date,
         getTitle: () => 'custom',
       },
       () => null,

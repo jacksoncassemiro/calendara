@@ -1,5 +1,5 @@
-/**
- * React components, views and controller of @jacksoncassemiro/calendara.
+/** Native React components, views and controller.
+ * @remarks Português: Componentes, views e controlador React nativos.
  */
 export { Calendar } from './Calendar.js';
 export { useCalendar, type UseCalendar } from './useCalendar.js';

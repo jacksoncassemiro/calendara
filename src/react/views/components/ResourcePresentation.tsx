@@ -11,12 +11,19 @@ import { getViewLabels } from '../formatting/viewLabels.js';
 import { occurrenceEdges } from '../layout/occurrenceDays.js';
 import { resolveHour } from '../../../core/index.js';
 
-/** Crop a timed preview to its resource and visible date. */
-export function getResourceDraftSegment(
-  draft: InteractionDraft | undefined,
-  resourceId: string,
-  dateISO: string,
-): InteractionDraft | undefined {
+/** Crop a timed preview to its resource and visible date. @remarks Português: Recorta a prévia horária para o recurso e a data visível. */
+export function getResourceDraftSegment({
+  draft,
+  resourceId,
+  dateISO,
+}: {
+  /** Current gesture preview. @remarks Português: Prévia do gesto atual. */
+  draft: InteractionDraft | undefined;
+  /** Resource whose preview is requested. @remarks Português: Recurso da prévia solicitada. */
+  resourceId: string;
+  /** Visible date, YYYY-MM-DD. @remarks Português: Data visível, YYYY-MM-DD. */
+  dateISO: string;
+}): InteractionDraft | undefined {
   if (!draft || draft.allDay || draft.resourceId !== resourceId) return undefined;
   const lastDateISO = draft.endDateISO ?? draft.dateISO;
   if (dateISO < draft.dateISO || dateISO > lastDateISO) return undefined;
@@ -28,12 +35,15 @@ export function getResourceDraftSegment(
   };
 }
 
-/** Classe do fantasma (mesma convenção do TimeGrid). */
+/** Build the preview class from gesture kind and validity. @remarks Português: Define a classe da prévia pelo gesto e sua validade. */
 export function getDraftClassName(draft: InteractionDraft): string {
   const validity = draft.valid ? ' mc-draft-valid' : ' mc-draft-invalid';
   return `mc-draft mc-draft-${draft.kind}${validity}`;
 }
 
+/** Resolve the time-axis geometry from calendar options.
+ * @remarks Português: Resolve a geometria do eixo de tempo pelas opções do calendário.
+ */
 export function createResourceGeometryGrid(context: ViewRenderContext): GeoGrid {
   return {
     startHour: resolveHour(context.options.startHour),
@@ -44,11 +54,14 @@ export function createResourceGeometryGrid(context: ViewRenderContext): GeoGrid 
   };
 }
 
+/** Render resource all-day events and gesture preview. @remarks Português: Renderiza eventos de dia inteiro do recurso e a prévia do gesto. */
 export function ResourceAllDay({
   column,
   context,
 }: {
+  /** Resolved event and availability data for the column. @remarks Português: Dados resolvidos dos eventos e disponibilidade da coluna. */
   column: ResourceColumnData;
+  /** Resolved view data and consumer callbacks. @remarks Português: Dados resolvidos da view e callbacks do consumidor. */
   context: ViewRenderContext;
 }): JSX.Element {
   const draft = context.draft;
@@ -71,7 +84,11 @@ export function ResourceAllDay({
       {column.day.allDay.map((occurrence) => {
         const event = occurrence.event;
         const editable = event.editable !== false;
-        const resizeEdges = occurrenceEdges(occurrence, column.day.dateISO, context);
+        const resizeEdges = occurrenceEdges({
+          occurrence,
+          dayISO: column.day.dateISO,
+          context,
+        });
         return (
           <div
             key={occurrenceKey(occurrence)}
@@ -126,7 +143,7 @@ export function ResourceAllDay({
           style={{ pointerEvents: 'none' }}
         >
           <span className="mc-draft-time">
-            {formatDraftInterval(draft, context.options.locale)}
+            {formatDraftInterval({ draft, locale: context.options.locale })}
           </span>
           {' · '}
           <span className="mc-draft-title">{draftTitle}</span>

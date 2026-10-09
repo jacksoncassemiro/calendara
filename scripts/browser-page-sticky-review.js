@@ -185,6 +185,34 @@ async (page) => {
   )
     throw new Error(`Narrow all-day alignment changed: ${JSON.stringify(narrowAlignment)}`);
   results.push({ narrowAlignment });
+  const horizontalControls = await page
+    .locator('#sticky-fixture [data-mc-hscroll]')
+    .evaluate(async (scroll) => {
+      const scrollbar = scroll.previousElementSibling.querySelector('.mc-header-scrollbar');
+      const positions = [];
+      for (const destination of [0, 180, 440]) {
+        scrollbar.scrollLeft = destination;
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const label = scroll.querySelector('.mc-allday-label').getBoundingClientRect();
+        const axis = scroll.querySelector('.mc-time-axis').getBoundingClientRect();
+        positions.push({ scrollLeft: scroll.scrollLeft, labelDelta: label.left - axis.left });
+      }
+      return {
+        positions,
+        position: getComputedStyle(scrollbar).position,
+        top: scrollbar.getBoundingClientRect().top,
+      };
+    });
+  if (
+    horizontalControls.position !== 'fixed' ||
+    horizontalControls.top < 0 ||
+    horizontalControls.positions.some((position) => Math.abs(position.labelDelta) > 1) ||
+    horizontalControls.positions.at(-1).scrollLeft < 400
+  )
+    throw new Error(
+      'Pinned horizontal navigation/label drift: ' + JSON.stringify(horizontalControls),
+    );
+  results.push({ horizontalControls });
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.evaluate(() => {

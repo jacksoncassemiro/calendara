@@ -1,27 +1,4 @@
-/**
- * InteractionEngine (Fase 4) — traduz Pointer Events num gesto de mover/redimensionar/selecionar,
- * com o ciclo **preview → commit → revert**.
- *
- * Filosofia do projeto: a MATEMÁTICA é pura (`geometry.ts`/`occupancy.ts`); aqui fica só o
- * acoplamento com o DOM. Usa DELEGAÇÃO no nó raiz (um `pointerdown`), então descobre se o toque
- * caiu num evento (mover), na alça de redimensionamento (`data-mc-resize`) ou em área vazia de uma
- * coluna (selecionar). Durante o arrasto emite um `InteractionDraft` (fantasma) reavaliado a cada
- * movimento; ao soltar, dispara o commit apropriado ou o callback de "barrado".
- *
- * Nada de layout é assumido: a posição do ponteiro vira `PointerSlot` via `locateSlot`, que por
- * padrão lê os retângulos das colunas (`data-mc-day`) — injetável para teste.
- *
- * SUPERFÍCIES DE ARRASTO. Existem dois contratos de DOM, e o motor é UM só (uma instância por
- * CalendarApp, compartilhada por todas as views):
- *  1. `[data-mc-day="YYYY-MM-DD"]` — colunas verticais de DATA (Semana/Dia/NDias). Caminho legado,
- *     intocado: X escolhe a coluna, Y projeta o minuto.
- *  2. `[data-mc-slot]` — superfície GENÉRICA das views de recurso, que declara o próprio eixo:
- *     `data-mc-slot="y"` (Multiagenda: colunas verticais por recurso, Y→minuto) ou
- *     `data-mc-slot="x"` (Timeline: linhas horizontais por recurso, X→minuto), mais
- *     `data-mc-slot-date` (a data REAL da superfície) e `data-mc-slot-resource`.
- * O motor tenta (1) e só cai para (2) se não houver coluna de data — então quem só renderiza
- * TimeGrid não paga nada e não muda de comportamento.
- */
+/** Pointer gestures with preview, commit and cancellation. @remarks Português: Gestos por ponteiro com prévia, confirmação e cancelamento. */
 import type {
   BlockedInfo,
   DraftReason,
@@ -42,103 +19,134 @@ import { isNestedInteractiveTarget } from './interactiveTarget.js';
 import { GestureAutoScroll } from './gestureAutoScroll.js';
 import type { EventOccurrence } from '../types/event.js';
 
-/** Entrada de avaliação de um candidato (ConstraintEngine + ocupação). */
 export interface EvaluationInput {
+  /** Gesture kind. @remarks Português: Tipo de gesto. */
   kind: InteractionKind;
+  /** Start date, YYYY-MM-DD. @remarks Português: Data inicial, YYYY-MM-DD. */
   dateISO: string;
+  /** Start in minutes of day. @remarks Português: Início em minutos do dia. */
   startMin: number;
+  /** Exclusive end in minutes of day. @remarks Português: Fim exclusivo em minutos do dia. */
   endMin: number;
+  /** End date when crossing midnight. @remarks Português: Data final ao atravessar meia-noite. */
   endDateISO?: string;
+  /** Date-only placement. @remarks Português: Posicionamento de dia inteiro. */
   allDay?: boolean;
-  /** Ocorrência envolvida (move/resize); ausente em seleção. */
+
+  /** Original edited occurrence. @remarks Português: Ocorrência original editada. */
   occurrence?: EventOccurrence;
-  /**
-   * Recurso-ALVO do candidato (views de recurso). Quando presente, a ocupação (lotação/buffer)
-   * é validada contra ESTE recurso — e não contra os `resourceIds` atuais do evento, que ainda
-   * apontam para a coluna de origem enquanto o arrasto está em curso.
-   */
+
+  /** Target resource ID. @remarks Português: ID do recurso destino. */
   resourceId?: string;
-  /** Recurso de ORIGEM do bloco: com ele o avaliador reconstrói o conjunto pós-drop. */
+
+  /** Original resource ID. @remarks Português: ID do recurso original. */
   fromResourceId?: string;
 }
 
-/** Resultado combinado da avaliação de um candidato. */
 export interface DraftEvaluation {
+  /** Placement accepted by validation. @remarks Português: Posicionamento aceito pela validação. */
   valid: boolean;
+  /** Validation outcome. @remarks Português: Resultado da validação. */
   reason: DraftReason;
 }
 
-/** Callbacks disparados pelo motor (o CalendarApp implementa e liga na API pública). */
 export interface InteractionCallbacks {
+  /** Publish or clear the preview. @remarks Português: Publica ou limpa a prévia. */
   onDraftChange(draft: InteractionDraft | null): void;
+  /** Confirm a move. @remarks Português: Confirma movimento. */
   commitMove(change: EventChange): void;
+  /** Confirm a resize. @remarks Português: Confirma redimensionamento. */
   commitResize(change: EventChange): void;
+  /** Confirm an interval selection. @remarks Português: Confirma seleção de intervalo. */
   commitSelect(selection: SelectionChange): void;
+  /** Activate an occurrence. @remarks Português: Ativa ocorrência. */
   clickEvent(placement: PlacementInfo): void;
+  /** Activate an empty slot. @remarks Português: Ativa horário vazio. */
   clickEmpty(slot: PointerSlot): void;
+  /** Report refused interaction. @remarks Português: Informa interação recusada. */
   blocked(info: BlockedInfo): void;
+  /** Accept incoming transfer. @remarks Português: Aceita transferência externa. */
   commitExternal?(change: EventChange): void;
+  /** Notify outside release. @remarks Português: Notifica saída do calendário. */
   dropOutside?(placement: PlacementInfo, destination: OutsideDropTarget): void;
 }
 
-/** Dependências injetadas (dados vivos do CalendarApp + política de avaliação). */
 export interface InteractionDeps {
+  /** Visible minute bounds. @remarks Português: Limites visíveis em minutos. */
   getGridBounds(): GridBounds;
+  /** Selection step in minutes. @remarks Português: Passo de seleção em minutos. */
   getSlotMinutes(): number;
+  /** Minimum event duration in minutes. @remarks Português: Duração mínima em minutos. */
   getMinDurationMin(): number;
-  /** Opt-in conversion when moving between real timed and all-day surfaces. */
+
+  /** Allow timed/all-day conversion; default false. @remarks Português: Permite converter horário/dia inteiro; padrão false. */
   allowEventTypeChange?: () => boolean;
+  /** Enable outgoing transfers. @remarks Português: Habilita transferências para fora. */
   allowOutsideDrop?: () => boolean;
+  /** Enable edge scrolling. @remarks Português: Habilita scroll nas bordas. */
   autoScroll?: () => boolean;
+  /** Validate complete candidate placement. @remarks Português: Valida posicionamento completo do candidato. */
   evaluate(input: EvaluationInput): DraftEvaluation;
+  /** Resolve a rendered occurrence ID. @remarks Português: Resolve ID da ocorrência renderizada. */
   resolveOccurrence(eventId: string): EventOccurrence | null;
+  /** Resolve original complete interval. @remarks Português: Resolve intervalo original completo. */
   resolveSpan?: (
     occurrence: EventOccurrence,
   ) => Pick<
     PlacementInfo,
     'dateISO' | 'startMin' | 'endDateISO' | 'endMin' | 'allDay' | 'durationMinutes'
   >;
-  normalizeDraft?: (
-    draft: DraftGeometry,
-    origin: PlacementInfo,
-    kind: InteractionKind,
-  ) => DraftGeometry;
-  /** Override de localização do ponteiro (teste). Ausente → retângulos das colunas. */
+  /** Preserve original time-zone duration. @remarks Português: Preserva duração no fuso original. */
+  normalizeDraft?: (input: {
+    /** Candidate gesture geometry. @remarks Português: Geometria candidata do gesto. */
+    draft: DraftGeometry;
+    /** Original grabbed placement. @remarks Português: Posicionamento original arrastado. */
+    origin: PlacementInfo;
+    /** Gesture operation. @remarks Português: Operação do gesto. */
+    kind: InteractionKind;
+  }) => DraftGeometry;
+
+  /** Custom pointer locator; default uses DOM bounds. @remarks Português: Localizador próprio; padrão usa limites do DOM. */
   locateSlot?: (clientX: number, clientY: number) => PointerSlot | null;
-  /** Deslocamento mínimo (min-do-dia) para distinguir clique de arrasto (default 5). */
+
+  /** Click/drag threshold in minutes; default 5. @remarks Português: Limite clique/arrasto em minutos; padrão 5. */
   dragThresholdMin?: number;
+  /** Consumer interaction handlers. @remarks Português: Tratadores de interação do consumidor. */
   callbacks: InteractionCallbacks;
 }
 
 const DEFAULT_DRAG_THRESHOLD_MIN = 5;
+const TOUCH_HOLD_DELAY_MS = 450;
+const TOUCH_SCROLL_DISTANCE_PX = 8;
 
 interface ActiveGesture {
   kind: InteractionKind;
   pointerId: number;
   anchor: PointerSlot;
-  /** Origem (move/resize); null em seleção. */
+
   origin: PlacementInfo | null;
-  /** Minutos abaixo do topo do evento onde o usuário agarrou (move). */
+
   grabOffsetMin: number;
   resizeEdge?: ResizeEdge;
-  /** Evento editável? (não editável ⇒ só clique, sem arrasto). */
+
   editable: boolean;
   movedEnough: boolean;
   lastDraft: InteractionDraft | null;
   captureTarget: Element | null;
-  /** List and popover cards do not occupy their event's time coordinates in the grid. */
+
   pointerOrigin?: { x: number; y: number };
-  /** List cards can be exported, but do not define timed drop coordinates. */
+
   sourceOnly?: boolean;
+  touchStart?: { x: number; y: number; readyAt: number };
 }
 
-/** Coordenada de um MouseEvent/PointerEvent (o que o motor consome do DOM). */
 interface PointerCoords {
   clientX: number;
   clientY: number;
   pointerId: number;
   button: number;
   target: EventTarget | null;
+  pointerType: string;
 }
 
 export class InteractionEngine {
@@ -153,6 +161,10 @@ export class InteractionEngine {
   private readonly onPointerMove = (event: Event): void => this.handlePointerMove(event);
   private readonly onPointerUp = (event: Event): void => this.handlePointerUp(event);
   private readonly onPointerCancel = (event: Event): void => this.handlePointerCancel(event);
+  private readonly onTouchMove = (event: TouchEvent): void => {
+    if (this.gesture?.touchStart && Date.now() >= this.gesture.touchStart.readyAt)
+      event.preventDefault();
+  };
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== 'Escape' || !this.gesture) return;
     this.finishDrag(this.gesture);
@@ -160,7 +172,7 @@ export class InteractionEngine {
     this.deps.callbacks.onDraftChange(null);
     event.preventDefault();
   };
-  /** Native text/image dragging would cancel the active Pointer Events gesture. */
+
   private readonly onNativeDragStart = (event: Event): void => {
     if (this.gesture) event.preventDefault();
   };
@@ -169,7 +181,6 @@ export class InteractionEngine {
     this.deps = deps;
   }
 
-  /** Liga os listeners de ponteiro ao nó raiz do calendário. */
   attach(root: HTMLElement): void {
     this.detach();
     this.root = root;
@@ -179,7 +190,6 @@ export class InteractionEngine {
     root.addEventListener('pointerdown', this.onPointerDown);
   }
 
-  /** Desliga tudo (destroy). */
   detach(): void {
     if (this.root) {
       this.root.removeEventListener('pointerdown', this.onPointerDown);
@@ -193,7 +203,6 @@ export class InteractionEngine {
     this.gesture = null;
   }
 
-  /** Start a pointer gesture from an application-owned card outside the calendar. */
   startExternalDrag(origin: PlacementInfo, event: PointerEvent): boolean {
     if (
       !this.root ||
@@ -220,7 +229,6 @@ export class InteractionEngine {
     return true;
   }
 
-  /** Abort a gesture when its external source unmounts or the consumer cancels it. */
   cancelDrag(): void {
     if (!this.gesture) return;
     this.finishDrag(this.gesture);
@@ -228,20 +236,14 @@ export class InteractionEngine {
     this.deps.callbacks.onDraftChange(null);
   }
 
-  /** A real surface under the pointer; unlike internal movement this does not clamp outside. */
   locatePointerSlot(clientX: number, clientY: number): PointerSlot | null {
     if (!this.isCalendarSurface(clientX, clientY)) return null;
     return this.locate(clientX, clientY);
   }
 
-  // ---- ciclo do gesto --------------------------------------------------------
-
   private handlePointerDown(event: Event): void {
     if (!this.root) return;
-    // Reentrância: já existe um gesto ativo (segundo dedo tocando durante um arrasto, clique
-    // perdido etc.) — o calendário só acompanha UM ponteiro por vez. Ignora o novo pointerdown
-    // em vez de sobrescrever `this.gesture` (o que faria o gesto original nunca receber seu
-    // pointerup, pois o `matchesPointer` do handlePointerUp compararia contra o pointerId novo).
+
     if (this.gesture) return;
     const coords = readCoords(event);
     const isPrimaryButton = coords.button === 0;
@@ -249,6 +251,10 @@ export class InteractionEngine {
 
     const targetElement = coords.target instanceof Element ? coords.target : null;
     if (!targetElement) return;
+    const touchStart =
+      coords.pointerType === 'touch'
+        ? { x: coords.clientX, y: coords.clientY, readyAt: Date.now() + TOUCH_HOLD_DELAY_MS }
+        : undefined;
     if (targetElement.closest('button.mc-month-daynum, button.mc-month-more, [data-mc-more]'))
       return;
     if (
@@ -268,15 +274,14 @@ export class InteractionEngine {
           allDay: sourcePlacement.allDay,
         }
       : allDayCell
-        ? this.locateAllDay(coords.clientX, coords.clientY)
+        ? this.locateAllDay({ clientX: coords.clientX, clientY: coords.clientY })
         : this.locate(coords.clientX, coords.clientY);
     if (!anchor) return;
 
     const resizeHandle = targetElement.closest('[data-mc-resize]');
-    // Controls supplied by renderEvent own their pointer gestures.
+
     if (eventNode && !resizeHandle && isNestedInteractiveTarget(targetElement, eventNode)) return;
-    // Alvo de SELEÇÃO em área vazia: coluna de data ou, nas views de recurso, a superfície
-    // genérica. Só procura a segunda se a primeira falhou (custo zero no TimeGrid).
+
     const dayNode = targetElement.closest('[data-mc-day]') as HTMLElement | null;
     const emptyAreaNode =
       allDayCell ??
@@ -310,6 +315,7 @@ export class InteractionEngine {
         pointerOrigin:
           fromPopover || sourceOnly ? { x: coords.clientX, y: coords.clientY } : undefined,
         sourceOnly,
+        touchStart,
       };
       this.beginDrag(eventNode, coords.pointerId);
       return;
@@ -326,6 +332,7 @@ export class InteractionEngine {
         movedEnough: false,
         lastDraft: null,
         captureTarget: emptyAreaNode,
+        touchStart,
       };
       this.beginDrag(emptyAreaNode, coords.pointerId);
     }
@@ -336,6 +343,14 @@ export class InteractionEngine {
     if (!gesture) return;
     const coords = readCoords(event);
     if (coords.pointerId !== gesture.pointerId) return;
+    if (gesture.touchStart && Date.now() < gesture.touchStart.readyAt) {
+      const distance = Math.hypot(
+        coords.clientX - gesture.touchStart.x,
+        coords.clientY - gesture.touchStart.y,
+      );
+      if (distance >= TOUCH_SCROLL_DISTANCE_PX) this.cancelDrag();
+      return;
+    }
     this.lastPointerMove = event;
     if (gesture.sourceOnly) {
       if (
@@ -376,9 +391,7 @@ export class InteractionEngine {
     this.clearOutsidePreview();
 
     const crossedDay = point.dateISO !== gesture.anchor.dateISO;
-    // Atravessar de coluna/linha de recurso conta como arrasto mesmo sem mexer no horário:
-    // mover uma consulta de um profissional para outro no MESMO horário é o caso central da
-    // Multiagenda, e sem isto o gesto seria interpretado como clique.
+
     const crossedResource = point.resourceId !== gesture.anchor.resourceId;
     const crossedType =
       gesture.kind === 'move' &&
@@ -464,12 +477,6 @@ export class InteractionEngine {
     callbacks.onDraftChange(null);
   }
 
-  /**
-   * `pointercancel` — o browser assumiu o ponteiro (scroll nativo, long-press de menu de contexto,
-   * mudança de orientação, chrome do browser). Diferente do `pointerup`, isto NÃO é um "soltar":
-   * é um aborto. Nada de commit/click — só limpar o estado e o fantasma, do jeito que o
-   * `handlePointerUp` limparia, mas sem tentar interpretar a intenção do usuário.
-   */
   private handlePointerCancel(event: Event): void {
     const gesture = this.gesture;
     if (!gesture) return;
@@ -513,13 +520,11 @@ export class InteractionEngine {
 
     const origin = gesture.origin;
     if (!origin) return;
-    const change = buildEventChange(gesture.kind, origin, draft);
+    const change = buildEventChange({ kind: gesture.kind, origin, draft });
     if (origin.external) callbacks.commitExternal?.(change);
     else if (gesture.kind === 'move') callbacks.commitMove(change);
     else callbacks.commitResize(change);
   }
-
-  // ---- helpers ---------------------------------------------------------------
 
   private isCalendarSurface(clientX: number, clientY: number): boolean {
     if (!this.root) return false;
@@ -528,7 +533,7 @@ export class InteractionEngine {
     const documentRef = this.root.ownerDocument;
     const hit = documentRef.elementFromPoint?.(clientX, clientY);
     if (hit) return this.root.contains(hit) && hit.closest(selector) !== null;
-    // DOM implementations without hit testing (including jsdom) can still verify bounds.
+
     return Array.from(this.root.querySelectorAll(selector)).some((surface) => {
       const rect = surface.getBoundingClientRect();
       return (
@@ -549,28 +554,38 @@ export class InteractionEngine {
 
     let geometry;
     if (gesture.kind === 'move' && gesture.origin) {
-      geometry = computeMoveDraft(
-        gesture.origin,
-        point,
-        gesture.grabOffsetMin,
+      geometry = computeMoveDraft({
+        origin: gesture.origin,
+        pointer: point,
+        grabOffsetMin: gesture.grabOffsetMin,
         slotMinutes,
         bounds,
-        this.deps.allowEventTypeChange?.() ?? false,
-      );
+        allowTypeChange: this.deps.allowEventTypeChange?.() ?? false,
+      });
     } else if (gesture.kind === 'resize' && gesture.origin) {
-      geometry = computeResizeDraft(
-        gesture.origin,
-        point,
+      geometry = computeResizeDraft({
+        origin: gesture.origin,
+        pointer: point,
         slotMinutes,
-        minDuration,
+        minDurationMin: minDuration,
         bounds,
-        gesture.resizeEdge,
-      );
+        edge: gesture.resizeEdge,
+      });
     } else {
-      geometry = computeSelectDraft(gesture.anchor, point, slotMinutes, minDuration, bounds);
+      geometry = computeSelectDraft({
+        anchor: gesture.anchor,
+        cursor: point,
+        slotMinutes,
+        minDurationMin: minDuration,
+        bounds,
+      });
     }
     if (gesture.origin && this.deps.normalizeDraft)
-      geometry = this.deps.normalizeDraft(geometry, gesture.origin, gesture.kind);
+      geometry = this.deps.normalizeDraft({
+        draft: geometry,
+        origin: gesture.origin,
+        kind: gesture.kind,
+      });
 
     const evaluationInput: EvaluationInput = {
       kind: gesture.kind,
@@ -609,8 +624,7 @@ export class InteractionEngine {
     const eventId = eventNode.dataset.mcEvent;
     if (!eventId) return null;
     const dayNode = eventNode.closest('[data-mc-day]') as HTMLElement | null;
-    // Nas views de recurso o bloco não está dentro de nenhuma coluna de data — a data (e o
-    // recurso de ORIGEM) vêm da superfície genérica que o contém.
+
     const slotNode = dayNode ? null : (eventNode.closest('[data-mc-slot]') as HTMLElement | null);
     const allDayCell = eventNode.closest('[data-mc-allday-cell]') as HTMLElement | null;
     const monthCell = eventNode.closest<HTMLElement>('[data-mc-month-day]');
@@ -643,7 +657,7 @@ export class InteractionEngine {
     const month = this.locateMonth(clientX, clientY);
     if (month) return month;
     if (this.gesture?.kind === 'move' && this.deps.allowEventTypeChange?.()) {
-      const allDay = this.locateAllDay(clientX, clientY, true);
+      const allDay = this.locateAllDay({ clientX, clientY, insideOnly: true });
       if (allDay) return allDay;
       return (
         this.deps.locateSlot?.(clientX, clientY) ??
@@ -651,10 +665,9 @@ export class InteractionEngine {
         this.locateBySlots(clientX, clientY)
       );
     }
-    if (this.gesture?.anchor.allDay) return this.locateAllDay(clientX, clientY);
+    if (this.gesture?.anchor.allDay) return this.locateAllDay({ clientX, clientY });
     if (this.deps.locateSlot) return this.deps.locateSlot(clientX, clientY);
-    // Colunas de data primeiro (caminho legado, inalterado); superfícies de recurso só quando
-    // não há nenhuma — as duas famílias de view nunca coexistem num mesmo render.
+
     return this.locateByRects(clientX, clientY) ?? this.locateBySlots(clientX, clientY);
   }
 
@@ -678,7 +691,15 @@ export class InteractionEngine {
       : null;
   }
 
-  private locateAllDay(clientX: number, clientY: number, insideOnly = false): PointerSlot | null {
+  private locateAllDay({
+    clientX,
+    clientY,
+    insideOnly = false,
+  }: {
+    clientX: number;
+    clientY: number;
+    insideOnly?: boolean;
+  }): PointerSlot | null {
     if (!this.root) return null;
     let best: { cell: HTMLElement; distance: number } | null = null;
     for (const cell of this.root.querySelectorAll<HTMLElement>('[data-mc-allday-cell]')) {
@@ -699,7 +720,6 @@ export class InteractionEngine {
     return slot;
   }
 
-  /** Localizador padrão: escolhe a coluna sob (ou mais próxima de) clientX e projeta clientY. */
   private locateByRects(clientX: number, clientY: number): PointerSlot | null {
     if (!this.root) return null;
     const bounds = this.deps.getGridBounds();
@@ -726,12 +746,6 @@ export class InteractionEngine {
     return { dateISO: best.dateISO, minuteOfDay: clampedMinute };
   }
 
-  /**
-   * Localizador das views de RECURSO. Cada superfície `[data-mc-slot]` declara qual eixo é o do
-   * tempo (`'y'` = Multiagenda, `'x'` = Timeline); o eixo TRANSVERSAL é o que escolhe a
-   * superfície. Com isso a Timeline (layout transposto) não precisa de motor nem de geometria
-   * própria — só troca qual coordenada é qual.
-   */
   private locateBySlots(clientX: number, clientY: number): PointerSlot | null {
     if (!this.root) return null;
     const bounds = this.deps.getGridBounds();
@@ -781,13 +795,14 @@ export class InteractionEngine {
       documentRef.addEventListener('pointercancel', this.onPointerCancel);
       documentRef.addEventListener('dragstart', this.onNativeDragStart);
       documentRef.addEventListener('keydown', this.onKeyDown);
+      documentRef.addEventListener('touchmove', this.onTouchMove, { passive: false });
     }
     this.capturePointer(captureTarget, pointerId);
   }
 
   private captureMovedGesture(gesture: ActiveGesture): void {
     if (!this.root || gesture.captureTarget === this.root || !gesture.editable) return;
-    // Transfer only after dragging starts, preserving native click targets before the threshold.
+
     gesture.captureTarget = this.root;
     this.capturePointer(this.root, gesture.pointerId);
   }
@@ -805,7 +820,7 @@ export class InteractionEngine {
           pointerId,
         );
       } catch {
-        /* captura é best-effort */
+        /* Capture may be unavailable. PT: Captura pode não estar disponível. */
       }
     }
   }
@@ -819,7 +834,7 @@ export class InteractionEngine {
       try {
         captureTarget!.releasePointerCapture(gesture.pointerId);
       } catch {
-        /* release é best-effort */
+        /* Capture may already be released. PT: Captura pode já ter sido liberada. */
       }
     }
   }
@@ -835,6 +850,7 @@ export class InteractionEngine {
     documentRef.removeEventListener('pointercancel', this.onPointerCancel);
     documentRef.removeEventListener('dragstart', this.onNativeDragStart);
     documentRef.removeEventListener('keydown', this.onKeyDown);
+    documentRef.removeEventListener('touchmove', this.onTouchMove);
   }
 
   private showOutsidePreview(gesture: ActiveGesture, coords: PointerCoords): void {
@@ -864,13 +880,13 @@ export class InteractionEngine {
   }
 }
 
-/** Lê coordenadas de um Event que na prática é Mouse/PointerEvent. */
 function readCoords(event: Event): PointerCoords {
   const pointerLike = event as Event & {
     clientX?: number;
     clientY?: number;
     pointerId?: number;
     button?: number;
+    pointerType?: string;
   };
   return {
     clientX: pointerLike.clientX ?? 0,
@@ -878,15 +894,19 @@ function readCoords(event: Event): PointerCoords {
     pointerId: pointerLike.pointerId ?? 0,
     button: pointerLike.button ?? 0,
     target: event.target,
+    pointerType: pointerLike.pointerType ?? 'mouse',
   };
 }
 
-/** Monta o `EventChange` a partir da origem + rascunho final. */
-function buildEventChange(
-  kind: 'move' | 'resize',
-  origin: PlacementInfo,
-  draft: InteractionDraft,
-): EventChange {
+function buildEventChange({
+  kind,
+  origin,
+  draft,
+}: {
+  kind: 'move' | 'resize';
+  origin: PlacementInfo;
+  draft: InteractionDraft;
+}): EventChange {
   const change: EventChange = {
     kind,
     occurrence: origin.occurrence,
@@ -894,8 +914,11 @@ function buildEventChange(
     dateISO: draft.dateISO,
     startMin: draft.startMin,
     endMin: draft.endMin,
-    startDateTime: minutesToDateTime(draft.dateISO, draft.startMin),
-    endDateTime: minutesToDateTime(draft.endDateISO ?? draft.dateISO, draft.endMin),
+    startDateTime: minutesToDateTime({ dateISO: draft.dateISO, minuteOfDay: draft.startMin }),
+    endDateTime: minutesToDateTime({
+      dateISO: draft.endDateISO ?? draft.dateISO,
+      minuteOfDay: draft.endMin,
+    }),
   };
   if (draft.endDateISO) change.endDateISO = draft.endDateISO;
   if (draft.allDay !== undefined) change.allDay = draft.allDay;

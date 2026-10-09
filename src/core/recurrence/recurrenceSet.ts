@@ -1,13 +1,3 @@
-/**
- * Recurrence-set — compõe a expansão de datas (engine) com a hora/timezone do evento,
- * aplicando RDATE (datas extras), EXDATE (remoções) e overrides (edição/cancelamento por ocorrência).
- * Produz EventOccurrence[] (ocorrências virtuais) dentro de uma janela.
- *
- * Semântica de COUNT: EXDATE reduz o conjunto final mas as ocorrências excluídas ainda CONTAM
- * para COUNT. EXDATE date-only exclui o dia inteiro e é repassado ao engine; datetime
- * exclui somente o início exato depois da expansão. Valores UTC/offset são projetados na
- * timezone do mestre (UTC quando ausente), e RDATE timed preserva a própria hora.
- */
 import type { CalendarEvent, EventOccurrence, Recurrence, RRuleModel } from '../types/index.js';
 import { isCancelledOverride } from '../types/index.js';
 import type { TemporalLike } from '../date/temporal.js';
@@ -17,26 +7,46 @@ import { parseRRule, validateRRuleModel } from './parser.js';
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 const OFFSET_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 
-/** Fold chooses the earlier instant; gap is detected by round-trip wall-clock. */
-function zonedStart(temporal: TemporalLike, iso: string, timeZone?: string) {
+interface LocalStartInput {
+  /** Resolved Temporal implementation. @remarks Português: Implementação Temporal resolvida. */
+  temporal: TemporalLike;
+  /** Local or offset date-time, according to the caller. @remarks Português: Data e hora local ou com offset, conforme o chamador. */
+  iso: string;
+  /** Event time zone; omitted uses UTC. @remarks Português: Fuso do evento; ausente usa UTC. */
+  timeZone?: string | undefined;
+}
+
+/** Resolve a local start using compatible DST disambiguation. @remarks Português: Resolve início local com desambiguação compatível de horário de verão. */
+function zonedStart({ temporal, iso, timeZone }: LocalStartInput) {
   return temporal.PlainDateTime.from(iso).toZonedDateTime(timeZone ?? 'UTC', {
     disambiguation: 'compatible',
   });
 }
 
-function isNonexistentStart(temporal: TemporalLike, iso: string, timeZone?: string): boolean {
+/** Detect skipped local times during a zone transition. @remarks Português: Detecta horários locais inexistentes durante mudança de fuso. */
+function isNonexistentStart({ temporal, iso, timeZone }: LocalStartInput): boolean {
   if (!timeZone || timeZone === 'UTC') return false;
   const plain = temporal.PlainDateTime.from(iso);
   return (
-    temporal.PlainDateTime.compare(plain, zonedStart(temporal, iso, timeZone).toPlainDateTime()) !==
-    0
+    temporal.PlainDateTime.compare(
+      plain,
+      zonedStart({ temporal, iso, timeZone }).toPlainDateTime(),
+    ) !== 0
   );
 }
 
+/** Inclusive ISO date bounds for occurrence expansion.
+ * @remarks Português: Limites inclusivos de datas ISO para expansão de ocorrências.
+ */
 export interface ExpandWindow {
-  /** 'YYYY-MM-DD' inclusivo. */
+  /** Inclusive first ISO date; omitted uses the series anchor.
+   * @remarks Português: Primeira data ISO inclusiva; ausente usa a âncora da série.
+   */
   start?: string;
-  /** 'YYYY-MM-DD' inclusivo. */
+
+  /** Inclusive last ISO date; required to bound infinite rules.
+   * @remarks Português: Última data ISO inclusiva; necessária para limitar regras infinitas.
+   */
   end?: string;
 }
 
@@ -45,8 +55,14 @@ function ruleModel(recurrence: Recurrence): RRuleModel | null {
   return typeof recurrence.rule === 'string' ? parseRRule(recurrence.rule) : recurrence.rule;
 }
 
-/** Extrai a data-base (PlainDate) do início do evento. */
-function startPlainDate(temporal: TemporalLike, event: CalendarEvent): PlainDate {
+function startPlainDate({
+  temporal,
+  event,
+}: {
+  /** Injected date/time implementation. / PT: Implementação de datas e horários injetada. */
+  temporal: TemporalLike; /** Master event defining the local start and duration. / PT: Evento principal que define início e duração locais. */
+  event: CalendarEvent;
+}): PlainDate {
   const start = event.time.start;
   const isoString = event.time.allDay ? start.date : start.dateTime;
   if (!isoString) throw new Error(`[calendara] evento ${event.id} sem start válido`);
@@ -54,17 +70,29 @@ function startPlainDate(temporal: TemporalLike, event: CalendarEvent): PlainDate
 }
 
 interface TimeShape {
+  /** Date-only event. @remarks Português: Evento definido por datas. */
   allDay: boolean;
-  /** 'HH:mm:ss' para timed. */
+
+  /** Master local time, or null for all-day events. @remarks Português: Horário local principal, ou null em eventos de dia inteiro. */
   startTime: string | null;
-  /** duração em dias (all-day). */
+
+  /** All-day duration in whole days. @remarks Português: Duração de dia inteiro em dias completos. */
   durationDaysAllDay: number;
-  /** duração (timed) como Duration do Temporal. */
+
+  /** Wall-clock duration for timed events. @remarks Português: Duração local de eventos com horário. */
   durationForTimed: ReturnType<InstanceType<TemporalLike['PlainDateTime']>['since']> | null;
+  /** Master event time zone. @remarks Português: Fuso horário do evento principal. */
   timeZone: string | undefined;
 }
 
-function timeShape(temporal: TemporalLike, event: CalendarEvent): TimeShape {
+function timeShape({
+  temporal,
+  event,
+}: {
+  /** Injected date/time implementation. / PT: Implementação de datas e horários injetada. */
+  temporal: TemporalLike; /** Master event defining the local start and duration. / PT: Evento principal que define início e duração locais. */
+  event: CalendarEvent;
+}): TimeShape {
   if (event.time.allDay) {
     const startDate = temporal.PlainDate.from(event.time.start.date!.slice(0, 10));
     const endDate = event.time.end.date
@@ -90,14 +118,24 @@ function timeShape(temporal: TemporalLike, event: CalendarEvent): TimeShape {
   };
 }
 
-/** Constrói o start/end de uma ocorrência numa data. Retorna também a chave originalStart. */
-function occurrenceTimes(
-  temporal: TemporalLike,
-  shape: TimeShape,
-  date: PlainDate,
-): {
+/** Preserve series duration on a recurrence date. @remarks Português: Preserva duração da série na data de recorrência. */
+function occurrenceTimes({
+  temporal,
+  shape,
+  date,
+}: {
+  /** Resolved Temporal implementation. @remarks Português: Implementação Temporal resolvida. */
+  temporal: TemporalLike;
+  /** Master duration and local start time. @remarks Português: Duração e horário local inicial do evento principal. */
+  shape: TimeShape;
+  /** Occurrence local date. @remarks Português: Data local da ocorrência. */
+  date: PlainDate;
+}): {
+  /** Inclusive occurrence start. @remarks Português: Início inclusivo da ocorrência. */
   start: CalendarEvent['time']['start'];
+  /** Exclusive occurrence end. @remarks Português: Fim exclusivo da ocorrência. */
   end: CalendarEvent['time']['end'];
+  /** Stable occurrence start before overrides. @remarks Português: Início estável da ocorrência antes das exceções. */
   originalStart: string;
 } {
   if (shape.allDay) {
@@ -122,8 +160,8 @@ function occurrenceTimes(
   };
 }
 
-/** Valores UTC/offset são projetados na zona do mestre; valores sem offset são wall-clock. */
-function localDateTime(temporal: TemporalLike, iso: string, timeZone?: string) {
+/** Normalize offset values into the event local time. @remarks Português: Converte valores com offset para horário local do evento. */
+function localDateTime({ temporal, iso, timeZone }: LocalStartInput) {
   const hasOffset = OFFSET_PATTERN.test(iso);
   return hasOffset
     ? temporal.Instant.from(iso)
@@ -132,12 +170,32 @@ function localDateTime(temporal: TemporalLike, iso: string, timeZone?: string) {
     : temporal.PlainDateTime.from(iso);
 }
 
-function extraOccurrenceTimes(temporal: TemporalLike, shape: TimeShape, iso: string) {
+/** Resolve an RDATE while preserving duration and rejecting unsupported DST times. @remarks Português: Resolve RDATE preservando duração e rejeitando horários de verão não suportados. */
+function extraOccurrenceTimes({
+  temporal,
+  shape,
+  iso,
+}: {
+  /** Resolved Temporal implementation. @remarks Português: Implementação Temporal resolvida. */
+  temporal: TemporalLike;
+  /** Master duration and local start time. @remarks Português: Duração e horário local inicial do evento principal. */
+  shape: TimeShape;
+  /** Additional date or date-time from RDATE. @remarks Português: Data ou horário adicional de RDATE. */
+  iso: string;
+}) {
   const isTimedValue = !shape.allDay && iso.length > 10;
   if (!isTimedValue)
-    return occurrenceTimes(temporal, shape, temporal.PlainDate.from(iso.slice(0, 10)));
-  const start = localDateTime(temporal, iso, shape.timeZone);
-  const isGap = isNonexistentStart(temporal, start.toString(), shape.timeZone);
+    return occurrenceTimes({
+      temporal,
+      shape,
+      date: temporal.PlainDate.from(iso.slice(0, 10)),
+    });
+  const start = localDateTime({ temporal, iso, timeZone: shape.timeZone });
+  const isGap = isNonexistentStart({
+    temporal,
+    iso: start.toString(),
+    timeZone: shape.timeZone,
+  });
   if (isGap)
     throw new RangeError(
       '[calendara] RDATE contém horário local inexistente na timezone do evento',
@@ -146,7 +204,11 @@ function extraOccurrenceTimes(temporal: TemporalLike, shape: TimeShape, iso: str
     OFFSET_PATTERN.test(iso) &&
     temporal.Instant.compare(
       temporal.Instant.from(iso),
-      zonedStart(temporal, start.toString(), shape.timeZone).toInstant(),
+      zonedStart({
+        temporal,
+        iso: start.toString(),
+        timeZone: shape.timeZone,
+      }).toInstant(),
     ) !== 0;
   if (hasUnrepresentableFold)
     throw new RangeError(
@@ -160,12 +222,19 @@ function extraOccurrenceTimes(temporal: TemporalLike, shape: TimeShape, iso: str
   };
 }
 
-/** Aplica um override (parcial ou cancelamento) ao evento-base para uma ocorrência. */
-function applyOverride(
-  baseEvent: CalendarEvent,
-  recurrence: Recurrence,
-  originalStart: string,
-): CalendarEvent | null {
+/** Apply an occurrence override, preserving its original identity. @remarks Português: Aplica exceção da ocorrência preservando sua identidade original. */
+function applyOverride({
+  baseEvent,
+  recurrence,
+  originalStart,
+}: {
+  /** Occurrence before overrides. @remarks Português: Ocorrência antes das exceções. */
+  baseEvent: CalendarEvent;
+  /** Series exceptions. @remarks Português: Exceções da série. */
+  recurrence: Recurrence;
+  /** Original start identifying this occurrence. @remarks Português: Início original que identifica esta ocorrência. */
+  originalStart: string;
+}): CalendarEvent | null {
   const override =
     recurrence.overrides?.[originalStart] ?? recurrence.overrides?.[originalStart.slice(0, 10)];
   if (!override) return baseEvent;
@@ -173,31 +242,35 @@ function applyOverride(
   return { ...baseEvent, ...override, time: override.time ?? baseEvent.time };
 }
 
-/**
- * Expande um evento (recorrente ou não) em ocorrências virtuais dentro de `window`.
- * Regras infinitas exigem `window.end`; regras finitas podem usar COUNT/UNTIL.
+/** Named input for recurrence expansion. @remarks Português: Parâmetros nomeados da expansão de recorrências. */
+export interface ExpandEventInput {
+  /** Resolved Temporal implementation. @remarks Português: Implementação Temporal resolvida. */
+  temporal: TemporalLike;
+  /** Master event to expand. @remarks Português: Evento principal a expandir. */
+  event: CalendarEvent;
+  /** Inclusive date bounds; defaults to an empty window. @remarks Português: Limites inclusivos de datas; padrão é janela vazia. */
+  window?: ExpandWindow;
+}
+
+/** Expand event occurrences; unbounded rules require window.end and exclusions retain COUNT.
+ * @remarks Português: Expande ocorrências; regras infinitas exigem window.end e exclusões preservam COUNT.
  */
-export function expandEvent(
-  temporal: TemporalLike,
-  event: CalendarEvent,
-  window: ExpandWindow = {},
-): EventOccurrence[] {
-  const shape = timeShape(temporal, event);
+export function expandEvent({ temporal, event, window = {} }: ExpandEventInput): EventOccurrence[] {
+  const shape = timeShape({ temporal, event });
   const windowStart = window.start ? temporal.PlainDate.from(window.start) : undefined;
   const windowEnd = window.end ? temporal.PlainDate.from(window.end) : undefined;
 
-  // Sem recorrência: uma única ocorrência (o próprio mestre).
   const hasRule = !!event.recurrence?.rule;
   const hasRDates = (event.recurrence?.rDates?.length ?? 0) > 0;
   const isRecurring = hasRule || hasRDates;
   if (!isRecurring) {
-    const baseDate = startPlainDate(temporal, event);
+    const baseDate = startPlainDate({ temporal, event });
     const beforeWindow =
       windowStart !== undefined && temporal.PlainDate.compare(baseDate, windowStart) < 0;
     const afterWindow =
       windowEnd !== undefined && temporal.PlainDate.compare(baseDate, windowEnd) > 0;
     if (beforeWindow || afterWindow) return [];
-    const times = occurrenceTimes(temporal, shape, baseDate);
+    const times = occurrenceTimes({ temporal, shape, date: baseDate });
     return [
       {
         event: { ...event, time: { allDay: shape.allDay, start: times.start, end: times.end } },
@@ -208,7 +281,6 @@ export function expandEvent(
     ];
   }
 
-  // isRecurring garante recurrence definido aqui.
   const recurrence = event.recurrence!;
   const model = ruleModel(recurrence);
   if (model) validateRRuleModel(model);
@@ -221,8 +293,12 @@ export function expandEvent(
     throw new Error(
       '[calendara] expandEvent exige window.end, COUNT ou UNTIL para uma recorrência infinita.',
     );
-  const dtStart = startPlainDate(temporal, event);
-  const masterStart = occurrenceTimes(temporal, shape, dtStart).originalStart;
+  const dtStart = startPlainDate({ temporal, event });
+  const masterStart = occurrenceTimes({
+    temporal,
+    shape,
+    date: dtStart,
+  }).originalStart;
 
   const excludedDates = new Set<string>(
     (recurrence.exDates ?? []).filter((iso) => iso.length <= 10).map((iso) => iso.slice(0, 10)),
@@ -236,13 +312,19 @@ export function expandEvent(
     (recurrence.exDates ?? [])
       .filter((iso) => iso.length > 10 && (shape.allDay || !OFFSET_PATTERN.test(iso)))
       .map((iso) =>
-        shape.allDay ? iso.slice(0, 10) : localDateTime(temporal, iso, shape.timeZone).toString(),
+        shape.allDay
+          ? iso.slice(0, 10)
+          : localDateTime({ temporal, iso, timeZone: shape.timeZone }).toString(),
       ),
   );
 
   const timesForRuleStart = (originalStart: string): ReturnType<typeof occurrenceTimes> => {
     if (shape.allDay)
-      return occurrenceTimes(temporal, shape, temporal.PlainDate.from(originalStart));
+      return occurrenceTimes({
+        temporal,
+        shape,
+        date: temporal.PlainDate.from(originalStart),
+      });
     const start = temporal.PlainDateTime.from(originalStart);
     const zone = shape.timeZone ? { timeZone: shape.timeZone } : {};
     return {
@@ -251,15 +333,13 @@ export function expandEvent(
       end: { dateTime: start.add(shape.durationForTimed!).toString(), ...zone },
     };
   };
-  // The provider counts generated valid starts before calendar EXDATE/cancellation.
   const ruleTimes = (model ? ruleStarts({ temporal, event, model, window }) : [])
     .filter((start) => !excludedDates.has(start.slice(0, 10)))
     .map(timesForRuleStart);
 
-  // RDATE: datas extras (não contam para COUNT). Respeita janela e EXDATE.
   const extraTimes: ReturnType<typeof occurrenceTimes>[] = [];
   for (const rDate of recurrence.rDates ?? []) {
-    const times = extraOccurrenceTimes(temporal, shape, rDate);
+    const times = extraOccurrenceTimes({ temporal, shape, iso: rDate });
     const plainDate = temporal.PlainDate.from(times.originalStart.slice(0, 10));
     const excluded = excludedDates.has(plainDate.toString());
     const beforeWindow =
@@ -271,14 +351,16 @@ export function expandEvent(
     extraTimes.push(times);
   }
 
-  // Um override pode mover uma ocorrência originalmente fora da janela para dentro dela.
-  // Só admitimos chaves pertencentes à série (COUNT/UNTIL/filtros/EXDATE continuam valendo).
   for (const [originalStart, override] of Object.entries(recurrence.overrides ?? {})) {
     const hasMovedTime = !isCancelledOverride(override) && override.time !== undefined;
     if (!hasMovedTime) continue;
     const originalDate = temporal.PlainDate.from(originalStart.slice(0, 10));
     const originalISO = originalDate.toString();
-    const expectedStart = occurrenceTimes(temporal, shape, originalDate).originalStart;
+    const expectedStart = occurrenceTimes({
+      temporal,
+      shape,
+      date: originalDate,
+    }).originalStart;
     const alreadyIncluded = ruleTimes.some(
       (times) =>
         times.originalStart === originalStart ||
@@ -286,7 +368,7 @@ export function expandEvent(
     );
     if (alreadyIncluded || excludedDates.has(originalISO)) continue;
     const matchingRDate = recurrence.rDates?.find(
-      (iso) => extraOccurrenceTimes(temporal, shape, iso).originalStart === originalStart,
+      (iso) => extraOccurrenceTimes({ temporal, shape, iso }).originalStart === originalStart,
     );
     const validKey =
       originalStart === originalISO ||
@@ -294,7 +376,7 @@ export function expandEvent(
       matchingRDate !== undefined;
     if (!validKey) continue;
     const movedEvent = { ...event, time: override.time! };
-    const movedStart = startPlainDate(temporal, movedEvent);
+    const movedStart = startPlainDate({ temporal, event: movedEvent });
     const movedEndISO = movedEvent.time.allDay
       ? movedEvent.time.end.date!
       : movedEvent.time.end.dateTime!;
@@ -311,9 +393,13 @@ export function expandEvent(
     if (model && !isRDate) {
       if (!shape.allDay) {
         const unmodifiedSeries = { ...event, recurrence: { ...recurrence, overrides: undefined } };
-        isRuleDate = expandEvent(temporal, unmodifiedSeries, {
-          start: originalISO,
-          end: originalISO,
+        isRuleDate = expandEvent({
+          temporal,
+          event: unmodifiedSeries,
+          window: {
+            start: originalISO,
+            end: originalISO,
+          },
         }).some((candidate) => candidate.originalStart === expectedStart);
       } else
         isRuleDate = ruleStarts({
@@ -324,8 +410,9 @@ export function expandEvent(
         }).includes(originalISO);
     }
     if (isRDate && matchingRDate)
-      extraTimes.push(extraOccurrenceTimes(temporal, shape, matchingRDate));
-    else if (isRDate || isRuleDate) ruleTimes.push(occurrenceTimes(temporal, shape, originalDate));
+      extraTimes.push(extraOccurrenceTimes({ temporal, shape, iso: matchingRDate }));
+    else if (isRDate || isRuleDate)
+      ruleTimes.push(occurrenceTimes({ temporal, shape, date: originalDate }));
   }
 
   const results: EventOccurrence[] = [];
@@ -340,14 +427,20 @@ export function expandEvent(
       !shape.allDay &&
       excludedInstants.size > 0 &&
       excludedInstants.has(
-        zonedStart(temporal, times.originalStart, shape.timeZone).toInstant().toString(),
+        zonedStart({ temporal, iso: times.originalStart, timeZone: shape.timeZone })
+          .toInstant()
+          .toString(),
       );
     if (excludedInstant) continue;
     const occurrenceEvent: CalendarEvent = {
       ...event,
       time: { allDay: shape.allDay, start: times.start, end: times.end },
     };
-    const effectiveEvent = applyOverride(occurrenceEvent, recurrence, times.originalStart);
+    const effectiveEvent = applyOverride({
+      baseEvent: occurrenceEvent,
+      recurrence,
+      originalStart: times.originalStart,
+    });
     const isCancelled = effectiveEvent === null;
     if (isCancelled) continue;
     const isMaster = times.originalStart === masterStart;

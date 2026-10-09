@@ -6,7 +6,9 @@ interface PointerPosition {
 const EDGE_SIZE_PX = 36;
 const MAX_SPEED_PX_PER_SECOND = 600;
 
-/** Scroll existing containers during a gesture; never create a new scroll area. */
+/** Scroll existing containers near gesture edges.
+ * @remarks Português: Rola contêineres existentes nas bordas do gesto.
+ */
 export class GestureAutoScroll {
   private frame: number | null = null;
   private pointer: PointerPosition | null = null;
@@ -63,21 +65,21 @@ export class GestureAutoScroll {
       if (!movedX && /auto|scroll/.test(style.overflowX) && node.scrollWidth > node.clientWidth) {
         const before = node.scrollLeft;
         node.scrollLeft +=
-          edgeSpeed(
-            pointer.clientX,
-            Math.max(0, rect.left),
-            Math.min(windowRef.innerWidth, rect.right),
-          ) * elapsedSeconds;
+          edgeSpeed({
+            positionPx: pointer.clientX,
+            startPx: Math.max(0, rect.left),
+            endPx: Math.min(windowRef.innerWidth, rect.right),
+          }) * elapsedSeconds;
         movedX = node.scrollLeft !== before;
       }
       if (!movedY && /auto|scroll/.test(style.overflowY) && node.scrollHeight > node.clientHeight) {
         const before = node.scrollTop;
         node.scrollTop +=
-          edgeSpeed(
-            pointer.clientY,
-            Math.max(0, rect.top),
-            Math.min(windowRef.innerHeight, rect.bottom),
-          ) * elapsedSeconds;
+          edgeSpeed({
+            positionPx: pointer.clientY,
+            startPx: Math.max(0, rect.top),
+            endPx: Math.min(windowRef.innerHeight, rect.bottom),
+          }) * elapsedSeconds;
         movedY = node.scrollTop !== before;
       }
       node = node.parentElement;
@@ -85,7 +87,9 @@ export class GestureAutoScroll {
     const page = this.root.ownerDocument.scrollingElement;
     if (!movedY && page && page.scrollHeight > windowRef.innerHeight) {
       const before = page.scrollTop;
-      page.scrollTop += edgeSpeed(pointer.clientY, 0, windowRef.innerHeight) * elapsedSeconds;
+      page.scrollTop +=
+        edgeSpeed({ positionPx: pointer.clientY, startPx: 0, endPx: windowRef.innerHeight }) *
+        elapsedSeconds;
       movedY = page.scrollTop !== before;
     }
     if (movedX || movedY) {
@@ -100,12 +104,27 @@ export class GestureAutoScroll {
   };
 }
 
-function edgeSpeed(position: number, start: number, end: number): number {
-  const edge = Math.min(EDGE_SIZE_PX, (end - start) / 2);
+interface EdgeSpeedInput {
+  /** Pointer coordinate on the evaluated axis, in pixels.
+   * @remarks Português: Coordenada do ponteiro no eixo avaliado, em pixels.
+   */
+  positionPx: number;
+  /** Visible viewport start on this axis, in pixels.
+   * @remarks Português: Início da área visível neste eixo, em pixels.
+   */
+  startPx: number;
+  /** Visible viewport end on this axis, in pixels.
+   * @remarks Português: Fim da área visível neste eixo, em pixels.
+   */
+  endPx: number;
+}
+
+function edgeSpeed({ positionPx, startPx, endPx }: EdgeSpeedInput): number {
+  const edge = Math.min(EDGE_SIZE_PX, (endPx - startPx) / 2);
   if (edge <= 0) return 0;
-  if (position < start + edge)
-    return -MAX_SPEED_PX_PER_SECOND * Math.max(0, 1 - (position - start) / edge);
-  if (position > end - edge)
-    return MAX_SPEED_PX_PER_SECOND * Math.max(0, 1 - (end - position) / edge);
+  if (positionPx < startPx + edge)
+    return -MAX_SPEED_PX_PER_SECOND * Math.max(0, 1 - (positionPx - startPx) / edge);
+  if (positionPx > endPx - edge)
+    return MAX_SPEED_PX_PER_SECOND * Math.max(0, 1 - (endPx - positionPx) / edge);
   return 0;
 }

@@ -1,6 +1,7 @@
 /** @jsxImportSource react */
-/** Single-day resource timeline. */
+/** Single-day resource timeline. @remarks Português: Linha do tempo por recurso em um único dia. */
 import { occurrenceKey } from '../../core/render/derive.js';
+import { DayHeaderContent } from './components/DayHeaderContent.js';
 import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
 import { getViewLabels } from './formatting/viewLabels.js';
 import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
@@ -34,11 +35,7 @@ type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 const RESOURCE_LABEL_WIDTH_PX = 120;
 const TIMELINE_ROW_HEIGHT_PX = 44;
 
-// ---------------------------------------------------------------------------
-// Timeline: recursos em linhas, tempo no eixo X.
-// ---------------------------------------------------------------------------
-
-/** Cria a view Timeline (recursos em linhas, tempo no eixo X) para um único dia. */
+/** Create resource rows with horizontal time. @remarks Português: Cria linhas de recursos com tempo horizontal. */
 export function createTimelineView(
   resources: readonly CalendarResource[] = [],
   name = 'timeline',
@@ -49,15 +46,19 @@ export function createTimelineView(
     getRange(date: PlainDate): ViewRange {
       return { days: [date], startDate: date, endDate: date };
     },
-    navigate(direction, date) {
+    navigate({ direction, date }) {
       return direction === 'next' ? date.add({ days: 1 }) : date.subtract({ days: 1 });
     },
     getTitle(range, context): string {
-      return formatDate(range.startDate, context.options.locale, {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
+      return formatDate({
+        date: range.startDate,
+        locale: context.options.locale,
+        options: {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        },
       });
     },
     render(context: ViewRenderContext): JSX.Element {
@@ -67,10 +68,12 @@ export function createTimelineView(
 }
 
 function Timeline(props: {
+  /** Resolved view data and consumer callbacks. @remarks Português: Dados resolvidos da view e callbacks do consumidor. */
   context: ViewRenderContext;
+  /** Resources rendered in this view. @remarks Português: Recursos renderizados nesta view. */
   resources: readonly CalendarResource[];
 }): JSX.Element {
-  const scrollRef = usePageStickyHeaders();
+  const scrollRef = usePageStickyHeaders(props.context.options.locale);
   const { context, resources } = props;
   const { options, range } = context;
   const day = range.startDate;
@@ -90,22 +93,30 @@ function Timeline(props: {
     nowMinute >= gridStartMin &&
     nowMinute <= gridEndMin;
 
-  const columns = buildResourceColumns(
-    context.temporal,
+  const columns = buildResourceColumns({
+    temporal: context.temporal,
     resources,
     day,
-    context.resourceBufferOccurrences ?? context.occurrences,
-    context.constraints,
-    { startHour, endHour },
-    options.timeZone,
-    options.visibleResourceIds,
-    options.defaultResourceCapacity,
-  );
+    occurrences: context.resourceBufferOccurrences ?? context.occurrences,
+    globalConstraints: context.constraints,
+    grid: { startHour, endHour },
+    displayTimeZone: options.timeZone,
+    visibleResourceIds: options.visibleResourceIds,
+    defaultCapacity: options.defaultResourceCapacity,
+  });
 
-  const hourLabels: { minute: number; label: string }[] = [];
-  const labelStep = timeLabelStep(options, true);
+  const hourLabels: {
+    /** Label position in minutes since midnight. @remarks Português: Posição do rótulo em minutos desde meia-noite. */
+    minute: number;
+    /** Display text. @remarks Português: Texto exibido. */
+    label: string;
+  }[] = [];
+  const labelStep = timeLabelStep({ options, horizontal: true });
   for (let minute = gridStartMin; minute < gridEndMin; minute += labelStep) {
-    hourLabels.push({ minute, label: formatHourLabel(minute, options.locale) });
+    hourLabels.push({
+      minute,
+      label: formatHourLabel({ minuteOfDay: minute, locale: options.locale }),
+    });
   }
 
   const labelRows = Math.min(
@@ -115,9 +126,6 @@ function Timeline(props: {
 
   return (
     <div className="mc-timeline" data-mc-view="timeline">
-      {/* Scroller horizontal ÚNICO (cabeçalho + todas as linhas). A Timeline JÁ nasce mais larga
-          que um celular — a trilha tem largura explícita (janela × pxPerMinute) —, então aqui o
-          scroll não depende de breakpoint: vale em qualquer largura. Só estrutura. */}
       <div ref={scrollRef} className="mc-hscroll" data-mc-hscroll>
         <div className="mc-timeline-header" style={{ display: 'flex' }}>
           <div
@@ -154,15 +162,18 @@ function Timeline(props: {
             const placementById = new Map(
               column.day.timed.map((placement) => [placement.id, placement]),
             );
-            const density = applyDenseLayout(
-              layoutDay(column.day.timed, createResourceGeometryGrid(context)).map((block) => ({
+            const density = applyDenseLayout({
+              blocks: layoutDay({
+                items: column.day.timed,
+                grid: createResourceGeometryGrid(context),
+              }).map((block) => ({
                 ...block,
                 left: block.column / block.columns,
                 width: 1 / block.columns,
               })),
-              options.timedEventOverflow === 'more' ? 'more' : 'shrink',
-              options.eventMaxStack,
-            );
+              policy: options.timedEventOverflow === 'more' ? 'more' : 'shrink',
+              maxStack: options.eventMaxStack,
+            });
             const visibleLaneCount = Math.max(
               1,
               ...density.blocks.map((block) => block.columns),
@@ -178,11 +189,11 @@ function Timeline(props: {
                     : 0)) *
                   28,
             );
-            const rowDraft = getResourceDraftSegment(
-              context.draft,
-              column.resource.id,
-              column.day.dateISO,
-            );
+            const rowDraft = getResourceDraftSegment({
+              draft: context.draft,
+              resourceId: column.resource.id,
+              dateISO: column.day.dateISO,
+            });
             return (
               <div
                 key={column.resource.id}
@@ -200,9 +211,23 @@ function Timeline(props: {
               >
                 <div
                   className="mc-timeline-label"
-                  style={{ width: toPx(RESOURCE_LABEL_WIDTH_PX), flex: '0 0 auto' }}
+                  style={{
+                    ...context.getDayStyle?.({
+                      dateISO: column.day.dateISO,
+                      viewName: context.viewName ?? 'timeline',
+                      resourceId: column.resource.id,
+                    }),
+                    width: toPx(RESOURCE_LABEL_WIDTH_PX),
+                    flex: '0 0 auto',
+                  }}
                 >
-                  {column.resource.title}
+                  <DayHeaderContent
+                    context={context}
+                    dateISO={column.day.dateISO}
+                    viewName={context.viewName ?? 'timeline'}
+                    resourceId={column.resource.id}
+                    defaultContent={column.resource.title}
+                  />
                   <ResourceAllDay column={column} context={context} />
                 </div>
                 <div
@@ -265,7 +290,10 @@ function Timeline(props: {
                     const eventId = block.id;
                     const placement = placementById.get(eventId)!;
                     const event = placement.occurrence.event;
-                    const timeLabel = formatHourLabel(placement.startMin, options.locale);
+                    const timeLabel = formatHourLabel({
+                      minuteOfDay: placement.startMin,
+                      locale: options.locale,
+                    });
                     const left = minuteToX(Math.max(placement.startMin, gridStartMin));
                     const clippedEnd = Math.min(
                       gridEndMin,
@@ -277,11 +305,11 @@ function Timeline(props: {
                     const width =
                       Math.max(0, clippedEnd - Math.max(placement.startMin, gridStartMin)) *
                       options.pxPerMinute;
-                    const editable = occurrenceEditableForDay(
-                      placement.occurrence,
-                      column.day.dateISO,
+                    const editable = occurrenceEditableForDay({
+                      occurrence: placement.occurrence,
+                      dayISO: column.day.dateISO,
                       context,
-                    );
+                    });
                     return (
                       <div
                         key={eventId}
@@ -305,8 +333,7 @@ function Timeline(props: {
                             context.onEventClick(placement.occurrence);
                           }
                         }}
-                        // Minutos REAIS da ocorrência (não os recortados ao grid): são a origem do
-                        // gesto, e recortar aqui faria o evento "encolher" ao ser arrastado.
+                        // Preserve original minutes when dragging clipped events. PT: Preserva minutos originais ao mover eventos recortados.
                         data-mc-start-min={placement.startMin}
                         data-mc-end-min={placement.endMin}
                         data-mc-editable={editable ? 'true' : 'false'}
@@ -318,7 +345,7 @@ function Timeline(props: {
                           top: toPx(block.column * TIMELINE_ROW_HEIGHT_PX),
                           height: `calc(${TIMELINE_ROW_HEIGHT_PX}px - var(--mc-event-gap, 8px))`,
                           zIndex: block.column + 1,
-                          ...(editable ? { touchAction: 'none' } : {}),
+                          touchAction: 'auto',
                           ...(context.draft?.eventId === eventId
                             ? { visibility: 'hidden' as const }
                             : {}),
@@ -335,10 +362,12 @@ function Timeline(props: {
                               })
                             : event.title}
                         </div>
-                        {/* Alça na borda DIREITA: aqui o tempo cresce no eixo X. */}
                         {editable &&
-                          occurrenceEdges(placement.occurrence, column.day.dateISO, context)
-                            .start && (
+                          occurrenceEdges({
+                            occurrence: placement.occurrence,
+                            dayISO: column.day.dateISO,
+                            context,
+                          }).start && (
                             <span
                               className="mc-resize-handle mc-resize-start"
                               data-mc-resize="start"
@@ -354,8 +383,11 @@ function Timeline(props: {
                             />
                           )}
                         {editable &&
-                          occurrenceEdges(placement.occurrence, column.day.dateISO, context)
-                            .end && (
+                          occurrenceEdges({
+                            occurrence: placement.occurrence,
+                            dayISO: column.day.dateISO,
+                            context,
+                          }).end && (
                             <div
                               className="mc-resize-handle"
                               data-mc-resize="end"
@@ -401,7 +433,10 @@ function Timeline(props: {
                       }}
                     >
                       <span className="mc-draft-time">
-                        {formatDraftInterval(context.draft ?? rowDraft, options.locale)}
+                        {formatDraftInterval({
+                          draft: context.draft ?? rowDraft,
+                          locale: options.locale,
+                        })}
                       </span>
                       {' · '}
                       <span className="mc-draft-title">

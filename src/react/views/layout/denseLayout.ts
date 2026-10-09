@@ -3,28 +3,49 @@ import type { GeoBlock } from '../../../core/geometry/geometry.js';
 export type DenseEventPolicy = 'shrink' | 'scroll' | 'more';
 
 export interface DenseOverflowGroup {
+  /** Vertical offset in px. @remarks Português: Deslocamento vertical em px. */
   top: number;
+  /** Group height in px. @remarks Português: Altura do grupo em px. */
   height: number;
+  /** Horizontal offset as a column fraction. @remarks Português: Deslocamento horizontal como fração da coluna. */
   left: number;
+  /** Width as a column fraction. @remarks Português: Largura como fração da coluna. */
   width: number;
+  /** IDs omitted from visible lanes. @remarks Português: IDs ocultos das colunas visíveis. */
   hiddenIds: string[];
 }
 
 export interface DenseLayoutResult {
+  /** Visible positioned event cards. @remarks Português: Cartões visíveis e posicionados. */
   blocks: GeoBlock[];
-  /** Minimum day/resource width in pixels; zero leaves sizing to the view. */
+  /** Minimum column width in px. @remarks Português: Largura mínima da coluna em px. */
   minWidth: number;
+  /** Overflow groups with hidden IDs. @remarks Português: Grupos excedentes com IDs ocultos. */
   groups: DenseOverflowGroup[];
 }
 
-/** Applies density policy to layoutDay's geometry without changing event times. */
-export function applyDenseLayout(
-  blocks: readonly GeoBlock[],
-  policy: DenseEventPolicy = 'shrink',
+/** Density inputs without event-time changes. @remarks Português: Entradas de densidade sem mudar horários. */
+export interface DenseLayoutInput {
+  /** Visible positioned event cards. @remarks Português: Cartões visíveis e posicionados. */
+  blocks: readonly GeoBlock[];
+  /** Density behavior; default shrink. @remarks Português: Comportamento de densidade; padrão shrink. */
+  policy?: DenseEventPolicy;
+  /** Visible lanes including +more; default 3. @remarks Português: Colunas visíveis incluindo ver mais; padrão 3. */
+  maxStack?: number;
+  /** Minimum card width in px; default 100. @remarks Português: Largura mínima do cartão em px; padrão 100. */
+  minEventWidth?: number;
+  /** Partial overlaps; default false. @remarks Português: Sobreposição parcial; padrão false. */
+  slotEventOverlap?: boolean;
+}
+
+/** Apply density without changing times. @remarks Português: Aplica densidade sem mudar horários. */
+export function applyDenseLayout({
+  blocks,
+  policy = 'shrink',
   maxStack = 3,
   minEventWidth = 100,
   slotEventOverlap = false,
-): DenseLayoutResult {
+}: DenseLayoutInput): DenseLayoutResult {
   const result: DenseLayoutResult = { blocks: [...blocks], minWidth: 0, groups: [] };
   const finish = (): DenseLayoutResult => {
     if (!slotEventOverlap) return result;
@@ -45,8 +66,7 @@ export function applyDenseLayout(
   }
 
   const limit = Number.isFinite(maxStack) ? Math.max(1, Math.floor(maxStack)) : 3;
-  // Rendered heights include layoutDay's minimum event height, so short events
-  // that visually collide belong to the same connected component too.
+
   const sorted = [...blocks].sort(
     (a, b) => a.top - b.top || b.height - a.height || a.id.localeCompare(b.id),
   );
@@ -66,8 +86,6 @@ export function applyDenseLayout(
           hidden.add(block.id);
           hiddenIds.push(block.id);
         } else {
-          // Preserve waterfall expansion within the visible lanes, leaving the
-          // reserved last lane clear across the whole overflow group.
           const span = Math.min(visibleColumns - block.column, block.width * columns);
           replacements.set(block.id, {
             ...block,
@@ -90,7 +108,6 @@ export function applyDenseLayout(
   };
 
   for (const block of sorted) {
-    // Exclusive end: adjacent events do not create an overflow group together.
     if (cluster.length && block.top >= end) flush();
     cluster.push(block);
     end = Math.max(end, block.top + block.height);

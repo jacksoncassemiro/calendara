@@ -10,31 +10,34 @@ const consumerPath = fileURLToPath(new URL('consumer/', output));
 if (!consumerPath.startsWith(fileURLToPath(output)))
   throw new Error('Consumer output outside smoke directory');
 rmSync(consumerPath, { recursive: true, force: true });
-function run(command, args, cwd = root) {
+/** Run a command in its working directory. / PT: Executa o comando no diretório indicado. */
+function run({ command, args, cwd = root }) {
   const result = spawnSync(command, args, { cwd, stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 for (const name of ['calendar']) {
   const archive = fileURLToPath(new URL(`${name}.tgz`, output));
   if (process.platform === 'win32') {
-    // Corepack ships beside Node on the supported Windows setup. Invoke its JS
-    // entry directly so paths with spaces are not interpreted by a shell.
-    run(
-      process.execPath,
-      [
+    // Avoid shell interpretation of Node paths. / PT: Evita interpretar caminhos do Node pelo shell.
+    run({
+      command: process.execPath,
+      args: [
         join(dirname(process.execPath), 'node_modules/corepack/dist/yarn.js'),
         'pack',
         '--filename',
         archive,
       ],
-      root,
-    );
+      cwd: root,
+    });
   } else {
-    run('yarn', ['pack', '--filename', archive], root);
+    run({ command: 'yarn', args: ['pack', '--filename', archive], cwd: root });
   }
   const target = new URL('consumer/node_modules/@jacksoncassemiro/calendara/', output);
   mkdirSync(target, { recursive: true });
-  run('tar', ['-xf', archive, '-C', fileURLToPath(target), '--strip-components=1']);
+  run({
+    command: 'tar',
+    args: ['-xf', archive, '-C', fileURLToPath(target), '--strip-components=1'],
+  });
 }
 const consumer = new URL('consumer/', output);
 writeFileSync(new URL('package.json', consumer), '{"private":true,"type":"module"}\n');
@@ -61,7 +64,7 @@ app.destroy();
 console.log('Pacotes empacotados: imports ESM, require CJS e CSS OK.');
 `,
 );
-run(process.execPath, ['smoke.mjs'], fileURLToPath(consumer));
+run({ command: process.execPath, args: ['smoke.mjs'], cwd: fileURLToPath(consumer) });
 writeFileSync(
   new URL('consumer.tsx', consumer),
   `
@@ -71,19 +74,22 @@ const events: CalendarEvent[] = [];
 export function Example() { const {ref} = useCalendar(); return <Calendar views={[dayView]} apiRef={ref} events={events} />; }
 `,
 );
-run(process.execPath, [
-  'node_modules/typescript/bin/tsc',
-  '--noEmit',
-  '--strict',
-  '--skipLibCheck',
-  '--jsx',
-  'react-jsx',
-  '--module',
-  'NodeNext',
-  '--moduleResolution',
-  'NodeNext',
-  '--target',
-  'ES2022',
-  fileURLToPath(new URL('consumer.tsx', consumer)),
-]);
+run({
+  command: process.execPath,
+  args: [
+    'node_modules/typescript/bin/tsc',
+    '--noEmit',
+    '--strict',
+    '--skipLibCheck',
+    '--jsx',
+    'react-jsx',
+    '--module',
+    'NodeNext',
+    '--moduleResolution',
+    'NodeNext',
+    '--target',
+    'ES2022',
+    fileURLToPath(new URL('consumer.tsx', consumer)),
+  ],
+});
 console.log('Consumidor React TypeScript externo: OK.');

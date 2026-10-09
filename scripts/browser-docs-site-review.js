@@ -15,6 +15,7 @@ async (page) => {
     throw new Error('Demo link does not target the playground');
   await page.screenshot({ path: 'output/layout-review/docs-desktop.png' });
 
+  await page.getByLabel('Contrato', { exact: true }).selectOption('CalendarProps');
   await page.getByLabel('Buscar campo ou descrição', { exact: true }).fill('initialView');
   const fields = page.locator('.site-api-field');
   await page.waitForFunction(() =>

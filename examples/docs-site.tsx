@@ -375,7 +375,14 @@ function DocumentationSite() {
     return () => preference.removeEventListener('change', applyTheme);
   }, [theme]);
 
-  const demoUrl = (view?: string, scenario?: string) =>
+  const demoUrl = ({
+    view,
+    scenario,
+  }: {
+    /** Optional initial view name. / PT: Nome opcional da view inicial. */
+    view?: string; /** Optional playground scenario name. / PT: Nome opcional do cenário do playground. */
+    scenario?: string;
+  } = {}) =>
     `./examples/react.html?lang=${language}&theme=${theme}${view ? `&view=${view}` : ''}${scenario ? `&scenario=${scenario}` : ''}`;
 
   return (
