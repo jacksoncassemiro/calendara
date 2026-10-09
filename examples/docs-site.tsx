@@ -801,6 +801,10 @@ function DocumentationSite() {
           </section>
           <footer className="site-footer">
             <span>Calendara · MIT</span>
+            <a href={`./docs/${language}/ai-integration.md`}>
+              {language === 'en' ? 'AI integration' : 'Integração com IAs'}
+            </a>
+            <a href="./llms.txt">llms.txt</a>
             <a
               href={`${repository}/blob/main/${language === 'en' ? 'CONTRIBUTING.md' : 'CONTRIBUTING.pt-BR.md'}`}
             >

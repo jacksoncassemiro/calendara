@@ -900,23 +900,40 @@ function ResourceTimelinePeriod({
                   style={{ height: virtualWindow.offsets[index]! - previousEnd }}
                 />
                 {row.kind === 'group' ? (
-                  <div data-mc-resource-group={row.name} style={{ height: row.height }}>
-                    <button
-                      type="button"
-                      className="mc-resource-group-toggle"
-                      aria-expanded={!collapsed.has(row.name)}
-                      disabled={Boolean(context.draft)}
-                      onClick={() =>
-                        setCollapsed((previous) => {
-                          const next = new Set(previous);
-                          if (next.has(row.name)) next.delete(row.name);
-                          else next.add(row.name);
-                          return next;
-                        })
-                      }
+                  <div
+                    className="mc-period-group-row"
+                    data-mc-resource-group={row.name}
+                    style={{ height: row.height }}
+                  >
+                    <div
+                      className="mc-period-group-label"
+                      style={{ width: RESOURCE_LABEL_WIDTH_PX, flexShrink: 0 }}
                     >
-                      {row.name} · {row.count}
-                    </button>
+                      <button
+                        type="button"
+                        className="mc-resource-group-toggle"
+                        aria-expanded={!collapsed.has(row.name)}
+                        disabled={Boolean(context.draft)}
+                        onClick={() =>
+                          setCollapsed((previous) => {
+                            const next = new Set(previous);
+                            if (next.has(row.name)) next.delete(row.name);
+                            else next.add(row.name);
+                            return next;
+                          })
+                        }
+                      >
+                        {row.name} · {row.count}
+                      </button>
+                    </div>
+                    {days.map((day) => (
+                      <div
+                        key={day.toString()}
+                        className="mc-period-group-day"
+                        aria-hidden="true"
+                        style={{ width: dayWidth }}
+                      />
+                    ))}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', height: row.height }}>
@@ -966,7 +983,11 @@ function ResourceTimelinePeriod({
                       </div>
                     </div>
                     {days.map((day) => (
-                      <div key={day.toString()} style={{ width: dayWidth, flexShrink: 0 }}>
+                      <div
+                        key={day.toString()}
+                        className="mc-period-resource-day"
+                        style={{ width: dayWidth, flexShrink: 0 }}
+                      >
                         <Timeline
                           resources={[row.resource]}
                           columns={[columnsByDate.get(day.toString())!.get(row.resource.id)!]}

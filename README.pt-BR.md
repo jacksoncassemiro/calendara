@@ -72,6 +72,10 @@ export function App() {
 
 A biblioteca está em desenvolvimento e não oferece paridade completa com todos os concorrentes. A recorrência civil usa Temporal injetado, com fallback lazy de `temporal-polyfill`. Testes físicos em Safari/mobile e tecnologias assistivas são distintos dos testes automatizados no Chromium. Veja [recursos e limites](docs/pt-BR/features.md).
 
+## Integração com IAs
+
+Usando uma assistente de IA? Comece pelo [guia de integração para IAs](docs/pt-BR/ai-integration.md). O [llms.txt do site](https://jacksoncassemiro.me/calendara/llms.txt) indexa guias legíveis e contratos gerados da API.
+
 ## Desenvolvimento
 
 ```sh

@@ -423,6 +423,7 @@ function App() {
   const [timeScale, setTimeScale] = useState(1.5);
   const [slotMinutes, setSlotMinutes] = useState(30);
   const [compactMonth, setCompactMonth] = useState(false);
+  const [monthFixedWeeks, setMonthFixedWeeks] = useState(true);
   const [labelInterval, setLabelInterval] = useState(0);
   const [moreBehavior, setMoreBehavior] = useState('popover');
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -712,6 +713,18 @@ function App() {
             </select>
           </label>
           <label>
+            {t('Semanas no mês', 'Month weeks')}
+            <select
+              value={monthFixedWeeks ? 'six' : 'natural'}
+              onChange={(event) => setMonthFixedWeeks(event.target.value === 'six')}
+            >
+              <option value="six">{t('6 semanas', '6 weeks')}</option>
+              <option value="natural">
+                {t('Automático: 4–6 semanas', 'Automatic: 4–6 weeks')}
+              </option>
+            </select>
+          </label>
+          <label>
             {t('Duração do slot', 'Slot duration')}
             <select
               aria-label={t('Duração do slot', 'Slot duration')}
@@ -829,6 +842,7 @@ function App() {
                 timeLabelInterval: labelInterval || undefined,
                 monthMoreView: moreBehavior === 'day' ? 'day' : undefined,
                 monthCompactBreakpoint: compactMonth ? 480 : false,
+                monthFixedWeeks,
                 visibleResourceIds: visibleResource
                   ? [visibleResource]
                   : resources.map((resource) => resource.id),

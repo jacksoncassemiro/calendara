@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+- Padroniza painéis de mês/ano/trimestre em seis semanas; adiciona `monthFixedWeeks: false` para quatro a seis semanas naturais, incluindo datas adjacentes nos intervalos informados.
+- Corrige scroll fixo e alturas uniformes no planejamento anual, células compactas com bordas fechadas nos múltiplos meses, divisórias de grupos da timeline e contraste do dia atual na demonstração.
+- Adiciona guias EN/PT para integração com IAs, índice `llms.txt` e contratos Markdown gerados dos tipos; corrige exemplos de persistência para argumentos nomeados.
+
 ## [0.3.0] - 2026-10-09
 
 - Adicionados dicionários parciais agrupados do editor com fallback EN/PT, formatadores de mensagens com parâmetros nomeados, rótulos por Intl e sete frequências com horário; bloqueadas regras intradiárias em dia inteiro.

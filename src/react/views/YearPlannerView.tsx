@@ -4,6 +4,7 @@ import type { CalendarView, ViewRenderContext } from '../viewTypes.js';
 import { DayHeaderContent } from './components/DayHeaderContent.js';
 import { occurrenceDays } from './layout/occurrenceDays.js';
 import { formatDate } from './formatting/timeLabels.js';
+import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
 
 /** Year planner configuration.
  * @remarks Português: Configuração do planejamento anual
@@ -59,6 +60,7 @@ function YearPlanner({
   context: ViewRenderContext;
 }) {
   const english = context.options.locale.startsWith('en');
+  const scrollRef = usePageStickyHeaders(context.options.locale, context.options.direction);
   const itemsByDate = new Map<string, EventOccurrence[]>();
   for (const occurrence of context.occurrences)
     for (const dateISO of occurrenceDays({ occurrence, context })) {
@@ -74,7 +76,7 @@ function YearPlanner({
     .toPlainDate()
     .toString();
   return (
-    <div className="mc-year-planner-scroll" data-mc-year-planner-scroll>
+    <div ref={scrollRef} className="mc-hscroll mc-year-planner-scroll" data-mc-year-planner-scroll>
       <table className="mc-year-planner" data-mc-year-planner>
         <caption>
           {english
@@ -83,7 +85,9 @@ function YearPlanner({
         </caption>
         <thead>
           <tr>
-            <th scope="col">{english ? 'Month' : 'Mês'}</th>
+            <th scope="col" className="mc-year-planner-corner">
+              {english ? 'Month' : 'Mês'}
+            </th>
             {Array.from({ length: 31 }, (_, index) => (
               <th key={index} scope="col">
                 {index + 1}

@@ -1,5 +1,7 @@
 # Documentação Calendara
 
+- [Guia de integração para IAs](ai-integration.md)
+
 [English](../en/README.md)
 
 - [Primeiros passos](getting-started.md): instalação do pacote GitHub e primeiro app React.

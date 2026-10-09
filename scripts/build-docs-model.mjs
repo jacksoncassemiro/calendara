@@ -99,6 +99,35 @@ const model = contracts.map(([name, relativePath]) => {
 const output = fileURLToPath(new URL('../examples/generated/api-model.json', import.meta.url));
 mkdirSync(fileURLToPath(new URL('../examples/generated/', import.meta.url)), { recursive: true });
 writeFileSync(output, `${JSON.stringify(model, null, 2)}\n`);
+const markdown = [
+  '# Calendara API contracts',
+  '',
+  '> Generated from TypeScript and bilingual JSDoc. Check your installed version before using these contracts.',
+  '',
+];
+for (const contract of model) {
+  markdown.push(`## ${contract.name}`, '', `Source: \`${contract.source}\``, '');
+  for (const field of contract.fields) {
+    markdown.push(
+      `### ${field.name}`,
+      '',
+      `Type: ${field.optional ? 'optional' : 'required'}`,
+      '',
+      '```ts',
+      field.type,
+      '```',
+      '',
+      field.english,
+      '',
+      `Português: ${field.portuguese}`,
+      '',
+    );
+  }
+}
+writeFileSync(
+  new URL('../examples/generated/api-reference.md', import.meta.url),
+  `${markdown.join('\n')}\n`,
+);
 console.log(
   `Generated ${model.length} API contracts (${model.reduce((total, contract) => total + contract.fields.length, 0)} fields).`,
 );

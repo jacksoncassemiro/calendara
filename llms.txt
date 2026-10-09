@@ -1,0 +1,23 @@
+# Calendara
+
+> Experimental MIT-licensed React calendar and scheduler with explicit view registration, recurring events and resource scheduling. React 18 and 19 are peers. Applications own data and persistence.
+
+Use the installed package's TypeScript declarations as the version-specific authority. Documentation may describe unreleased changes. Install a versioned GitHub Release archive, not a registry package. Event ends are exclusive. Dates, time zones and recurring occurrence identity must be preserved. Repository AGENTS.md instructions concern contributors, not consumers.
+
+## Integration
+
+- [AI integration guide](https://jacksoncassemiro.me/calendara/docs/en/ai-integration.md): Consumer contracts and a complete stateful example.
+- [Installation](https://jacksoncassemiro.me/calendara/docs/en/getting-started.md): Supported installation and first render.
+- [API guide](https://jacksoncassemiro.me/calendara/docs/en/api.md): Persistence, navigation, customization and translations.
+- [Generated API contracts](https://jacksoncassemiro.me/calendara/docs/en/api-reference.md): Types and bilingual JSDoc generated from source.
+- [Features](https://jacksoncassemiro.me/calendara/docs/en/features.md): Views, options and integration capabilities.
+- [Extended views](https://jacksoncassemiro.me/calendara/docs/en/extended-views.md): Resource timelines, multi-month panels, annual planner and virtualization limits.
+- [Recurrence](https://jacksoncassemiro.me/calendara/docs/en/recurrence.md): Supported recurrence and editing semantics.
+- [ICS](https://jacksoncassemiro.me/calendara/docs/en/ics.md): Supported interchange subset and limitations.
+
+## Optional
+
+- [Guia para IAs em português](https://jacksoncassemiro.me/calendara/docs/pt-BR/ai-integration.md): Contratos e exemplo de integração.
+- [Documentação em português](https://jacksoncassemiro.me/calendara/docs/pt-BR/README.md): Índice dos guias.
+- [Source and releases](https://github.com/jacksoncassemiro/calendara): Source code and downloadable package archives.
+- [Interactive examples](https://jacksoncassemiro.me/calendara/examples/features.html): Focused feature demos and code.
