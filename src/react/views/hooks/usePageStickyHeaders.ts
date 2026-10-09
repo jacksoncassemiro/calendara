@@ -68,7 +68,7 @@ export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement 
       allDayFixed = false;
     };
     let copy: HTMLElement;
-    let corner: HTMLElement | null = null;
+    let corners: HTMLElement[] = [];
     let frame = 0;
     let copyDirty = true;
     let disposed = false;
@@ -82,8 +82,10 @@ export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement 
         }
       });
       copy.classList.add('mc-page-sticky-content');
-      corner = copy.firstElementChild as HTMLElement | null;
-      corner?.classList.add('mc-page-sticky-corner');
+      corners = [...copy.querySelectorAll<HTMLElement>('.mc-gutter-corner, .mc-timeline-corner')];
+      if (!corners.length && copy.firstElementChild)
+        corners = [copy.firstElementChild as HTMLElement];
+      corners.forEach((corner) => corner.classList.add('mc-page-sticky-corner'));
       overlay.replaceChildren(copy);
       copyDirty = false;
     };
@@ -162,7 +164,9 @@ export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement 
       overlay.style.width = `${scroller.clientWidth}px`;
       copy.style.width = `${source.width}px`;
       copy.style.transform = `translateX(${-scroller.scrollLeft}px)`;
-      if (corner) corner.style.transform = `translateX(${scroller.scrollLeft}px)`;
+      corners.forEach((corner) => {
+        corner.style.transform = `translateX(${scroller.scrollLeft}px)`;
+      });
       if (allDay) {
         if (!allDayFixed) {
           placeholder.style.height = `${allDay.getBoundingClientRect().height}px`;

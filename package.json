@@ -19,7 +19,6 @@
     "test:browser": "node scripts/run-browser-review.mjs",
     "audit:dependencies": "node scripts/audit-dependencies.mjs",
     "check:publication": "node scripts/check-publication.mjs",
-    "export:clean": "node scripts/export-clean-repository.mjs",
     "format": "prettier --write src tests scripts examples *.ts *.json *.html styles.css",
     "format:check": "prettier --check src tests scripts examples *.ts *.json *.html styles.css",
     "verify": "yarn audit:contracts && yarn typecheck && yarn test && yarn build && yarn test:package && yarn build:demo"

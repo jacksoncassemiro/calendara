@@ -1,0 +1,325 @@
+[
+  {
+    "name": "day",
+    "chunks": [
+      {
+        "file": "assets/day-kVLmvSXb.js",
+        "entry": true,
+        "bytes": 284040,
+        "gzipBytes": 80129,
+        "modules": [
+          {
+            "id": "node_modules/rrule-temporal/dist/src-vjCiI_-u.js",
+            "rendered": 232945
+          },
+          {
+            "id": "src/react/app/calendarApp.ts",
+            "rendered": 33369
+          },
+          {
+            "id": "src/core/interaction/interactionEngine.ts",
+            "rendered": 24118
+          },
+          {
+            "id": "src/react/views/components/TimeGrid.tsx",
+            "rendered": 13236
+          },
+          {
+            "id": "src/core/recurrence/recurrenceSet.ts",
+            "rendered": 10953
+          },
+          {
+            "id": "src/core/interaction/gestureGeometry.ts",
+            "rendered": 9242
+          },
+          {
+            "id": "src/react/views/hooks/usePageStickyHeaders.ts",
+            "rendered": 8659
+          },
+          {
+            "id": "src/core/render/derive.ts",
+            "rendered": 8350
+          },
+          {
+            "id": "src/react/Calendar.tsx",
+            "rendered": 6053
+          },
+          {
+            "id": "src/react/views/models/timeGridModel.ts",
+            "rendered": 4918
+          },
+          {
+            "id": "src/core/recurrence/parser.ts",
+            "rendered": 4766
+          },
+          {
+            "id": "src/react/views/components/EventOverflow.tsx",
+            "rendered": 4411
+          },
+          {
+            "id": "src/react/printing.ts",
+            "rendered": 3869
+          },
+          {
+            "id": "src/core/constraint/constraintEngine.ts",
+            "rendered": 3390
+          },
+          {
+            "id": "src/core/interaction/gestureAutoScroll.ts",
+            "rendered": 3384
+          },
+          {
+            "id": "src/core/geometry/geometry.ts",
+            "rendered": 3192
+          },
+          {
+            "id": "src/core/interaction/model.ts",
+            "rendered": 3158
+          },
+          {
+            "id": "src/core/render/state.ts",
+            "rendered": 3088
+          },
+          {
+            "id": "src/react/components/CalendarShell.tsx",
+            "rendered": 2775
+          },
+          {
+            "id": "\u0000vite/preload-helper.js",
+            "rendered": 2610
+          },
+          {
+            "id": "src/core/render/resourceConstraints.ts",
+            "rendered": 2559
+          },
+          {
+            "id": "src/react/views/layout/occurrenceDays.ts",
+            "rendered": 2337
+          },
+          {
+            "id": "src/react/views/layout/denseLayout.ts",
+            "rendered": 2302
+          },
+          {
+            "id": "src/react/views/formatting/timeLabels.ts",
+            "rendered": 2300
+          },
+          {
+            "id": "src/core/recurrence/ruleStarts.ts",
+            "rendered": 2209
+          },
+          {
+            "id": "src/react/app/keyboardGrid.ts",
+            "rendered": 2106
+          },
+          {
+            "id": "src/core/date/dateUtils.ts",
+            "rendered": 1944
+          },
+          {
+            "id": "src/core/interaction/occupancy.ts",
+            "rendered": 1842
+          },
+          {
+            "id": "src/react/views/timeGridViews.ts",
+            "rendered": 1772
+          },
+          {
+            "id": "src/react/views/components/SlotCells.tsx",
+            "rendered": 1108
+          },
+          {
+            "id": "src/core/interaction/interactiveTarget.ts",
+            "rendered": 842
+          },
+          {
+            "id": "src/react/handle.ts",
+            "rendered": 742
+          },
+          {
+            "id": "src/core/date/temporal.ts",
+            "rendered": 721
+          },
+          {
+            "id": "src/react/views/components/DayHeaderContent.tsx",
+            "rendered": 703
+          },
+          {
+            "id": "src/core/store/store.ts",
+            "rendered": 677
+          },
+          {
+            "id": "src/react/views/layout/geometryStyles.ts",
+            "rendered": 616
+          },
+          {
+            "id": "src/react/views/layout/spanLayout.ts",
+            "rendered": 610
+          },
+          {
+            "id": "src/react/views/registry/createViewRegistry.ts",
+            "rendered": 530
+          },
+          {
+            "id": "src/core/recurrence/monthDayFilters.ts",
+            "rendered": 369
+          },
+          {
+            "id": "src/core/render/resourceDerive.ts",
+            "rendered": 240
+          },
+          {
+            "id": "src/react/externalDrag.ts",
+            "rendered": 232
+          },
+          {
+            "id": "src/core/date/time.ts",
+            "rendered": 193
+          },
+          {
+            "id": "src/core/types/recurrence.ts",
+            "rendered": 132
+          },
+          {
+            "id": "node_modules/rrule-temporal/dist/index.js",
+            "rendered": 0
+          },
+          {
+            "id": "output/floating-audit/causal/day.js",
+            "rendered": 0
+          }
+        ]
+      },
+      {
+        "file": "assets/MonthMorePopover-DcZ8mH5v.js",
+        "entry": false,
+        "bytes": 46548,
+        "gzipBytes": 16748,
+        "modules": [
+          {
+            "id": "node_modules/@floating-ui/react/dist/floating-ui.react.mjs",
+            "rendered": 49128
+          },
+          {
+            "id": "node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs",
+            "rendered": 18292
+          },
+          {
+            "id": "node_modules/tabbable/dist/index.esm.js",
+            "rendered": 12719
+          },
+          {
+            "id": "node_modules/@floating-ui/core/dist/floating-ui.core.mjs",
+            "rendered": 11787
+          },
+          {
+            "id": "node_modules/@floating-ui/react/dist/floating-ui.react.utils.mjs",
+            "rendered": 6523
+          },
+          {
+            "id": "node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs",
+            "rendered": 5720
+          },
+          {
+            "id": "node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs",
+            "rendered": 4777
+          },
+          {
+            "id": "node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs",
+            "rendered": 3659
+          },
+          {
+            "id": "src/react/views/components/MonthMorePopover.tsx",
+            "rendered": 1444
+          }
+        ]
+      },
+      {
+        "file": "assets/index.esm-CLbWTDBE.js",
+        "entry": false,
+        "bytes": 159673,
+        "gzipBytes": 45459,
+        "modules": [
+          {
+            "id": "node_modules/@js-temporal/polyfill/dist/index.esm.js",
+            "rendered": 167498
+          },
+          {
+            "id": "node_modules/jsbi/dist/jsbi-umd.js",
+            "rendered": 51660
+          },
+          {
+            "id": "\u0000rolldown/runtime.js",
+            "rendered": 1162
+          }
+        ]
+      },
+      {
+        "file": "assets/viewLabels-yj1WdcHT.js",
+        "entry": false,
+        "bytes": 1386,
+        "gzipBytes": 624,
+        "modules": [
+          {
+            "id": "src/react/views/formatting/viewLabels.ts",
+            "rendered": 1590
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "rrule",
+    "chunks": [
+      {
+        "file": "assets/rrule-DZmSDALZ.js",
+        "entry": true,
+        "bytes": 179616,
+        "gzipBytes": 49937,
+        "modules": [
+          {
+            "id": "node_modules/rrule-temporal/dist/src-vjCiI_-u.js",
+            "rendered": 232945
+          },
+          {
+            "id": "node_modules/rrule-temporal/dist/index.js",
+            "rendered": 0
+          },
+          {
+            "id": "output/floating-audit/causal/rrule.js",
+            "rendered": 0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "polyfill",
+    "chunks": [
+      {
+        "file": "assets/polyfill-CLbWTDBE.js",
+        "entry": true,
+        "bytes": 159673,
+        "gzipBytes": 45459,
+        "modules": [
+          {
+            "id": "node_modules/@js-temporal/polyfill/dist/index.esm.js",
+            "rendered": 167498
+          },
+          {
+            "id": "node_modules/jsbi/dist/jsbi-umd.js",
+            "rendered": 51660
+          },
+          {
+            "id": "\u0000rolldown/runtime.js",
+            "rendered": 1162
+          },
+          {
+            "id": "output/floating-audit/causal/polyfill.js",
+            "rendered": 0
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -6,6 +6,8 @@
 
 ### Added
 
+- Configurable resource columns across dates, grouped resource timelines for day/week/month periods, multi-month/year/quarter panels and an annual planner; views are registered explicitly.
+- Printable visible-range agenda and native browser PDF output, independent of the rendered resource window.
 - Named-input contracts for core utilities and custom-view navigation; positional overloads and compatibility adapters are removed (breaking change).
 - Contract audit and generated EN/PT reference cover controller, editor and custom-view integration types.
 
@@ -14,6 +16,7 @@
 
 ### Fixed
 
+- Retired duplicate API catalogs and one-time migration tools; archived engineering records retain neutral decisions and scenarios.
 - Touch swipes scroll without briefly creating a gesture preview; holding enables intentional moves.
 - All-day labels stay aligned with the time axis during combined page and horizontal scrolling.
 - Bounded month weeks share a consistent height; narrow overflow labels stay within their cells and today's number uses compact emphasis.

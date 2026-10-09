@@ -77,7 +77,7 @@ async (page) => {
   const featureLinks = await page
     .locator('#features article a[href*="features.html"]')
     .evaluateAll((links) => links.map((link) => link.href));
-  if (featureLinks.length !== 10) throw new Error('Feature catalog is incomplete');
+  if (featureLinks.length !== 16) throw new Error('Feature catalog is incomplete');
   for (const href of featureLinks) {
     const demo = new URL(href).searchParams.get('demo');
     const expectedView =
@@ -87,6 +87,7 @@ async (page) => {
         'external-drag': 'day',
         overflow: 'day',
         'custom-view': 'summary',
+        print: 'week',
       }[demo] ?? demo;
     await page.goto(href);
     await page.locator(`[data-mc-root][data-mc-view="${expectedView}"]`).waitFor();

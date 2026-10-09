@@ -8,6 +8,12 @@ import {
   createReactView,
   createResourceDayView,
   createTimelineView,
+  createResourceView,
+  createResourceTimelineView,
+  yearView,
+  quarterView,
+  yearPlannerView,
+  dayAgendaView,
   getTemporal,
   occurrenceKey,
   splitEventSeries,
@@ -34,6 +40,13 @@ const englishViewLabels: Record<string, string> = {
   list: 'Agenda',
   resources: 'Resources',
   timeline: 'Timeline',
+  year: 'Year',
+  quarter: 'Quarter',
+  'year-planner': 'Year planner',
+  'day-agenda': 'Day agenda',
+  'resource-week': 'Resources · week',
+  'timeline-week': 'Timeline · week',
+  'timeline-month': 'Timeline · month',
   summary: 'Summary',
 };
 const initialEvents: CalendarEvent[] = [
@@ -208,6 +221,32 @@ const views = [
   ...BUILTIN_VIEWS,
   createResourceDayView(resources),
   createTimelineView(resources),
+  createResourceView({
+    resources,
+    days: 7,
+    alignment: 'week',
+    groupBy: 'resource',
+    name: 'resource-week',
+    label: 'Recursos · semana',
+  }),
+  createResourceTimelineView({
+    resources,
+    duration: 'week',
+    name: 'timeline-week',
+    label: 'Timeline · semana',
+    groupBy: () => 'Salas',
+  }),
+  createResourceTimelineView({
+    resources,
+    duration: 'month',
+    name: 'timeline-month',
+    label: 'Timeline · mês',
+    groupBy: () => 'Salas',
+  }),
+  yearView,
+  quarterView,
+  yearPlannerView,
+  dayAgendaView,
   createNDaysView(3),
   createReactView({ name: 'summary', label: 'Resumo' }, SummaryView),
 ];
@@ -261,7 +300,14 @@ function App() {
         label:
           language === 'en'
             ? (englishViewLabels[view.name] ?? view.label.replace('dias', 'days'))
-            : view.label,
+            : ((
+                {
+                  year: 'Ano',
+                  quarter: 'Trimestre',
+                  'year-planner': 'Planejamento anual',
+                  'day-agenda': 'Agenda do dia',
+                } as Record<string, string>
+              )[view.name] ?? view.label),
         ...(view.name === 'summary'
           ? {
               getTitle: (range: ViewRenderContext['range']) =>

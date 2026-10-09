@@ -230,6 +230,54 @@ const content = {
 
 const featureCatalog = [
   {
+    view: 'resource-week',
+    title: ['Recursos durante a semana', 'Resources across the week'],
+    detail: [
+      'Colunas por data ou recurso, com capacidade e buffers compartilhados.',
+      'Date or resource columns with shared capacity and buffers.',
+    ],
+  },
+  {
+    view: 'timeline-week',
+    title: ['Timelines semanais e mensais', 'Weekly and monthly timelines'],
+    detail: [
+      'Faixas diárias, grupos recolhíveis e recorte explícito de recursos.',
+      'Dated tracks, collapsible groups and explicit resource windows.',
+    ],
+  },
+  {
+    view: 'year',
+    title: ['Ano e trimestre', 'Year and quarter'],
+    detail: [
+      'Painéis mensais com eventos, conteúdo próprio e ver mais.',
+      'Month panels with events, custom content and overflow actions.',
+    ],
+  },
+  {
+    view: 'year-planner',
+    title: ['Planejamento anual', 'Year planner'],
+    detail: [
+      'Visão anual por datas com indicadores e navegação por teclado.',
+      'Annual date overview with indicators and keyboard navigation.',
+    ],
+  },
+  {
+    view: 'day-agenda',
+    title: ['Agenda diária', 'Daily agenda'],
+    detail: [
+      'Eventos em ordem cronológica com resumo dos recursos.',
+      'Chronological events with resource summaries.',
+    ],
+  },
+  {
+    view: 'print',
+    title: ['Impressão e PDF', 'Printing and PDF'],
+    detail: [
+      'Documento separado para impressão e salvar como PDF pelo navegador.',
+      'Isolated document for printing and browser Save as PDF.',
+    ],
+  },
+  {
     view: 'week',
     title: ['Semana, dia e períodos personalizados', 'Week, day and custom periods'],
     detail: [
@@ -495,6 +543,10 @@ function DocumentationSite() {
               </article>
             ))}
             <a href={guideUrl}>{text.fullGuide}</a>
+            {' · '}
+            <a href={`${repository}/blob/main/docs/${language}/extended-views.md`}>
+              {language === 'en' ? 'Extended views and printing' : 'Views adicionais e impressão'}
+            </a>
           </section>
 
           <section className="site-section" id="features">

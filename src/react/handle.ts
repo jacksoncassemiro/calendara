@@ -16,6 +16,7 @@ export function createHandle(app: CalendarApp): CalendarHandle {
     changeView: (viewName) => app.changeView(viewName),
     getTitle: () => app.getTitle(),
     getVisibleRange: () => app.getVisibleRange(),
+    print: (options) => app.print(options),
     getState: () => app.getState(),
     listViews: () => app.listViews(),
     evaluateSlot: (slot) => app.evaluateSlot(slot),

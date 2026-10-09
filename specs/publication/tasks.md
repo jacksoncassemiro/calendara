@@ -5,7 +5,7 @@
 - [x] Isolate write permission from dependency installation/build.
 - [x] Pin and verify official Actions commit SHAs.
 - [x] Generate versioned tarball, SHA256 and changelog release notes.
-- [x] Document bilingual installation, branch flow and history-reset alternatives.
+- [x] Document bilingual installation and branch flow. One-time history-reset instructions were retired after migration; see [cleanup evidence](../extended-views/docs-cleanup.md).
 - [x] Record security controls and remote requirements.
 - [x] Validate script syntax and rejection of malformed release tags.
 - [x] Validate scripts and package locally with final package name/version.

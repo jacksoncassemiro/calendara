@@ -32,4 +32,4 @@ O remoto foi renomeado para `calendara`. Está público. Main/develop exigem PR/
 
 Safari/iOS/Android físicos, leitores de tela e runtime React 18 não foram validados nesta rodada. Não há paridade completa: RFC 5545 inteiro, ICS, virtualização de recursos, timeline de recursos de vários dias, undo/redo, RTL e gestos por teclado permanecem backlog. Validação de negócio de toda a série futura e concorrência no backend pertencem ao consumidor.
 
-Critérios: [auditoria de API](09-AUDITORIA-API-E-VIEWS.md), [tarefas de correção](../../specs/calendar-remediation/tasks.md) e [publicação](../../specs/publication/tasks.md). O [histórico anterior](status-before-calendara.md) registra decisões e medições anteriores, sem representar o contrato atual.
+Critérios: [auditoria de API](09-AUDITORIA-API-E-VIEWS.md), [tarefas de correção](../../specs/calendar-remediation/tasks.md) e [publicação](../../specs/publication/tasks.md). As [decisões anteriores](status-before-calendara.md) registram a mudança de arquitetura, sem representar o contrato atual.

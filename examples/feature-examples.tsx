@@ -8,6 +8,12 @@ import {
   createReactView,
   createResourceDayView,
   createTimelineView,
+  createResourceView,
+  createResourceTimelineView,
+  yearView,
+  quarterView,
+  yearPlannerView,
+  dayAgendaView,
   dayView,
   weekView,
   monthView,
@@ -122,6 +128,26 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
       listView,
       createResourceDayView(),
       createTimelineView(),
+      createResourceView({
+        days: 7,
+        alignment: 'week',
+        groupBy: 'resource',
+        name: 'resource-week',
+      }),
+      createResourceTimelineView({
+        duration: 'week',
+        name: 'timeline-week',
+        groupBy: (resource) => (resource.id === 'room' ? 'Rooms / Salas' : 'Open / Livre'),
+      }),
+      createResourceTimelineView({
+        duration: 'month',
+        name: 'timeline-month',
+        groupBy: (resource) => (resource.id === 'room' ? 'Rooms / Salas' : 'Open / Livre'),
+      }),
+      yearView,
+      quarterView,
+      yearPlannerView,
+      dayAgendaView,
       createNDaysView(3, 'three-days'),
       createReactView({ name: 'summary', label: english ? 'Summary' : 'Resumo' }, Summary),
     ];
@@ -138,13 +164,35 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
       list: 'Agenda',
       resources: 'Resources',
       timeline: 'Timeline',
+      year: 'Year',
+      quarter: 'Quarter',
+      'year-planner': 'Year planner',
+      'day-agenda': 'Day agenda',
+      'resource-week': 'Resources · week',
+      'timeline-week': 'Timeline · week',
+      'timeline-month': 'Timeline · month',
       'three-days': '3 days',
       summary: 'Summary',
     };
     return [
       selected.find((view) => view.name === definition.view)!,
       ...selected.filter((view) => view.name !== definition.view),
-    ].map((view) => (english ? { ...view, label: englishLabels[view.name] ?? view.label } : view));
+    ].map((view) => ({
+      ...view,
+      label: english
+        ? (englishLabels[view.name] ?? view.label)
+        : ((
+            {
+              year: 'Ano',
+              quarter: 'Trimestre',
+              'year-planner': 'Planejamento anual',
+              'day-agenda': 'Agenda do dia',
+              'resource-week': 'Recursos · semana',
+              'timeline-week': 'Timeline · semana',
+              'timeline-month': 'Timeline · mês',
+            } as Record<string, string>
+          )[view.name] ?? view.label),
+    }));
   }, [definition.view, id, english]);
   useEffect(() => {
     const element = containerRef.current;
@@ -196,6 +244,16 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
     ...definition.options,
     ...(id === 'month' ? { monthCompactBreakpoint: monthIndicators ? 480 : false } : {}),
   };
+  const extendedDemo = [
+    'resource-week',
+    'timeline-week',
+    'timeline-month',
+    'year',
+    'quarter',
+    'year-planner',
+    'day-agenda',
+    'print',
+  ].includes(id);
   return (
     <>
       <section
@@ -278,6 +336,14 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
           </button>
         )}
       </section>
+      {id === 'print' && (
+        <button
+          type="button"
+          onClick={() => api.print({ title: 'Calendar / Agenda', orientation: 'landscape' })}
+        >
+          {t('Imprimir / salvar PDF', 'Print / save PDF')}
+        </button>
+      )}
       <div className="focused-resizer" ref={containerRef} style={{ width }}>
         <Calendar
           apiRef={apiRef}
@@ -485,12 +551,17 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
         <summary>{t('Código do recurso', 'Feature code')}</summary>
         <pre className="focused-code">
           <code>
-            {id === 'month'
-              ? definition.code.replace(
-                  'indicators ? 480 : false',
-                  String(demoOptions.monthCompactBreakpoint),
-                )
-              : definition.code}
+            {extendedDemo
+              ? 'const demoOptions = ' +
+                JSON.stringify(demoOptions, null, 2) +
+                ';\n' +
+                definition.code
+              : id === 'month'
+                ? definition.code.replace(
+                    'indicators ? 480 : false',
+                    String(demoOptions.monthCompactBreakpoint),
+                  )
+                : definition.code}
           </code>
         </pre>
         <h3>

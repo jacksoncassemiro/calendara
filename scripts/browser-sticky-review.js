@@ -45,7 +45,8 @@ async (page) => {
         '.mc-header-row,.mc-resource-header-row,.mc-timeline-header',
       );
       const gutter = scroll.querySelector('.mc-time-axis,.mc-timeline-label');
-      const corner = header.firstElementChild;
+      const corner =
+        header.querySelector('.mc-gutter-corner,.mc-timeline-corner') ?? header.firstElementChild;
       const viewport = scroll.getBoundingClientRect(),
         h = header.getBoundingClientRect(),
         g = gutter.getBoundingClientRect(),

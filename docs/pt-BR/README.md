@@ -4,6 +4,7 @@
 
 - [Primeiros passos](getting-started.md): instalação do pacote GitHub e primeiro app React.
 - [Cenários de recursos](features.md): fluxos demonstráveis e limites.
+- [Views adicionais e impressão](extended-views.md): períodos por recurso, planejamento anual e PDF pelo navegador.
 - [Guia da API](api.md): views, persistência, formulários, recursos, recorrência e estilo.
 - [Comparação](comparison.md): integração, vantagens e licenças.
 - [Medição de bundles](bundle-comparison.md): tamanhos reproduzíveis e organização do pacote.

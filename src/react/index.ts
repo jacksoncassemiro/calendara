@@ -2,6 +2,11 @@
  * @remarks Português: Componentes, views e controlador React nativos.
  */
 export { Calendar } from './Calendar.js';
+export {
+  buildCalendarPrintDocument,
+  type CalendarPrintOptions,
+  type CalendarPrintInput,
+} from './printing.js';
 export { useCalendar, type UseCalendar } from './useCalendar.js';
 export { createReactView, type ReactViewConfig } from './createReactView.js';
 export type { CalendarProps, CalendarHandle } from './types.js';

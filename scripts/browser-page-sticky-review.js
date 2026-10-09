@@ -83,9 +83,16 @@ async (page) => {
       );
       const viewport = scroll.getBoundingClientRect(),
         o = overlay.getBoundingClientRect(),
-        c = copy.firstElementChild.getBoundingClientRect();
-      const originalCell = original.children[1].getBoundingClientRect(),
-        copiedCell = copy.children[1].getBoundingClientRect();
+        c = (
+          copy.querySelector('.mc-gutter-corner,.mc-timeline-corner') ?? copy.firstElementChild
+        ).getBoundingClientRect();
+      const columnSelector = '.mc-day-header,.mc-resource-header,.mc-timeline-axis';
+      const originalCell = (
+          original.querySelector(columnSelector) ?? original.children[1]
+        ).getBoundingClientRect(),
+        copiedCell = (
+          copy.querySelector(columnSelector) ?? copy.children[1]
+        ).getBoundingClientRect();
       const allDay = scroll.querySelector('.mc-allday-row,.mc-resource-allday-row');
       const allRect = allDay?.getBoundingClientRect();
       const content = scroll.querySelector('[data-mc-event^="long"] .mc-event-content');

@@ -22,6 +22,14 @@ async (page) => {
     'custom-editor': 'day',
     source: 'week',
     period: 'three-days',
+    'resource-week': 'resource-week',
+    'timeline-week': 'timeline-week',
+    'timeline-month': 'timeline-month',
+    year: 'year',
+    quarter: 'quarter',
+    'year-planner': 'year-planner',
+    'day-agenda': 'day-agenda',
+    print: 'week',
   };
   const errors = [];
   page.on('pageerror', (error) => errors.push(String(error)));
@@ -29,7 +37,7 @@ async (page) => {
   for (const [demo, view] of Object.entries(views)) {
     await page.goto(url(demo));
     await page.locator(`[data-mc-root][data-mc-view="${view}"]`).waitFor();
-    if ((await page.locator('.focused-catalog a').count()) !== 16)
+    if ((await page.locator('.focused-catalog a').count()) !== 24)
       throw new Error('Incomplete focused catalog');
     if (!(await page.locator('.focused-code').first().textContent()).includes('Calendar'))
       throw new Error('Missing integration code: ' + demo);
@@ -153,6 +161,6 @@ async (page) => {
   if (overflow > 1) throw new Error('Focused demo page overflows narrow viewport');
   if (errors.length) throw new Error(errors.join('\n'));
   return [
-    '16 exemplos focados: views explícitas, código, fonte simulada, formulário próprio; contêiner 360/768px; hoje/seleção/eventos separados; sem erros de página',
+    '24 exemplos focados: views explícitas, código, fonte simulada, formulário próprio; contêiner 360/768px; hoje/seleção/eventos separados; sem erros de página',
   ];
 };

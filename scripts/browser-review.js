@@ -77,6 +77,9 @@ async (page) => {
   await page.getByRole('checkbox', { name: 'Aplicar restrições de horário' }).uncheck();
   const allDayStart = page.locator('[data-mc-allday-cell="2026-10-06"] [data-mc-allday-event]');
   await allDayStart.scrollIntoViewIfNeeded();
+  // Keep the event below the sticky header and fully inside the viewport. / PT: Mantém o evento abaixo do cabeçalho fixo e dentro da área visível.
+  await page.evaluate(() => window.scrollBy(0, 250));
+  await page.waitForTimeout(100);
   const a = await allDayStart.boundingBox();
   const targetCell = await page.locator('[data-mc-allday-cell="2026-10-08"]').boundingBox();
   await page.mouse.move(a.x + 15, a.y + 10);

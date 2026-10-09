@@ -333,7 +333,7 @@ function MonthGrid(props: {
                   style={{
                     ...props.context.getDayStyle?.({
                       dateISO: dayISO,
-                      viewName: 'month',
+                      viewName: props.context.viewName ?? 'month',
                     }),
                     flex: '1 1 0',
                   }}
@@ -341,7 +341,7 @@ function MonthGrid(props: {
                   <DayHeaderContent
                     context={props.context}
                     dateISO={dayISO}
-                    viewName="month"
+                    viewName={props.context.viewName ?? 'month'}
                     isSelected={compact && dayISO === selectedDay.toString()}
                     defaultContent={
                       compact || props.context.onDateClick ? (

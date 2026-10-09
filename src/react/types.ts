@@ -5,6 +5,7 @@
  */
 import type { CSSProperties, RefObject, ReactNode } from 'react';
 import type { ExternalEventDropHandler, EventDropOutsideInfo } from './externalDrag.js';
+import type { CalendarPrintOptions } from './printing.js';
 import type {
   CalendarEvent,
   EventOccurrence,
@@ -56,6 +57,10 @@ export interface CalendarHandle {
    * @remarks Português: Retorna o primeiro e o último dia visíveis, ambos inclusivos.
    */
   getVisibleRange(): RangeChange;
+  /** Print loaded events in the visible range; PDF uses the browser dialog.
+   * @remarks Português: Imprime eventos carregados do período; PDF pelo diálogo do navegador.
+   */
+  print(options?: CalendarPrintOptions): boolean;
   /** Read the current calendar state.
    * @remarks Português: Retorna o estado atual para consulta; trate os dados como imutáveis.
    */
