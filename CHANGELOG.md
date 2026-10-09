@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-10-09
+
 - Measure month-panel width before paint to avoid temporary oversized year/quarter layouts when switching views.
 
 ## [0.4.3] - 2026-10-09

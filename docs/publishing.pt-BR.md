@@ -9,18 +9,18 @@ A Calendara será distribuída como `.tgz` compilado em uma GitHub Release, sem 
 - `main`: versões revisadas. Exigir PR e check `Verify package`; impedir force push e exclusão.
 - `develop`: integração, também com PR e checks obrigatórios.
 - `codex/*`, `feature/*` e `fix/*`: partir de `develop` e retornar por PR.
-- `release/0.4.3`: estabilizar a partir de `develop`, atualizar `package.json` e `CHANGELOG.md`, abrir PR para `main` e integrar as mudanças de volta em `develop`.
+- `release/0.4.4`: estabilizar a partir de `develop`, atualizar `package.json` e `CHANGELOG.md`, abrir PR para `main` e integrar as mudanças de volta em `develop`.
 - `hotfix/*`: partir de `main`, corrigir por PR para `main` e integrar em `develop`.
 
-Usar SemVer e uma seção por versão no changelog, como `## [0.4.3] - 2026-10-09`, com mudanças em português e inglês. Explicitar mudanças incompatíveis. A CI não altera versões automaticamente a partir das mensagens dos commits.
+Usar SemVer e uma seção por versão no changelog, como `## [0.4.4] - 2026-10-09`, com mudanças em português e inglês. Explicitar mudanças incompatíveis. A CI não altera versões automaticamente a partir das mensagens dos commits.
 
 ## Preparar a release
 
 1. Antes de executar a Action, configurar rulesets e o environment `release`: revisão obrigatória, impedir autoaprovação quando disponível e restringir a `main`. A disponibilidade depende do plano e da visibilidade do repositório.
 2. Integrar o PR de release em `main` e confirmar a CI.
-3. Criar tag anotada nesse commit revisado: `git tag -a v0.4.3 -m "Calendara 0.4.3"`. Enviar somente essa tag: `git push origin v0.4.3`.
-4. Em Actions, executar **Prepare GitHub release**, selecionando `main` e informando `v0.4.3`.
-5. O fluxo valida a origem da tag, versão, changelog, tipos, testes, build e pacote consumidor. Após o gate do environment, cria um rascunho com `calendara-0.4.3.tgz` e `SHA256SUMS`.
+3. Criar tag anotada nesse commit revisado: `git tag -a v0.4.4 -m "Calendara 0.4.4"`. Enviar somente essa tag: `git push origin v0.4.4`.
+4. Em Actions, executar **Prepare GitHub release**, selecionando `main` e informando `v0.4.4`.
+5. O fluxo valida a origem da tag, versão, changelog, tipos, testes, build e pacote consumidor. Após o gate do environment, cria um rascunho com `calendara-0.4.4.tgz` e `SHA256SUMS`.
 6. Revisar o rascunho, baixar o pacote, comparar seu hash e instalar em um consumidor. Publicar manualmente. Nunca substituir uma tag ou pacote publicado; criar outra versão.
 
 Os arquivos de workflow não configuram as proteções remotas. O GitHub cria um environment inexistente sem proteção; reconferir as proteções antes de cada release, sobretudo após mudanças de plano ou visibilidade.
@@ -36,12 +36,12 @@ Fontes: [cobrança de Packages](https://docs.github.com/en/billing/concepts/prod
 Depois de publicar a release em repositório público:
 
 ```sh
-yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.4.3/calendara-0.4.3.tgz
+yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.4.4/calendara-0.4.4.tgz
 yarn add react react-dom
 ```
 
-Importar `@jacksoncassemiro/calendara` e `@jacksoncassemiro/calendara/styles.css`. Fixar a URL da versão e versionar `yarn.lock`. Em repositório privado, baixar com autenticação pela interface/CLI do GitHub, conferir `SHA256SUMS` e instalar com `yarn add ./calendara-0.4.3.tgz`. Não incluir tokens em URLs de dependências ou lockfiles.
+Importar `@jacksoncassemiro/calendara` e `@jacksoncassemiro/calendara/styles.css`. Fixar a URL da versão e versionar `yarn.lock`. Em repositório privado, baixar com autenticação pela interface/CLI do GitHub, conferir `SHA256SUMS` e instalar com `yarn add ./calendara-0.4.4.tgz`. Não incluir tokens em URLs de dependências ou lockfiles.
 
-Windows: `Get-FileHash ./calendara-0.4.3.tgz -Algorithm SHA256`. Linux/macOS: `shasum -a 256 calendara-0.4.3.tgz`. Comparar com o hash publicado. O checksum detecta alterações no download, mas não é uma assinatura independente do autor.
+Windows: `Get-FileHash ./calendara-0.4.4.tgz -Algorithm SHA256`. Linux/macOS: `shasum -a 256 calendara-0.4.4.tgz`. Comparar com o hash publicado. O checksum detecta alterações no download, mas não é uma assinatura independente do autor.
 
 Fontes: [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases), [proteção de environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments), [segurança de Actions](https://docs.github.com/en/actions/reference/security/secure-use), [remoção de dados sensíveis](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).
