@@ -6,6 +6,7 @@ import { occurrenceKey } from '../../core/render/derive.js';
 import { DayHeaderContent } from './components/DayHeaderContent.js';
 import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
 import { useVirtualResourceRows } from './hooks/useVirtualResourceRows.js';
+import { useResourceLabelHeights } from './hooks/useResourceLabelHeights.js';
 import { resourceTreeRows } from './models/resourceTree.js';
 import { getViewLabels } from './formatting/viewLabels.js';
 import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
@@ -717,7 +718,13 @@ function ResourceTimelinePeriod({
     pxPerMinute: (dayWidth - PERIOD_ALL_DAY_WIDTH_PX) / ((endHour - startHour) * 60),
   };
   const days = context.range.days;
-  const rowHeights = new Map<string, number>();
+  const labelHeights = useResourceLabelHeights({ scrollRef });
+  const rowHeights = new Map(
+    selected.map((resource) => [
+      resource.id,
+      labelHeights.get(`resource:${resource.id}`) ?? TIMELINE_ROW_HEIGHT_PX,
+    ]),
+  );
   const columnsByDate = new Map<
     string,
     Map<string, ReturnType<typeof buildResourceColumns>[number]>
@@ -774,7 +781,13 @@ function ResourceTimelinePeriod({
   )[] = [];
   for (const [name, members] of groups) {
     if (config.groupBy)
-      rows.push({ kind: 'group', key: `group:${name}`, name, count: members.length, height: 44 });
+      rows.push({
+        kind: 'group',
+        key: `group:${name}`,
+        name,
+        count: members.length,
+        height: Math.max(44, labelHeights.get(`group:${name}`) ?? 0),
+      });
     if (!collapsed.has(name))
       for (const item of resourceTreeRows({
         resources: members,
@@ -912,6 +925,7 @@ function ResourceTimelinePeriod({
                       <button
                         type="button"
                         className="mc-resource-group-toggle"
+                        data-mc-resource-label-measure={row.key}
                         aria-expanded={!collapsed.has(row.name)}
                         disabled={Boolean(context.draft)}
                         onClick={() =>
@@ -948,6 +962,7 @@ function ResourceTimelinePeriod({
                         <button
                           type="button"
                           data-mc-resource-title
+                          data-mc-resource-label-measure={row.key}
                           aria-label={row.resource.title}
                           aria-expanded={
                             row.hasChildren ? !collapsedResources.has(row.resource.id) : undefined
