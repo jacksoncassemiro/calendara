@@ -66,7 +66,7 @@ async (page) => {
         congress: host.querySelectorAll('[data-mc-event^="congress@"]').length,
       };
     });
-  // A clinician opens the same day before/after loading asynchronous all-day assignments.
+  // Async assignments must preserve the visible day. / PT: Atribuições assíncronas devem preservar o dia visível.
   await state();
   await page.evaluate(() => window.clinicianApp.setEvents(Object.values(window.clinicianEvents)));
   await root.locator('[data-mc-event^="congress@"]').waitFor();
@@ -77,7 +77,7 @@ async (page) => {
   const removed = await state();
   if (removed.congress !== 0 || removed.placeholders !== 0)
     throw new Error(`Faixa removida deixou geometria residual: ${JSON.stringify(removed)}`);
-  // Move the visible fragment of an overnight shift to another room without truncating it.
+  // Moving a fragment preserves the overnight duration. / PT: Mover um trecho preserva a duração noturna.
   await page.evaluate(() => window.scrollTo(0, 0));
   const event = root.locator('[data-mc-resource="triage"] [data-mc-event^="night@"]');
   await event.scrollIntoViewIfNeeded();

@@ -9,7 +9,7 @@ async (page) => {
   };
   const cell = (date) => page.locator(`[data-mc-month-day="${date}"]`);
   const congress = () => page.locator('[data-mc-month-event^="congresso@"]');
-  const drag = async (source, target) => {
+  const drag = async ({ source, target }) => {
     await source.scrollIntoViewIfNeeded();
     const a = await source.boundingBox(),
       b = await target.boundingBox();
@@ -53,14 +53,14 @@ async (page) => {
   );
   await page.getByRole('combobox', { name: 'Ver mais', exact: true }).selectOption('popover');
   await page.getByRole('button', { name: 'Mês', exact: true }).click();
-  await drag(congress(), cell('2026-10-13'));
+  await drag({ source: congress(), target: cell('2026-10-13') });
   await page.waitForFunction(
     () =>
       document
         .querySelector('[data-mc-month-event^="congresso@"]')
         ?.getAttribute('data-mc-month-dates') === '2026-10-13 2026-10-14 2026-10-15',
   );
-  await drag(congress().locator('[data-mc-resize="end"]'), cell('2026-10-16'));
+  await drag({ source: congress().locator('[data-mc-resize="end"]'), target: cell('2026-10-16') });
   await page.waitForFunction(
     () =>
       document
@@ -91,10 +91,10 @@ async (page) => {
     'Editar salva título sem perder o intervalo alterado',
   );
   await page.getByRole('checkbox', { name: 'Aplicar restrições de horário', exact: true }).check();
-  await drag(
-    page.locator('[data-mc-month-event^="consulta@"] [data-mc-resize="end"]'),
-    cell('2026-10-08'),
-  );
+  await drag({
+    source: page.locator('[data-mc-month-event^="consulta@"] [data-mc-resize="end"]'),
+    target: cell('2026-10-08'),
+  });
   await page.waitForFunction(() =>
     document.querySelector('.demo-feedback')?.textContent.includes('atravessa um bloqueio'),
   );

@@ -1,5 +1,5 @@
-// Execute with yarn test:browser (server + isolated browser session + cleanup).
-// Requires the React demo already loaded. No fixed sleeps; assertions wait for DOM state.
+// Run through yarn test:browser. / PT: Execute por yarn test:browser.
+
 async (page) => {
   const runtimeErrors = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
@@ -44,7 +44,7 @@ async (page) => {
         overrides: { '2024-03-11T09:00:00': { title: 'Alterada' } },
       },
     };
-    const expected = expandEvent(getTemporal(), event);
+    const expected = expandEvent({ temporal: getTemporal(), event });
     const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'Temporal');
     try {
       Object.defineProperty(globalThis, 'Temporal', {
@@ -73,10 +73,13 @@ async (page) => {
     (await page.locator('[data-mc-event^="plantao@"]').count()) === 2,
     'Evento noturno: dois segmentos',
   );
-  // Move and resize the whole all-day interval through actual pointer surfaces.
+
   await page.getByRole('checkbox', { name: 'Aplicar restrições de horário' }).uncheck();
   const allDayStart = page.locator('[data-mc-allday-cell="2026-10-06"] [data-mc-allday-event]');
   await allDayStart.scrollIntoViewIfNeeded();
+  // Keep the event below the sticky header and fully inside the viewport. / PT: Mantém o evento abaixo do cabeçalho fixo e dentro da área visível.
+  await page.evaluate(() => window.scrollBy(0, 250));
+  await page.waitForTimeout(100);
   const a = await allDayStart.boundingBox();
   const targetCell = await page.locator('[data-mc-allday-cell="2026-10-08"]').boundingBox();
   await page.mouse.move(a.x + 15, a.y + 10);
@@ -121,7 +124,7 @@ async (page) => {
       throw new Error(`All-day resize: ${await page.locator('.demo-feedback').textContent()}`);
     });
   results.push('All-day resize: expande o intervalo completo');
-  // Move a timed overnight event to another date, preserving its full duration.
+  // Overnight moves preserve the full interval. / PT: Movimentos noturnos preservam o intervalo completo.
   await page
     .locator('[data-mc-day="2026-10-07"] [data-mc-event^="plantao@"]')
     .scrollIntoViewIfNeeded();
@@ -217,7 +220,7 @@ async (page) => {
   const bounds = await day.boundingBox();
   const box = await event.boundingBox();
   if (!bounds || !box) throw new Error('Missing event geometry');
-  // Move 09:00→10:00 on the real pointer surface.
+
   await page.mouse.move(box.x + box.width / 2, box.y + 20);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2, box.y + 80, { steps: 10 });
@@ -261,7 +264,7 @@ async (page) => {
       '690',
   );
   results.push('Resize React: nova duração aplicada');
-  // Empty slot at 15:00 opens the creation form.
+
   const column = await day.boundingBox();
   const createSlot = day.locator('[data-mc-cell-start="900"]');
   await createSlot.scrollIntoViewIfNeeded();
@@ -297,7 +300,7 @@ async (page) => {
     'Recursos: filtro mostra somente a sala escolhida',
   );
   await page.getByRole('combobox', { name: 'Recurso visível' }).selectOption('');
-  // Transfer the real reservation to another resource on the pointer surface.
+
   const reservation = page.locator(
     '[data-mc-resource="sala-1"] [data-mc-event][title="Novo agendamento"]',
   );
@@ -343,7 +346,7 @@ async (page) => {
   await page.getByRole('button', { name: 'Salvar evento' }).click();
   await page.locator('[data-mc-event][title="Ocorrência revisada"]').waitFor();
   await page.getByRole('button', { name: 'Próximo período', exact: true }).click();
-  // Navigate six more days to the next occurrence: the series title is unchanged.
+  // Editing one occurrence leaves the series title unchanged. / PT: Editar uma ocorrência preserva o título da série.
   for (let index = 0; index < 6; index++)
     await page.getByRole('button', { name: 'Próximo período', exact: true }).click();
   await page.locator('[data-mc-event][title="Retorno semanal"]').waitFor();

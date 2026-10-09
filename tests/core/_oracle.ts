@@ -1,4 +1,3 @@
-/** Test-only rrule.js oracle and calendar recurrence runner. */
 import rrulePackage from 'rrule';
 import type { TemporalLike } from '../../src/core/date/temporal.js';
 import { parseRRule } from '../../src/core/recurrence/parser.js';
@@ -11,11 +10,19 @@ const formatUTCDateISO = (date: Date): string =>
     date.getUTCDate(),
   ).padStart(2, '0')}`;
 
-export function expandRRuleOracle(
-  startDateISO: string,
-  recurrenceText: string,
+/** Expand with independent rrule.js semantics. / PT: Expande com a semântica independente do rrule.js. */
+export function expandRRuleOracle({
+  startDateISO,
+  recurrenceText,
   occurrenceLimit = 60,
-): string[] {
+}: {
+  /** First recurrence date, YYYY-MM-DD. / PT: Primeira data recorrente, YYYY-MM-DD. */
+  startDateISO: string;
+  /** RRULE with optional EXDATE lines. / PT: RRULE com linhas EXDATE opcionais. */
+  recurrenceText: string;
+  /** Expansion limit; defaults to 60. / PT: Limite da expansão; padrão 60. */
+  occurrenceLimit?: number;
+}): string[] {
   const [startYear, startMonth, startDay] = startDateISO.split('-').map(Number);
   const recurrenceLine = recurrenceText
     .split('\n')
@@ -51,13 +58,22 @@ export function expandRRuleOracle(
     .map(formatUTCDateISO);
 }
 
-/** Expand RRULE and optional EXDATE into YYYY-MM-DD dates. */
-export function expandCalendarRule(
-  temporal: TemporalLike,
-  startDateISO: string,
-  recurrenceText: string,
+/** Expand through the calendar engine for oracle comparison. / PT: Expande pelo motor para comparar com o oráculo. */
+export function expandCalendarRule({
+  temporal,
+  startDateISO,
+  recurrenceText,
   occurrenceLimit = 60,
-): string[] {
+}: {
+  /** Temporal implementation used by the calendar. / PT: Implementação Temporal usada pelo calendário. */
+  temporal: TemporalLike;
+  /** First recurrence date, YYYY-MM-DD. / PT: Primeira data recorrente, YYYY-MM-DD. */
+  startDateISO: string;
+  /** RRULE with optional EXDATE lines. / PT: RRULE com linhas EXDATE opcionais. */
+  recurrenceText: string;
+  /** Expansion limit; defaults to 60. / PT: Limite da expansão; padrão 60. */
+  occurrenceLimit?: number;
+}): string[] {
   const recurrenceRule = parseRRule(recurrenceText);
   const excludedDatesLine = recurrenceText.split('\n').find((line) => line.startsWith('EXDATE:'));
   const excludedDateISOs = new Set<string>();
@@ -72,7 +88,11 @@ export function expandCalendarRule(
       );
   }
   const startDate = temporal.PlainDate.from(startDateISO);
-  return expandRuleAll(temporal, recurrenceRule, startDate, excludedDateISOs, occurrenceLimit).map(
-    (occurrenceDate) => occurrenceDate.toString(),
-  );
+  return expandRuleAll({
+    temporal,
+    model: recurrenceRule,
+    dtstart: startDate,
+    exDates: excludedDateISOs,
+    maxResults: occurrenceLimit,
+  }).map((occurrenceDate) => occurrenceDate.toString());
 }

@@ -6,7 +6,7 @@ import { SiteHeader, type SiteLanguage, type SiteTheme } from './components/Site
 
 const repository = 'https://github.com/jacksoncassemiro/calendara';
 const installCommand =
-  'yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.1.1/calendara-0.1.1.tgz';
+  'yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.2.0/calendara-0.2.0.tgz';
 const firstCalendar = `import { Calendar, dayView, monthView } from '@jacksoncassemiro/calendara';
 import '@jacksoncassemiro/calendara/styles.css';
 
@@ -33,7 +33,7 @@ const content = {
     bundleLink: 'Metodologia, versões e resultados reproduzíveis',
     distribution: 'Distribuição no GitHub',
     distributionNote:
-      'A versão experimental 0.1.1 está publicada com .tgz e checksum. Instale pela URL fixa da release; o site e o pacote têm publicações separadas. GitHub Packages público é gratuito, mas o registro npm do GitHub exige autenticação até para instalar pacotes públicos. Escolhemos assets de GitHub Releases para evitar essa configuração no consumidor.',
+      'A versão experimental 0.2.0 está publicada com .tgz e checksum. Instale pela URL fixa da release; o site e o pacote têm publicações separadas. GitHub Packages público é gratuito, mas o registro npm do GitHub exige autenticação até para instalar pacotes públicos. Escolhemos assets de GitHub Releases para evitar essa configuração no consumidor.',
     distributionLink: 'Como preparar e instalar uma release',
     title: 'Uma agenda que se adapta ao seu trabalho.',
     introduction:
@@ -49,7 +49,7 @@ const content = {
     subtitle: 'Documentação e demonstração',
     skip: 'Ir para o conteúdo',
     language: 'Idioma',
-    version: '0.1.1 · MIT',
+    version: '0.2.0 · MIT',
     install: 'Instale uma versão publicada',
     installNote:
       'Copie a URL do arquivo .tgz de uma GitHub Release publicada. O endereço abaixo mostra o formato previsto da primeira versão; confirme a disponibilidade antes de instalar.',
@@ -135,7 +135,7 @@ const content = {
     bundleLink: 'Methodology, versions and reproducible results',
     distribution: 'GitHub distribution',
     distributionNote:
-      'Experimental version 0.1.1 is published with a .tgz and checksum. Install using the fixed release URL; the site and package are published separately. Public GitHub Packages are free, but its npm registry requires authentication even when installing public packages. We chose GitHub Release assets to avoid that consumer setup.',
+      'Experimental version 0.2.0 is published with a .tgz and checksum. Install using the fixed release URL; the site and package are published separately. Public GitHub Packages are free, but its npm registry requires authentication even when installing public packages. We chose GitHub Release assets to avoid that consumer setup.',
     distributionLink: 'Preparing and installing a release',
     title: 'A schedule that fits the way you work.',
     introduction:
@@ -151,7 +151,7 @@ const content = {
     subtitle: 'Documentation and demo',
     skip: 'Skip to content',
     language: 'Language',
-    version: '0.1.1 · MIT',
+    version: '0.2.0 · MIT',
     install: 'Install a published version',
     installNote:
       'Copy the .tgz asset URL from a published GitHub Release. The address below shows the planned first-version format; verify availability before installing.',
@@ -229,6 +229,54 @@ const content = {
 };
 
 const featureCatalog = [
+  {
+    view: 'resource-week',
+    title: ['Recursos durante a semana', 'Resources across the week'],
+    detail: [
+      'Colunas por data ou recurso, com capacidade e buffers compartilhados.',
+      'Date or resource columns with shared capacity and buffers.',
+    ],
+  },
+  {
+    view: 'timeline-week',
+    title: ['Timelines semanais e mensais', 'Weekly and monthly timelines'],
+    detail: [
+      'Faixas diárias, grupos recolhíveis e recorte explícito de recursos.',
+      'Dated tracks, collapsible groups and explicit resource windows.',
+    ],
+  },
+  {
+    view: 'year',
+    title: ['Ano e trimestre', 'Year and quarter'],
+    detail: [
+      'Painéis mensais com eventos, conteúdo próprio e ver mais.',
+      'Month panels with events, custom content and overflow actions.',
+    ],
+  },
+  {
+    view: 'year-planner',
+    title: ['Planejamento anual', 'Year planner'],
+    detail: [
+      'Visão anual por datas com indicadores e navegação por teclado.',
+      'Annual date overview with indicators and keyboard navigation.',
+    ],
+  },
+  {
+    view: 'day-agenda',
+    title: ['Agenda diária', 'Daily agenda'],
+    detail: [
+      'Eventos em ordem cronológica com resumo dos recursos.',
+      'Chronological events with resource summaries.',
+    ],
+  },
+  {
+    view: 'print',
+    title: ['Impressão e PDF', 'Printing and PDF'],
+    detail: [
+      'Documento separado para impressão e salvar como PDF pelo navegador.',
+      'Isolated document for printing and browser Save as PDF.',
+    ],
+  },
   {
     view: 'week',
     title: ['Semana, dia e períodos personalizados', 'Week, day and custom periods'],
@@ -375,7 +423,14 @@ function DocumentationSite() {
     return () => preference.removeEventListener('change', applyTheme);
   }, [theme]);
 
-  const demoUrl = (view?: string, scenario?: string) =>
+  const demoUrl = ({
+    view,
+    scenario,
+  }: {
+    /** Optional initial view name. / PT: Nome opcional da view inicial. */
+    view?: string; /** Optional playground scenario name. / PT: Nome opcional do cenário do playground. */
+    scenario?: string;
+  } = {}) =>
     `./examples/react.html?lang=${language}&theme=${theme}${view ? `&view=${view}` : ''}${scenario ? `&scenario=${scenario}` : ''}`;
 
   return (
@@ -488,6 +543,10 @@ function DocumentationSite() {
               </article>
             ))}
             <a href={guideUrl}>{text.fullGuide}</a>
+            {' · '}
+            <a href={`${repository}/blob/main/docs/${language}/extended-views.md`}>
+              {language === 'en' ? 'Extended views and printing' : 'Views adicionais e impressão'}
+            </a>
           </section>
 
           <section className="site-section" id="features">

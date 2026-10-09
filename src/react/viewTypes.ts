@@ -138,6 +138,27 @@ export interface DayStyleInfo {
  * @remarks Português: Estiliza uma data sem alterar disponibilidade.
  */
 export type DayStyleCallback = (info: DayStyleInfo) => CSSProperties | undefined;
+/** Date header content and state.
+ * @remarks Português: Conteúdo e estado do cabeçalho da data.
+ */
+export interface DayHeaderInfo extends DayStyleInfo {
+  /** Built-in content to preserve or wrap.
+   * @remarks Português: Conteúdo padrão para preservar ou envolver.
+   */
+  defaultContent: ReactNode;
+  /** Date is today in the calendar time zone.
+   * @remarks Português: Data é hoje no fuso do calendário.
+   */
+  isToday: boolean;
+  /** Selected date in compact month mode.
+   * @remarks Português: Data selecionada no mês compacto.
+   */
+  isSelected?: boolean;
+}
+/** Customize date/resource headings.
+ * @remarks Português: Personaliza títulos de datas/recursos.
+ */
+export type DayHeaderRenderSlot = (info: DayHeaderInfo) => ReactNode;
 /** Resolved data and callbacks for the view body.
  * @remarks Português: Dados e callbacks resolvidos para o corpo da view.
  */
@@ -154,6 +175,10 @@ export interface ViewRenderContext {
    * @remarks Português: Estilo de datas sem alterar disponibilidade.
    */
   getDayStyle?: DayStyleCallback;
+  /** Custom date/resource header content.
+   * @remarks Português: Conteúdo dos títulos de datas/recursos.
+   */
+  renderDayHeader?: DayHeaderRenderSlot;
   /** Live resources; omitted preserves view-factory resources.
    * @remarks Português: Recursos atuais; ausente preserva os recursos da factory da view.
    */
@@ -228,6 +253,16 @@ export interface ViewRenderContext {
   onDateClick?: (dateISO: string, minuteOfDay?: number) => void;
 }
 
+/** Inputs for navigation between view ranges. @remarks Português: Entradas da navegação entre períodos da view. */
+export interface ViewNavigationInput {
+  /** Move to the previous or next range. @remarks Português: Move ao período anterior ou próximo. */
+  direction: 'prev' | 'next';
+  /** Current reference date. @remarks Português: Data de referência atual. */
+  date: PlainDate;
+  /** Resolved date utilities and options. @remarks Português: Utilitários de datas e opções resolvidos. */
+  context: ViewContext;
+}
+
 /** Registered date logic and native React rendering contract.
  * @remarks Português: Contrato registrado de datas e renderização React nativa.
  */
@@ -247,7 +282,7 @@ export interface CalendarView {
   /** Resolve the reference date after previous or next navigation.
    * @remarks Português: Resolve a data após navegar para anterior ou próximo.
    */
-  navigate(direction: 'prev' | 'next', date: PlainDate, context: ViewContext): PlainDate;
+  navigate(input: ViewNavigationInput): PlainDate;
   /** Format the title for the resolved range.
    * @remarks Português: Formata o título do período resolvido.
    */
@@ -273,7 +308,12 @@ export interface ToolbarContext {
   /** Available view names and labels.
    * @remarks Português: Nomes e rótulos das views disponíveis.
    */
-  views: { name: string; label: string }[];
+  views: {
+    /** Registered view identifier. @remarks Português: Identificador da view registrada. */
+    name: string;
+    /** Display text. @remarks Português: Texto exibido. */
+    label: string;
+  }[];
   /** Navigate to the previous view range.
    * @remarks Português: Navega para o período anterior da view.
    */

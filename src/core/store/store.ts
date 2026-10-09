@@ -1,26 +1,34 @@
-/**
- * Store observável mínimo, sem framework (ADR-001/002).
- *
- * Objetivo: ser a fonte de verdade do CalendarApp e permitir **diff granular** — cada
- * `setState` calcula quais chaves de topo mudaram (comparação por identidade) e entrega
- * esse conjunto aos assinantes, para que a camada de render só recompute/redesenhe o que mudou.
- * Não há dependência de Preact/React aqui: o render se conecta via `subscribe`.
+/** Subscriber receiving changed top-level keys and the current state snapshot.
+ * @remarks Português: Assinante que recebe chaves superiores alteradas e o estado atual.
  */
-
 export type Listener<State> = (
   changedKeys: ReadonlySet<keyof State>,
   state: Readonly<State>,
 ) => void;
 
+/** Observable state with shallow identity-based updates.
+ * @remarks Português: Estado observável com atualização rasa por identidade.
+ */
 export interface Store<State extends object> {
-  /** Estado atual (imutável por convenção — troque via setState). */
+  /** Read the current snapshot; update it only through setState.
+   * @remarks Português: Consulta o estado atual; atualize somente por setState.
+   */
   getState(): Readonly<State>;
-  /** Merge raso. Só notifica se alguma chave realmente mudou de referência. */
+
+  /** Shallow-merge a patch and notify only changed key identities.
+   * @remarks Português: Combina alterações superficialmente e notifica apenas identidades alteradas.
+   */
   setState(patch: Partial<State>): void;
-  /** Registra assinante; retorna função de cancelamento. */
+
+  /** Register a subscriber and return its unsubscribe function.
+   * @remarks Português: Registra assinante e retorna sua função de cancelamento.
+   */
   subscribe(listener: Listener<State>): () => void;
 }
 
+/** Create an observable store; unchanged key identities do not notify subscribers.
+ * @remarks Português: Cria estado observável; identidades de chaves inalteradas não notificam assinantes.
+ */
 export function createStore<State extends object>(initialState: State): Store<State> {
   let state: State = { ...initialState };
   const listeners = new Set<Listener<State>>();
@@ -34,9 +42,9 @@ export function createStore<State extends object>(initialState: State): Store<St
         const key = rawKey as keyof State;
         if (!Object.is(state[key], patch[key])) changedKeys.add(key);
       }
-      if (changedKeys.size === 0) return; // nada mudou → nenhum re-render
+      if (changedKeys.size === 0) return;
       state = { ...state, ...patch };
-      // cópia defensiva: um listener pode se desinscrever durante a iteração
+
       for (const listener of [...listeners]) listener(changedKeys, state);
     },
 

@@ -1,12 +1,5 @@
-/**
- * Bench de performance (Fase 6): mede o pipeline headless caro — expandir recorrência num range +
- * projetar em minutos-do-dia (buildDays) + geometria/empacotamento (layoutDay) — para N eventos.
- *
- * Roda contra o build ESM do core:
- *   yarn build   # gera dist/esm e dist/cjs do pacote único
- *   node scripts/bench.mjs [N] [iterações]
- */
-import { Temporal } from '@js-temporal/polyfill';
+/** Measure headless recurrence, projection and geometry. @remarks Português: Mede recorrência, projeção e geometria sem interface. */
+import { Temporal } from 'temporal-polyfill';
 import {
   expandRange,
   buildDays,
@@ -29,18 +22,17 @@ if (
   );
 }
 
-// Semana de referência (seg 2026-07-20 .. dom 2026-07-26).
 const weekDays = [];
 for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
   weekDays.push(Temporal.PlainDate.from('2026-07-20').add({ days: dayOffset }));
 }
 
-// Gera N eventos: ~30% recorrentes semanais, resto pontuais, espalhados na semana.
+// About 30% are weekly series. / PT: Cerca de 30% são séries semanais.
 function makeEvents(total) {
   const events = [];
   for (let index = 0; index < total; index++) {
     const dayOffset = index % 7;
-    const hour = 6 + (index % 12); // 06..17
+    const hour = 6 + (index % 12);
     const dateISO = `2026-07-${20 + dayOffset}`;
     const isRecurring = index % 10 < 3;
     const event = {
@@ -65,11 +57,22 @@ const endISO = '2026-07-26';
 const grid = { startHour: 6, endHour: 22 };
 const geometryGrid = { startHour: 6, endHour: 22, pxPerMinute: 1, minEventMinutes: 15, gutter: 0 };
 
-// Warmup.
 for (let index = 0; index < 3; index++) {
-  const occurrences = expandRange(Temporal, events, startISO, endISO);
-  const days = buildDays(Temporal, weekDays, occurrences, {}, grid, TZ);
-  for (const day of days) layoutDay(day.timed, geometryGrid);
+  const occurrences = expandRange({
+    temporal: Temporal,
+    events,
+    startISO,
+    endISO,
+  });
+  const days = buildDays({
+    temporal: Temporal,
+    days: weekDays,
+    occurrences,
+    constraints: {},
+    grid,
+    displayTimeZone: TZ,
+  });
+  for (const day of days) layoutDay({ items: day.timed, grid: geometryGrid });
 }
 
 let totalMs = 0;
@@ -93,16 +96,35 @@ for (let iteration = 0; iteration < iterations; iteration++) {
   stageTimes.parseRules += performance.now() - stageStart;
   stageStart = performance.now();
   for (const model of models)
-    expandRuleAll(Temporal, model, ruleStart, new Set(), 1000, ruleOptions);
+    expandRuleAll({
+      temporal: Temporal,
+      model,
+      dtstart: ruleStart,
+      exDates: new Set(),
+      maxResults: 1000,
+      options: ruleOptions,
+    });
   stageTimes.dateExpansion += performance.now() - stageStart;
   const started = performance.now();
-  const occurrences = expandRange(Temporal, events, startISO, endISO);
+  const occurrences = expandRange({
+    temporal: Temporal,
+    events,
+    startISO,
+    endISO,
+  });
   stageTimes.eventExpansion += performance.now() - started;
   stageStart = performance.now();
-  const days = buildDays(Temporal, weekDays, occurrences, {}, grid, TZ);
+  const days = buildDays({
+    temporal: Temporal,
+    days: weekDays,
+    occurrences,
+    constraints: {},
+    grid,
+    displayTimeZone: TZ,
+  });
   stageTimes.projection += performance.now() - stageStart;
   stageStart = performance.now();
-  for (const day of days) layoutDay(day.timed, geometryGrid);
+  for (const day of days) layoutDay({ items: day.timed, grid: geometryGrid });
   stageTimes.geometry += performance.now() - stageStart;
   totalMs += performance.now() - started;
   occurrenceCount = occurrences.length;
@@ -116,7 +138,7 @@ console.log(`média por render (expand+buildDays+layout, semana): ${avg.toFixed(
 console.log(
   `throughput: ${Math.round(occurrenceCount / (avg / 1000)).toLocaleString()} ocorrências/s`,
 );
-console.log(`runtime=${process.version}; Temporal=@js-temporal/polyfill; timezone=${TZ}`);
+console.log(`runtime=${process.version}; Temporal=temporal-polyfill; timezone=${TZ}`);
 for (const [stage, elapsed] of Object.entries(stageTimes))
   console.log(`${stage}: ${(elapsed / iterations).toFixed(3)} ms média`);
 console.log(

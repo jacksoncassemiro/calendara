@@ -1,6 +1,9 @@
 /** @jsxImportSource react */
-/** Single-day resource columns. */
+/** Single-day resource columns.
+ * @remarks Português: Colunas por recurso em um único dia
+ */
 import { occurrenceKey } from '../../core/render/derive.js';
+import { DayHeaderContent } from './components/DayHeaderContent.js';
 import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
 import { getViewLabels } from './formatting/viewLabels.js';
 import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
@@ -38,46 +41,117 @@ import {
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
-// ---------------------------------------------------------------------------
-// Multiagenda: um dia, N colunas por recurso.
-// ---------------------------------------------------------------------------
+/** Configurable date/resource columns.
+ * @remarks Português: Colunas configuráveis de datas e recursos.
+ */
+export interface ResourceViewInput {
+  /** Fallback resources; context resources take precedence.
+   * @remarks Português: Recursos padrão; os recursos do contexto têm precedência.
+   */
+  resources?: readonly CalendarResource[];
+  /** Number of visible days; default 1.
+   * @remarks Português: Quantidade de dias visíveis; padrão 1.
+   */
+  days?: number;
+  /** Start at the reference date or its week boundary; default date.
+   * @remarks Português: Começa na data de referência ou início da semana; padrão date.
+   */
+  alignment?: 'date' | 'week';
+  /** Outer column grouping; default date.
+   * @remarks Português: Agrupamento externo das colunas; padrão date.
+   */
+  groupBy?: 'date' | 'resource';
+  /** Unique registered view name; default resources.
+   * @remarks Português: Nome único da view registrada; padrão resources.
+   */
+  name?: string;
+  /** Navigation label; default Recursos.
+   * @remarks Português: Rótulo de navegação; padrão Recursos.
+   */
+  label?: string;
+}
 
-/** Cria a view Multiagenda (colunas por recurso) para um único dia. */
-export function createResourceDayView(
-  resources: readonly CalendarResource[] = [],
+/** Create vertical resource columns for a configurable date range.
+ * @remarks Português: Cria colunas verticais por recurso em um período configurável.
+ */
+export function createResourceView({
+  resources = [],
+  days: totalDays = 1,
+  alignment = 'date',
+  groupBy = 'date',
   name = 'resources',
-): CalendarView {
+  label = 'Recursos',
+}: ResourceViewInput = {}): CalendarView {
+  if (!Number.isSafeInteger(totalDays) || totalDays < 1 || totalDays > 366)
+    throw new RangeError('Resource view days must be an integer from 1 to 366.');
   return {
     name,
-    label: 'Recursos',
-    getRange(date: PlainDate): ViewRange {
-      return { days: [date], startDate: date, endDate: date };
+    label,
+    getRange(date, context): ViewRange {
+      const start =
+        alignment === 'week'
+          ? context.dateUtils.startOfWeek({ date, weekStart: context.options.weekStart })
+          : date;
+      const days = context.dateUtils.eachDayOfRange({ start, end: start.add({ days: totalDays }) });
+      return { days, startDate: start, endDate: days[days.length - 1]! };
     },
-    navigate(direction, date) {
-      return direction === 'next' ? date.add({ days: 1 }) : date.subtract({ days: 1 });
+    navigate({ direction, date }) {
+      return direction === 'next'
+        ? date.add({ days: totalDays })
+        : date.subtract({ days: totalDays });
     },
-    getTitle(range, context): string {
-      return formatDate(range.startDate, context.options.locale, {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
+    getTitle(range, context) {
+      const format = (date: PlainDate) =>
+        formatDate({
+          date,
+          locale: context.options.locale,
+          options: { day: 'numeric', month: 'long', year: 'numeric' },
+        });
+      return totalDays === 1
+        ? formatDate({
+            date: range.startDate,
+            locale: context.options.locale,
+            options: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' },
+          })
+        : `${format(range.startDate)} – ${format(range.endDate)}`;
+    },
+    render(context) {
+      return createElement(ResourceGrid, {
+        context,
+        resources: context.resources ?? resources,
+        groupBy,
       });
-    },
-    render(context: ViewRenderContext): JSX.Element {
-      return createElement(ResourceGrid, { context, resources: context.resources ?? resources });
     },
   };
 }
 
+/** Create single-day resource columns.
+ * @remarks Português: Cria colunas por recurso para um único dia
+ */
+export function createResourceDayView(
+  resources: readonly CalendarResource[] = [],
+  name = 'resources',
+): CalendarView {
+  return createResourceView({ resources, name });
+}
+
 function ResourceGrid(props: {
+  /** Resolved view data and consumer callbacks.
+   * @remarks Português: Dados resolvidos da view e callbacks do consumidor
+   */
   context: ViewRenderContext;
+  /** Resources rendered in this view.
+   * @remarks Português: Recursos renderizados nesta view
+   */
   resources: readonly CalendarResource[];
+  /** Outer header grouping.
+   * @remarks Português: Agrupamento externo do cabeçalho
+   */
+  groupBy: 'date' | 'resource';
 }): JSX.Element {
-  const scrollRef = usePageStickyHeaders();
-  const { context, resources } = props;
+  const scrollRef = usePageStickyHeaders(props.context.options.locale);
+  const { context, resources, groupBy } = props;
   const { options, range } = context;
-  const day = range.startDate;
   const startHour = resolveHour(options.startHour);
   const endHour = resolveHour(options.endHour);
   const gridTopMin = startHour * 60;
@@ -86,76 +160,163 @@ function ResourceGrid(props: {
   const minuteToY = (minuteOfDay: number): number =>
     (minuteOfDay - gridTopMin) * options.pxPerMinute;
 
-  const columns = buildResourceColumns(
-    context.temporal,
-    resources,
-    day,
-    context.resourceBufferOccurrences ?? context.occurrences,
-    context.constraints,
-    { startHour, endHour },
-    options.timeZone,
-    options.visibleResourceIds,
-    options.defaultResourceCapacity,
+  const dateColumns = range.days.flatMap((day) =>
+    buildResourceColumns({
+      temporal: context.temporal,
+      resources,
+      day,
+      occurrences: context.resourceBufferOccurrences ?? context.occurrences,
+      globalConstraints: context.constraints,
+      grid: { startHour, endHour },
+      displayTimeZone: options.timeZone,
+      visibleResourceIds: options.visibleResourceIds,
+      defaultCapacity: options.defaultResourceCapacity,
+    }),
   );
+  const columns =
+    groupBy === 'resource'
+      ? [...dateColumns].sort(
+          (first, second) =>
+            resources.indexOf(first.resource) - resources.indexOf(second.resource) ||
+            first.day.dateISO.localeCompare(second.day.dateISO),
+        )
+      : dateColumns;
+  const multiday = range.days.length > 1;
+  const groupKey = (column: ResourceColumnData) =>
+    groupBy === 'date' ? column.day.dateISO : column.resource.id;
+  const groups: { key: string; column: ResourceColumnData; count: number }[] = [];
+  for (const column of columns) {
+    const previous = groups[groups.length - 1];
+    if (previous?.key === groupKey(column)) previous.count++;
+    else groups.push({ key: groupKey(column), column, count: 1 });
+  }
 
   const densities = columns.map((column) =>
-    applyDenseLayout(
-      layoutDay(column.day.timed, createResourceGeometryGrid(context)),
-      options.timedEventOverflow,
-      options.eventMaxStack,
-      options.minEventWidth,
-      options.slotEventOverlap,
-    ),
+    applyDenseLayout({
+      blocks: layoutDay({ items: column.day.timed, grid: createResourceGeometryGrid(context) }),
+      policy: options.timedEventOverflow,
+      maxStack: options.eventMaxStack,
+      minEventWidth: options.minEventWidth,
+      slotEventOverlap: options.slotEventOverlap,
+    }),
+  );
+  const columnMinWidth = Math.max(
+    multiday ? 140 : 0,
+    ...densities.map((density) => density.minWidth),
   );
   const nowZoned = context.temporal.Instant.fromEpochMilliseconds(context.nowMs).toZonedDateTimeISO(
     options.timeZone,
   );
-  const isToday = nowZoned.toPlainDate().toString() === day.toString();
+  const todayISO = nowZoned.toPlainDate().toString();
   const nowMinuteOfDay = nowZoned.hour * 60 + nowZoned.minute;
   const nowWithinGrid = nowMinuteOfDay >= gridTopMin && nowMinuteOfDay <= gridBottomMin;
-  const showNowLine = isToday && nowWithinGrid;
 
-  const hourLabels: { minute: number; label: string }[] = [];
-  for (let minute = gridTopMin; minute < gridBottomMin; minute += timeLabelStep(options)) {
-    hourLabels.push({ minute, label: formatHourLabel(minute, options.locale) });
+  const hourLabels: {
+    /** Label position in minutes since midnight.
+     * @remarks Português: Posição do rótulo em minutos desde meia-noite
+     */
+    minute: number;
+    /** Display text.
+     * @remarks Português: Texto exibido
+     */
+    label: string;
+  }[] = [];
+  for (let minute = gridTopMin; minute < gridBottomMin; minute += timeLabelStep({ options })) {
+    hourLabels.push({
+      minute,
+      label: formatHourLabel({ minuteOfDay: minute, locale: options.locale }),
+    });
   }
 
   return (
     <div className="mc-resources" data-mc-view="resources">
-      {/* Scroller horizontal ÚNICO (cabeçalho + corpo): em tela estreita as colunas de recurso
-          ganham piso de largura (`--mc-resource-min-width`) e o grid rola na horizontal — os dois
-          precisam rolar juntos, senão o nome do recurso desalinha da coluna. Só estrutura. */}
       <div ref={scrollRef} className="mc-hscroll" data-mc-hscroll>
-        <div className="mc-resource-header-row" style={{ display: 'flex' }}>
-          <div className="mc-gutter-corner" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }} />
-          {columns.map((column, columnIndex) => (
-            <div
-              key={column.resource.id}
-              className={`mc-resource-header${column.overCapacity ? ' mc-over-capacity' : ''}`}
-              data-mc-resource-header={column.resource.id}
-              style={{
-                flex: '1 1 0',
-                textAlign: 'center',
-                minWidth: densities[columnIndex]?.minWidth || undefined,
-              }}
-            >
-              <span className="mc-resource-title">{column.resource.title}</span>
-              {column.overCapacity && (
-                <span className="mc-capacity-badge" data-mc-over-capacity>
-                  {column.maxConcurrency}/{column.capacity ?? 1}
-                </span>
-              )}
+        <div
+          className="mc-resource-header-row"
+          style={{ display: 'flex', flexDirection: 'column' }}
+        >
+          {multiday && (
+            <div className="mc-resource-group-row" style={{ display: 'flex' }}>
+              <div
+                className="mc-gutter-corner"
+                style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}
+              />
+              {groups.map((group) => (
+                <div
+                  key={group.key}
+                  data-mc-resource-group={group.key}
+                  className="mc-resource-group"
+                  style={{ flex: `${group.count} 1 0`, minWidth: group.count * columnMinWidth }}
+                >
+                  {groupBy === 'resource'
+                    ? group.column.resource.title
+                    : formatDate({
+                        date: group.column.day.date,
+                        locale: options.locale,
+                        options: { weekday: 'short', day: 'numeric', month: 'short' },
+                      })}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+          <div style={{ display: 'flex' }}>
+            <div
+              className="mc-gutter-corner"
+              style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}
+            />
+            {columns.map((column) => (
+              <div
+                key={`${column.day.dateISO}:${column.resource.id}`}
+                className={`mc-resource-header${column.overCapacity ? ' mc-over-capacity' : ''}`}
+                data-mc-resource-header={column.resource.id}
+                data-mc-resource-header-date={column.day.dateISO}
+                style={{
+                  ...context.getDayStyle?.({
+                    dateISO: column.day.dateISO,
+                    viewName: context.viewName ?? 'resources',
+                    resourceId: column.resource.id,
+                  }),
+                  flex: '1 1 0',
+                  textAlign: 'center',
+                  minWidth: columnMinWidth || undefined,
+                }}
+              >
+                <DayHeaderContent
+                  context={context}
+                  dateISO={column.day.dateISO}
+                  viewName={context.viewName ?? 'resources'}
+                  resourceId={column.resource.id}
+                  defaultContent={
+                    <span className="mc-resource-title">
+                      {multiday && groupBy === 'resource'
+                        ? formatDate({
+                            date: column.day.date,
+                            locale: options.locale,
+                            options: { weekday: 'short', day: 'numeric' },
+                          })
+                        : column.resource.title}
+                    </span>
+                  }
+                />
+                {column.overCapacity && (
+                  <span className="mc-capacity-badge" data-mc-over-capacity>
+                    {column.maxConcurrency}/{column.capacity ?? 1}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {columns.some((column) => column.day.allDay.length > 0) && (
           <div className="mc-resource-allday-row" style={{ display: 'flex' }}>
-            <div style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}>Dia inteiro</div>
-            {columns.map((column, columnIndex) => (
+            <div className="mc-allday-label" style={{ width: toPx(GUTTER_PX), flex: '0 0 auto' }}>
+              {getViewLabels(options.locale).allDay}
+            </div>
+            {columns.map((column) => (
               <div
-                key={column.resource.id}
-                style={{ flex: '1 1 0', minWidth: densities[columnIndex]?.minWidth || undefined }}
+                key={`${column.day.dateISO}:${column.resource.id}`}
+                style={{ flex: '1 1 0', minWidth: columnMinWidth || undefined }}
               >
                 <ResourceAllDay column={column} context={context} />
               </div>
@@ -188,14 +349,14 @@ function ResourceGrid(props: {
           </div>
 
           {columns.map((column, columnIndex) => {
-            const columnDraft = getResourceDraftSegment(
-              context.draft,
-              column.resource.id,
-              column.day.dateISO,
-            );
+            const columnDraft = getResourceDraftSegment({
+              draft: context.draft,
+              resourceId: column.resource.id,
+              dateISO: column.day.dateISO,
+            });
             return (
               <ResourceColumn
-                key={column.resource.id}
+                key={`${column.day.dateISO}:${column.resource.id}`}
                 column={column}
                 density={densities[columnIndex]!}
                 first={column === columns[0]}
@@ -204,7 +365,10 @@ function ResourceGrid(props: {
                 hourMinutes={hourLabels.map((hourLabel) => hourLabel.minute)}
                 minuteToY={minuteToY}
                 pxPerMinute={options.pxPerMinute}
-                nowMinutes={showNowLine ? nowMinuteOfDay : null}
+                nowMinutes={
+                  column.day.dateISO === todayISO && nowWithinGrid ? nowMinuteOfDay : null
+                }
+                minWidth={columnMinWidth}
                 {...(columnDraft ? { draft: columnDraft } : {})}
               />
             );
@@ -216,16 +380,50 @@ function ResourceGrid(props: {
 }
 
 function ResourceColumn(props: {
+  /** Allow initial keyboard focus in this column.
+   * @remarks Português: Permite o foco inicial por teclado nesta coluna
+   */
   first: boolean;
+  /** Resolved event and availability data for the column.
+   * @remarks Português: Dados resolvidos dos eventos e disponibilidade da coluna
+   */
   column: ResourceColumnData;
+  /** Event geometry after applying the density policy.
+   * @remarks Português: Geometria dos eventos após aplicar a política de densidade
+   */
   density: DenseLayoutResult;
+  /** Resolved view data and consumer callbacks.
+   * @remarks Português: Dados resolvidos da view e callbacks do consumidor
+   */
   context: ViewRenderContext;
+  /** Time-grid body height in pixels.
+   * @remarks Português: Altura do corpo da grade horária em pixels
+   */
   bodyHeight: number;
+  /** Visible grid-line positions in minutes since midnight.
+   * @remarks Português: Posições das linhas visíveis em minutos desde meia-noite
+   */
   hourMinutes: number[];
+  /** Convert minutes since midnight to vertical pixels.
+   * @remarks Português: Converte minutos desde meia-noite em pixels verticais
+   */
   minuteToY: (minuteOfDay: number) => number;
+  /** Pixels per minute along the time axis.
+   * @remarks Português: Pixels por minuto no eixo de tempo
+   */
   pxPerMinute: number;
+  /** Current minute of day, or null outside this column.
+   * @remarks Português: Minuto atual do dia, ou null fora desta coluna
+   */
   nowMinutes: number | null;
+  /** Gesture preview for this column.
+   * @remarks Português: Prévia do gesto nesta coluna
+   */
   draft?: InteractionDraft;
+  /** Minimum column width in CSS pixels.
+   * @remarks Português: Largura mínima da coluna em pixels CSS
+   */
+  minWidth: number;
 }): JSX.Element {
   const {
     column,
@@ -255,7 +453,7 @@ function ResourceColumn(props: {
           resourceId: column.resource.id,
         }),
         flex: '1 1 0',
-        minWidth: density.minWidth || undefined,
+        minWidth: Math.max(density.minWidth, props.minWidth) || undefined,
         position: 'relative',
         height: toPx(bodyHeight),
         touchAction: 'pan-x pan-y',
@@ -276,7 +474,7 @@ function ResourceColumn(props: {
           key={`nonbusiness-${index}`}
           className="mc-nonbusiness"
           data-mc-nonbusiness
-          style={segmentStyle(segment, minuteToY, pxPerMinute)}
+          style={segmentStyle({ segment, minuteToY, pxPerMinute })}
         />
       ))}
       {column.bufferSegments.map((segment, index) => (
@@ -284,7 +482,7 @@ function ResourceColumn(props: {
           key={`buffer-${index}`}
           className="mc-buffer"
           data-mc-buffer
-          style={segmentStyle(segment, minuteToY, pxPerMinute)}
+          style={segmentStyle({ segment, minuteToY, pxPerMinute })}
         />
       ))}
       {column.day.blocked.map((segment, index) => (
@@ -292,7 +490,7 @@ function ResourceColumn(props: {
           key={`blocked-${index}`}
           className="mc-blocked"
           data-mc-blocked
-          style={segmentStyle(segment, minuteToY, pxPerMinute)}
+          style={segmentStyle({ segment, minuteToY, pxPerMinute })}
         />
       ))}
       {hourMinutes.map((minute) => (
@@ -305,12 +503,15 @@ function ResourceColumn(props: {
       {blocks.map((block) => {
         const placement = placementById.get(block.id)!;
         const event = placement.occurrence.event;
-        const timeLabel = formatHourLabel(placement.startMin, context.options.locale);
-        const editable = occurrenceEditableForDay(
-          placement.occurrence,
-          column.day.dateISO,
+        const timeLabel = formatHourLabel({
+          minuteOfDay: placement.startMin,
+          locale: context.options.locale,
+        });
+        const editable = occurrenceEditableForDay({
+          occurrence: placement.occurrence,
+          dayISO: column.day.dateISO,
           context,
-        );
+        });
         return (
           <div
             key={block.id}
@@ -321,7 +522,7 @@ function ResourceColumn(props: {
             aria-label={`${timeLabel} ${event.title}`}
             onClick={(clickEvent) => {
               if (isNestedInteractiveTarget(clickEvent.target, clickEvent.currentTarget)) return;
-              // Pointer clicks are dispatched by InteractionEngine; assistive clicks have no pointer.
+              // InteractionEngine owns pointer clicks. PT: InteractionEngine trata cliques de ponteiro.
               if (clickEvent.detail === 0) context.onEventClick?.(placement.occurrence);
             }}
             onKeyDown={(keyEvent) => {
@@ -340,9 +541,9 @@ function ResourceColumn(props: {
               top: toPx(block.top),
               height: toPx(block.height),
               left: `${block.left * 100}%`,
-              width: timedEventWidth(block, context.options.slotEventOverlap),
+              width: timedEventWidth({ block, overlap: context.options.slotEventOverlap }),
               zIndex: block.column + 1,
-              ...(editable ? { touchAction: 'none' } : {}),
+              touchAction: 'auto',
               ...(context.draft?.eventId === block.id ? { visibility: 'hidden' as const } : {}),
               ...eventAccentStyle(event.color),
             }}
@@ -362,7 +563,11 @@ function ResourceColumn(props: {
                   )}
             </div>
             {editable &&
-              occurrenceEdges(placement.occurrence, column.day.dateISO, context).start && (
+              occurrenceEdges({
+                occurrence: placement.occurrence,
+                dayISO: column.day.dateISO,
+                context,
+              }).start && (
                 <div
                   className="mc-resize-handle mc-resize-start"
                   data-mc-resize="start"
@@ -377,21 +582,26 @@ function ResourceColumn(props: {
                   }}
                 />
               )}
-            {editable && occurrenceEdges(placement.occurrence, column.day.dateISO, context).end && (
-              <div
-                className="mc-resize-handle"
-                data-mc-resize="end"
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: '6px',
-                  cursor: 'ns-resize',
-                  touchAction: 'none',
-                }}
-              />
-            )}
+            {editable &&
+              occurrenceEdges({
+                occurrence: placement.occurrence,
+                dayISO: column.day.dateISO,
+                context,
+              }).end && (
+                <div
+                  className="mc-resize-handle"
+                  data-mc-resize="end"
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: '6px',
+                    cursor: 'ns-resize',
+                    touchAction: 'none',
+                  }}
+                />
+              )}
           </div>
         );
       })}
@@ -421,7 +631,7 @@ function ResourceColumn(props: {
           }}
         >
           <span className="mc-draft-time">
-            {formatDraftInterval(context.draft ?? draft, context.options.locale)}
+            {formatDraftInterval({ draft: context.draft ?? draft, locale: context.options.locale })}
           </span>
           {' · '}
           <span className="mc-draft-title">

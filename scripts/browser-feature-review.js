@@ -48,7 +48,7 @@ async (page) => {
   const set = (options) =>
     page.evaluate((options) => window.featureApp.setOptions(options), options);
   const view = (name) => page.evaluate((name) => window.featureApp.changeView(name), name);
-  const drag = async (source, target) => {
+  const drag = async ({ source, target }) => {
     await source.scrollIntoViewIfNeeded();
     await target.scrollIntoViewIfNeeded();
     const a = await source.boundingBox(),
@@ -68,7 +68,7 @@ async (page) => {
   if ((await root.locator('.mc-month-popover [data-mc-event]').count()) !== 6)
     throw new Error('Popover não contém todos os ocultos');
   const popupEvent = root.locator('.mc-month-popover [data-mc-event^="dense2@"]');
-  await drag(popupEvent, root.locator('[data-mc-cell-start="660"]'));
+  await drag({ source: popupEvent, target: root.locator('[data-mc-cell-start="660"]') });
   await root.locator('[data-mc-draft]').waitFor();
   if (
     await root
@@ -88,7 +88,10 @@ async (page) => {
   await page.keyboard.press('Escape');
   await set({ timedEventOverflow: 'shrink' });
   const moved = root.locator('[data-mc-event^="dense2@"]');
-  await drag(moved.locator('[data-mc-resize="start"]'), root.locator('[data-mc-cell-start="630"]'));
+  await drag({
+    source: moved.locator('[data-mc-resize="start"]'),
+    target: root.locator('[data-mc-cell-start="630"]'),
+  });
   await page.mouse.up();
   await page.waitForFunction(() =>
     document.querySelector(
@@ -99,14 +102,14 @@ async (page) => {
   await root.locator('[data-mc-month-day="2026-10-07"] .mc-month-more').click();
   await root.locator('.mc-month-popover').waitFor();
   const monthPopup = root.locator('.mc-month-popover [data-mc-event^="dense3@"]');
-  await drag(monthPopup, root.locator('[data-mc-month-day="2026-10-09"]'));
+  await drag({ source: monthPopup, target: root.locator('[data-mc-month-day="2026-10-09"]') });
   await root.locator('[data-mc-draft]').waitFor();
   await page.mouse.up();
   await page.keyboard.press('Escape');
   await page.waitForFunction(() =>
     document.querySelector('[data-mc-month-event^="dense3@"][data-mc-month-dates="2026-10-09"]'),
   );
-  // Capacity is configurable and independent of the visual grouping policy.
+  // Capacity is independent of visual grouping. / PT: Capacidade independe do agrupamento visual.
   const capacity = await page.evaluate(() =>
     window.featureApp.evaluatePlacement({
       dateISO: '2026-10-07',
@@ -192,16 +195,16 @@ async (page) => {
   );
   await set({ allowEventTypeChange: true });
   await view('week');
-  await drag(
-    root.locator('[data-mc-event^="convert@"]'),
-    root.locator('[data-mc-allday-cell="2026-10-09"]'),
-  );
+  await drag({
+    source: root.locator('[data-mc-event^="convert@"]'),
+    target: root.locator('[data-mc-allday-cell="2026-10-09"]'),
+  });
   await page.mouse.up();
   await page.waitForFunction(() => window.featureApp.getState().events[0].time.allDay === true);
-  await drag(
-    root.locator('[data-mc-allday-event^="convert@"]'),
-    root.locator('[data-mc-day="2026-10-10"] [data-mc-cell-start="660"]'),
-  );
+  await drag({
+    source: root.locator('[data-mc-allday-event^="convert@"]'),
+    target: root.locator('[data-mc-day="2026-10-10"] [data-mc-cell-start="660"]'),
+  });
   await page.mouse.up();
   await page.waitForFunction(() => window.featureApp.getState().events[0].time.allDay === false);
   const converted = await page.evaluate(() => window.featureApp.getState().events[0].time);

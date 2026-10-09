@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { createElement } from 'react';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import { createRoot, type Root } from 'react-dom/client';
@@ -28,7 +28,7 @@ const mountedRoots = new Map<HTMLElement, Root>();
 
 describe('keyboard slot selection integrates with calendar validation', () => {
   it('month: arrows move by week without creating an event until activation', () => {
-    const { element, onDateClick } = mount(monthView, []);
+    const { element, onDateClick } = mount({ view: monthView, items: [] });
     document.body.appendChild(element);
     const first = element.querySelector<HTMLButtonElement>(
       '[data-mc-month-day="2026-07-22"] button',
@@ -129,11 +129,18 @@ function occurrence(time: CalendarEvent['time']): EventOccurrence {
   };
 }
 
-function mount(
-  view: CalendarView,
-  items: EventOccurrence[] = [],
-  renderEvent?: ViewRenderContext['renderEvent'],
-) {
+function mount({
+  view,
+  items = [],
+  renderEvent,
+}: {
+  /** View mounted by the fixture. / PT: View montada pelo teste. */
+  view: CalendarView;
+  /** Occurrences supplied to the view. / PT: Ocorrencias fornecidas à view. */
+  items?: EventOccurrence[];
+  /** Optional consumer event renderer. / PT: Renderização opcional de evento do consumidor. */
+  renderEvent?: ViewRenderContext['renderEvent'];
+}) {
   const date = temporal.PlainDate.from('2026-07-22');
   const base = { temporal, dateUtils, options };
   const onEventClick = vi.fn();
@@ -180,23 +187,26 @@ describe('custom event controls own keyboard-generated clicks', () => {
       );
       item.event.resourceIds = ['room'];
       const nested = vi.fn();
-      const { element, onEventClick } = mount(view, [item], () =>
-        createElement(
-          'div',
-          {},
+      const { element, onEventClick } = mount({
+        view,
+        items: [item],
+        renderEvent: () =>
           createElement(
-            'button',
-            { type: 'button', onClick: nested },
-            createElement('span', { 'data-test-control': 'native' }, 'Ação'),
+            'div',
+            {},
+            createElement(
+              'button',
+              { type: 'button', onClick: nested },
+              createElement('span', { 'data-test-control': 'native' }, 'Ação'),
+            ),
+            createElement(
+              'span',
+              { role: 'link', tabIndex: 0, onClick: nested },
+              createElement('span', { 'data-test-control': 'aria' }, 'Link'),
+            ),
+            createElement('span', { 'data-test-plain': true }, 'Texto do evento'),
           ),
-          createElement(
-            'span',
-            { role: 'link', tabIndex: 0, onClick: nested },
-            createElement('span', { 'data-test-control': 'aria' }, 'Link'),
-          ),
-          createElement('span', { 'data-test-plain': true }, 'Texto do evento'),
-        ),
-      );
+      });
       const card = element.querySelector<HTMLElement>(selector)!;
       expect(card).not.toBeNull();
       for (const control of card.querySelectorAll('[data-test-control]')) {
@@ -218,13 +228,16 @@ describe('Month and agenda interval rendering', () => {
   for (const view of [monthView, listView]) {
     const selector = view.name === 'month' ? '[data-mc-month-event]' : '[data-mc-list-item]';
     it(`${view.name}: renders all occupied dates and excludes all-day end`, () => {
-      const { element } = mount(view, [
-        occurrence({
-          allDay: true,
-          start: { date: '2026-07-21' },
-          end: { date: '2026-07-24' },
-        }),
-      ]);
+      const { element } = mount({
+        view,
+        items: [
+          occurrence({
+            allDay: true,
+            start: { date: '2026-07-21' },
+            end: { date: '2026-07-24' },
+          }),
+        ],
+      });
       expect(element.querySelectorAll(selector)).toHaveLength(view.name === 'month' ? 1 : 3);
       if (view.name === 'month')
         expect(element.querySelector(selector)?.getAttribute('data-mc-month-dates')).toBe(
@@ -234,13 +247,16 @@ describe('Month and agenda interval rendering', () => {
     });
 
     it(`${view.name}: includes overnight continuation but excludes midnight end`, () => {
-      const { element } = mount(view, [
-        occurrence({
-          allDay: false,
-          start: { dateTime: '2026-07-21T23:00', timeZone: options.timeZone },
-          end: { dateTime: '2026-07-23T00:00', timeZone: options.timeZone },
-        }),
-      ]);
+      const { element } = mount({
+        view,
+        items: [
+          occurrence({
+            allDay: false,
+            start: { dateTime: '2026-07-21T23:00', timeZone: options.timeZone },
+            end: { dateTime: '2026-07-23T00:00', timeZone: options.timeZone },
+          }),
+        ],
+      });
       expect(element.querySelectorAll(selector)).toHaveLength(view.name === 'month' ? 1 : 2);
       if (view.name === 'month')
         expect(element.querySelector(selector)?.getAttribute('data-mc-month-dates')).toBe(
@@ -251,13 +267,16 @@ describe('Month and agenda interval rendering', () => {
     });
 
     it(`${view.name}: projects intervals in the display timezone`, () => {
-      const { element } = mount(view, [
-        occurrence({
-          allDay: false,
-          start: { dateTime: '2026-07-22T01:00', timeZone: 'UTC' },
-          end: { dateTime: '2026-07-22T02:00', timeZone: 'UTC' },
-        }),
-      ]);
+      const { element } = mount({
+        view,
+        items: [
+          occurrence({
+            allDay: false,
+            start: { dateTime: '2026-07-22T01:00', timeZone: 'UTC' },
+            end: { dateTime: '2026-07-22T02:00', timeZone: 'UTC' },
+          }),
+        ],
+      });
       const day =
         view.name === 'month'
           ? '[data-mc-month-day="2026-07-21"]'
@@ -272,7 +291,7 @@ describe('Month and agenda interval rendering', () => {
         start: { date: '2026-07-22' },
         end: { date: '2026-07-23' },
       });
-      const { element, onEventClick, onDateClick } = mount(view, [item]);
+      const { element, onEventClick, onDateClick } = mount({ view, items: [item] });
       const event = element.querySelector<HTMLElement>(selector)!;
       expect(event.getAttribute('role')).toBe('button');
       expect(event.tabIndex).toBe(0);
@@ -287,7 +306,7 @@ describe('Month and agenda interval rendering', () => {
   }
 
   it('Month exposes an independently named date button', () => {
-    const { element, onDateClick } = mount(monthView);
+    const { element, onDateClick } = mount({ view: monthView });
     const button = element.querySelector<HTMLButtonElement>(
       '[data-mc-month-day="2026-07-22"] button',
     )!;
@@ -371,7 +390,7 @@ describe('View ranges and formatting', () => {
         end: { dateTime: '2026-07-22T09:00', timeZone: options.timeZone },
       });
       item.event.resourceIds = ['room'];
-      const { element, onEventClick } = mount(view, [item]);
+      const { element, onEventClick } = mount({ view, items: [item] });
       const segment = element.querySelector<HTMLElement>('[data-mc-event]')!;
       expect(segment).not.toBeNull();
       expect(segment.title).toBe('Viagem');
@@ -387,16 +406,22 @@ describe('View ranges and formatting', () => {
   }
 
   it('edits intersecting days and excludes the exclusive midnight boundary', () => {
-    const { context } = mount(dayView);
+    const { context } = mount({ view: dayView });
     const item = occurrence({
       allDay: false,
       start: { dateTime: '2026-07-22T23:00', timeZone: options.timeZone },
       end: { dateTime: '2026-07-23T00:00', timeZone: options.timeZone },
     });
-    expect(occurrenceEditableForDay(item, '2026-07-22', context)).toBe(true);
-    expect(occurrenceEditableForDay(item, '2026-07-23', context)).toBe(false);
+    expect(occurrenceEditableForDay({ occurrence: item, dayISO: '2026-07-22', context })).toBe(
+      true,
+    );
+    expect(occurrenceEditableForDay({ occurrence: item, dayISO: '2026-07-23', context })).toBe(
+      false,
+    );
     item.event.time.end.dateTime = '2026-07-23T01:00';
-    expect(occurrenceEditableForDay(item, '2026-07-22', context)).toBe(true);
+    expect(occurrenceEditableForDay({ occurrence: item, dayISO: '2026-07-22', context })).toBe(
+      true,
+    );
   });
 
   it('timegrid activates timed events from keyboard and all-day events from click and keyboard', () => {
@@ -412,7 +437,7 @@ describe('View ranges and formatting', () => {
       end: { date: '2026-07-23' },
     });
     allDay.masterId = 'holiday';
-    const { element, onEventClick } = mount(dayView, [timed, allDay]);
+    const { element, onEventClick } = mount({ view: dayView, items: [timed, allDay] });
     const timedElement = element.querySelector<HTMLElement>('[data-mc-day] [data-mc-event]')!;
     expect(timedElement.style.backgroundColor).toBe('');
     expect(timedElement.style.boxShadow).toContain('#2563eb');
@@ -432,7 +457,7 @@ describe('View ranges and formatting', () => {
     const date = temporal.PlainDate.from('2026-07-22');
     const context = { temporal, dateUtils, options };
     const first = view.getRange(date, context);
-    const next = view.getRange(view.navigate('next', date, context), context);
+    const next = view.getRange(view.navigate({ direction: 'next', date, context }), context);
     expect(first.startDate.toString()).toBe('2026-07-22');
     expect(next.startDate.toString()).toBe('2026-07-25');
   });
@@ -445,11 +470,15 @@ describe('View ranges and formatting', () => {
   });
 
   it('formats midnight as 00:00 across locales and retains years below 100', () => {
-    expect(formatHourLabel(0, 'en-US')).toBe('00:00');
-    expect(formatHourLabel(0, 'pt-BR')).toBe('00:00');
-    expect(formatDate(temporal.PlainDate.from('0099-01-01'), 'en-US', { year: 'numeric' })).toBe(
-      '99',
-    );
+    expect(formatHourLabel({ minuteOfDay: 0, locale: 'en-US' })).toBe('00:00');
+    expect(formatHourLabel({ minuteOfDay: 0, locale: 'pt-BR' })).toBe('00:00');
+    expect(
+      formatDate({
+        date: temporal.PlainDate.from('0099-01-01'),
+        locale: 'en-US',
+        options: { year: 'numeric' },
+      }),
+    ).toBe('99');
   });
 });
 
@@ -458,10 +487,12 @@ describe('time label density', () => {
     const options = { slotMinutes: 30, pxPerMinute: 1, timeLabelInterval: 30 } as Parameters<
       typeof timeLabelStep
     >[0];
-    expect(timeLabelStep(options, true)).toBe(30);
-    expect(timeLabelStep({ ...options, timeLabelInterval: undefined }, true)).toBe(60);
-    expect(timeLabelStep({ ...options, pxPerMinute: 2 }, true)).toBe(30);
-    expect(timeLabelStep(options)).toBe(30);
+    expect(timeLabelStep({ options, horizontal: true })).toBe(30);
+    expect(
+      timeLabelStep({ options: { ...options, timeLabelInterval: undefined }, horizontal: true }),
+    ).toBe(60);
+    expect(timeLabelStep({ options: { ...options, pxPerMinute: 2 }, horizontal: true })).toBe(30);
+    expect(timeLabelStep({ options })).toBe(30);
     expect(options.slotMinutes).toBe(30);
   });
 });

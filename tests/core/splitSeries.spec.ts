@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { expandEvent, splitEventSeries, type CalendarEvent } from '../../src/core/index.js';
 import { ALL } from './scenarios.js';
 
@@ -27,13 +27,18 @@ it('a neutral split reconstructs the series across the existing frequency/interv
       },
       recurrence: { rule },
     };
-    const original = expandEvent(Temporal, event);
+    const original = expandEvent({ temporal: Temporal, event });
     if (!original.length) continue;
     const cut = original[Math.min(2, original.length - 1)]!.originalStart;
-    const { before, following } = splitEventSeries(Temporal, event, cut, 'new');
+    const { before, following } = splitEventSeries({
+      temporal: Temporal,
+      event,
+      originalStart: cut,
+      newId: 'new',
+    });
     const combined = [
-      ...(before ? expandEvent(Temporal, before) : []),
-      ...expandEvent(Temporal, following),
+      ...(before ? expandEvent({ temporal: Temporal, event: before }) : []),
+      ...expandEvent({ temporal: Temporal, event: following }),
     ];
     expect(
       combined.map((item) => [item.originalStart, item.event.time]),
@@ -43,14 +48,22 @@ it('a neutral split reconstructs the series across the existing frequency/interv
 });
 it('splits COUNT including excluded/cancelled starts, preserving past and future exceptions and duration', () => {
   const original = structuredClone(series);
-  const { before, following } = splitEventSeries(Temporal, series, '2024-01-04', 'new', {
-    title: 'Futuro',
-    resourceIds: ['other'],
+  const { before, following } = splitEventSeries({
+    temporal: Temporal,
+    event: series,
+    originalStart: '2024-01-04',
+    newId: 'new',
+    changes: {
+      title: 'Futuro',
+      resourceIds: ['other'],
+    },
   });
   expect(before!.recurrence!.rule).toMatchObject({ count: 3 });
   expect(following.recurrence!.rule).toMatchObject({ count: 3 });
-  expect(expandEvent(Temporal, before!).map((item) => item.originalStart)).toEqual(['2024-01-01']);
-  const future = expandEvent(Temporal, following);
+  expect(
+    expandEvent({ temporal: Temporal, event: before! }).map((item) => item.originalStart),
+  ).toEqual(['2024-01-01']);
+  const future = expandEvent({ temporal: Temporal, event: following });
   expect(future.map((item) => item.originalStart)).toEqual([
     '2024-01-04',
     '2024-01-05',
@@ -88,18 +101,23 @@ it('retimes following keys, UTC exceptions, moved overrides and UNTIL across DST
       },
     },
   };
-  const { before, following } = splitEventSeries(Temporal, event, '2024-03-10T09:00:00', 'new', {
-    time: {
-      allDay: false,
-      start: { dateTime: '2024-03-10T10:00:00', timeZone: 'America/New_York' },
-      end: { dateTime: '2024-03-10T11:00:00', timeZone: 'America/New_York' },
+  const { before, following } = splitEventSeries({
+    temporal: Temporal,
+    event,
+    originalStart: '2024-03-10T09:00:00',
+    newId: 'new',
+    changes: {
+      time: {
+        allDay: false,
+        start: { dateTime: '2024-03-10T10:00:00', timeZone: 'America/New_York' },
+        end: { dateTime: '2024-03-10T11:00:00', timeZone: 'America/New_York' },
+      },
     },
   });
-  expect(expandEvent(Temporal, before!).map((item) => item.originalStart)).toEqual([
-    '2024-03-08T09:00:00',
-    '2024-03-09T09:00:00',
-  ]);
-  const future = expandEvent(Temporal, following);
+  expect(
+    expandEvent({ temporal: Temporal, event: before! }).map((item) => item.originalStart),
+  ).toEqual(['2024-03-08T09:00:00', '2024-03-09T09:00:00']);
+  const future = expandEvent({ temporal: Temporal, event: following });
   expect(future.map((item) => item.originalStart)).toEqual([
     '2024-03-10T10:00:00',
     '2024-03-12T10:00:00',
@@ -107,26 +125,41 @@ it('retimes following keys, UTC exceptions, moved overrides and UNTIL across DST
   expect(future[1]!.event.time.start.dateTime).toBe('2024-03-12T12:00:00');
 });
 it('supports first/infinite cuts, and rejects cancelled, RDATE-only and incompatible filter cuts', () => {
-  const first = splitEventSeries(Temporal, series, '2024-01-01', 'new');
+  const first = splitEventSeries({
+    temporal: Temporal,
+    event: series,
+    originalStart: '2024-01-01',
+    newId: 'new',
+  });
   expect(first.before).toBeNull();
   const infinite = { ...series, recurrence: { rule: 'FREQ=WEEKLY;INTERVAL=2' } };
-  const split = splitEventSeries(Temporal, infinite, '2024-01-29', 'new');
-  expect(expandEvent(Temporal, split.before!).map((item) => item.originalStart)).toEqual([
-    '2024-01-01',
-    '2024-01-15',
-  ]);
+  const split = splitEventSeries({
+    temporal: Temporal,
+    event: infinite,
+    originalStart: '2024-01-29',
+    newId: 'new',
+  });
   expect(
-    expandEvent(Temporal, split.following, { end: '2024-03-01' }).map((item) => item.originalStart),
+    expandEvent({ temporal: Temporal, event: split.before! }).map((item) => item.originalStart),
+  ).toEqual(['2024-01-01', '2024-01-15']);
+  expect(
+    expandEvent({ temporal: Temporal, event: split.following, window: { end: '2024-03-01' } }).map(
+      (item) => item.originalStart,
+    ),
   ).toEqual(['2024-01-29', '2024-02-12', '2024-02-26']);
   for (const cut of ['2024-01-02', '2024-01-03', '2024-01-09'])
-    expect(() => splitEventSeries(Temporal, series, cut, 'new')).toThrow();
+    expect(() =>
+      splitEventSeries({ temporal: Temporal, event: series, originalStart: cut, newId: 'new' }),
+    ).toThrow();
   expect(() =>
-    splitEventSeries(
-      Temporal,
-      { ...series, recurrence: { rule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=5' } },
-      '2024-01-08',
-      'new',
-      { time: { allDay: true, start: { date: '2024-01-09' }, end: { date: '2024-01-11' } } },
-    ),
+    splitEventSeries({
+      temporal: Temporal,
+      event: { ...series, recurrence: { rule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=5' } },
+      originalStart: '2024-01-08',
+      newId: 'new',
+      changes: {
+        time: { allDay: true, start: { date: '2024-01-09' }, end: { date: '2024-01-11' } },
+      },
+    }),
   ).toThrow(/filtros/);
 });

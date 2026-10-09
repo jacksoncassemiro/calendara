@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { dayView } from '../../src/react/views/timeGridViews.js';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { describe, expect, it } from 'vitest';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import { createResourceDayView, createTimelineView } from '../../src/react/views/index.js';

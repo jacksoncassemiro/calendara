@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag on main, matching package.json (v0.1.1)'
+        description: 'Existing tag on main, matching package.json (vX.Y.Z)'
         required: true
         type: string
 permissions:

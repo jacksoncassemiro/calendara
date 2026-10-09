@@ -47,10 +47,15 @@ const receivers = new Map<HTMLElement, ExternalDragReceiver>();
  * @remarks Português: Registra o receptor; a função retornada remove o registro.
  * @internal
  */
-export function registerExternalDragReceiver(
-  root: HTMLElement,
-  receiver: ExternalDragReceiver,
-): () => void {
+export function registerExternalDragReceiver({
+  root,
+  receiver,
+}: {
+  /** Mounted calendar root. @remarks Português: Raiz do calendário montado. */
+  root: HTMLElement;
+  /** Receiver that validates incoming pointer transfers. @remarks Português: Receptor que valida transferências recebidas por ponteiro. */
+  receiver: ExternalDragReceiver;
+}): () => void {
   receivers.set(root, receiver);
   return () => {
     receivers.delete(root);
@@ -60,7 +65,7 @@ export function registerExternalDragReceiver(
 /** Start typed transfer; ignore readonly events and reject recurring series.
  * @remarks Português: Use candidato sem recorrência e ID próprio; o receptor valida, sem salvar a
  * origem.
- * @returns Cancellation and listener cleanup.
+ * @returns Cancel and remove listeners. PT: Cancela e remove os listeners.
  */
 export function beginExternalEventDrag(event: CalendarEvent, pointer: PointerEvent): () => void {
   if (pointer.button !== 0 || event.editable === false) return () => {};
@@ -122,6 +127,7 @@ export function beginExternalEventDrag(event: CalendarEvent, pointer: PointerEve
  * leitura e rejeita séries. Cancela ao desmontar, sem salvar ou remover a origem.
  */
 export function useCalendarDraggable(event: CalendarEvent): {
+  /** Start dragging the external card. @remarks Português: Inicia o arrasto do cartão externo. */
   onPointerDown: PointerEventHandler<HTMLElement>;
 } {
   const cancelRef = useRef<(() => void) | null>(null);

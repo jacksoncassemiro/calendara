@@ -1,4 +1,4 @@
-import { RRuleTemporal } from 'rrule-temporal';
+import { iterateCivilDates } from './civilIterator.js';
 import type { TemporalLike } from '../date/temporal.js';
 import type { CalendarEvent, RRuleModel } from '../types/index.js';
 import type { ExpandWindow } from './recurrenceSet.js';
@@ -27,17 +27,15 @@ interface RuleStartsInput {
  */
 export function ruleStarts({ temporal, event, model, window }: RuleStartsInput): string[] {
   const allDay = event.time.allDay;
-  if (!hasPossibleMonthDay(model.byMonth ?? [], model.byMonthDay ?? [])) return [];
   const zone = allDay ? 'UTC' : (event.time.start.timeZone ?? 'UTC');
   const start = allDay ? `${event.time.start.date}T00:00:00` : event.time.start.dateTime!;
   const plain = temporal.PlainDateTime.from(start);
   const anchor = plain.toZonedDateTime(zone);
-  // Explicit DTSTART is shifted by the upstream library in gaps. Reject rather
-  // than silently move the entire series to another wall-clock hour.
   if (temporal.PlainDateTime.compare(plain, anchor.toPlainDateTime()) !== 0) {
     throw new RangeError('[calendara] início da série contém horário local inexistente');
   }
-  const input = (value: typeof anchor) => ({ timeZoneId: zone, toString: () => value.toString() });
+  if (!hasPossibleMonthDay({ months: model.byMonth ?? [], monthDays: model.byMonthDay ?? [] }))
+    return [];
   let until: typeof anchor | undefined;
   if (model.until) {
     if (allDay || model.until.length === 10) {
@@ -48,22 +46,6 @@ export function ruleStarts({ temporal, event, model, window }: RuleStartsInput):
       until = temporal.Instant.from(model.until).toZonedDateTimeISO(zone);
     } else until = temporal.PlainDateTime.from(model.until).toZonedDateTime(zone);
   }
-  const rule = new RRuleTemporal({
-    dtstart: input(anchor),
-    freq: model.freq,
-    interval: model.interval,
-    count: model.count,
-    until: until ? input(until) : undefined,
-    byDay: model.byDay?.map((entry) => `${entry.ordinal ?? ''}${entry.weekday}`),
-    byMonth: model.byMonth,
-    byMonthDay: model.byMonthDay,
-    byYearDay: model.byYearDay,
-    bySetPos: model.bySetPos,
-    wkst: model.weekStart,
-    cache: false,
-    maxIterations: 50000,
-    maxCandidateEvaluations: 1000000,
-  });
   const midnight = (date: string) =>
     temporal.PlainDate.from(date).toPlainDateTime('00:00').toZonedDateTime(zone);
   const lower = window.start ? midnight(window.start) : anchor;
@@ -71,8 +53,36 @@ export function ruleStarts({ temporal, event, model, window }: RuleStartsInput):
     ? midnight(window.end).add({ days: 1 }).subtract({ nanoseconds: 1 })
     : undefined;
   if (upper && upper.epochNanoseconds < lower.epochNanoseconds) return [];
-  const values = upper ? rule.between(input(lower), input(upper), true) : rule.all();
-  return values
-    .filter((value) => value.epochNanoseconds >= lower.epochNanoseconds)
-    .map((value) => (allDay ? value.toPlainDate().toString() : value.toPlainDateTime().toString()));
+  const seriesTime = plain.toPlainTime();
+  const zonedStartOnDate = (dateISO: string) =>
+    temporal.PlainDate.from(dateISO).toPlainDateTime(seriesTime).toZonedDateTime(zone);
+  const values: string[] = [];
+  for (const dateISO of iterateCivilDates({
+    model: { ...model, until: until?.toPlainDate().toString() },
+    startDateISO: plain.toPlainDate().toString(),
+    window: {
+      start: lower.toPlainDate().toString(),
+      end: upper?.toPlainDate().toString(),
+      maxPeriods: 50000,
+      maxEmptyPeriods: 2000,
+    },
+    acceptDate: allDay
+      ? undefined
+      : (dateISO) => {
+          const candidate = temporal.PlainDate.from(dateISO).toPlainDateTime(seriesTime);
+          return (
+            temporal.PlainDateTime.compare(
+              candidate,
+              zonedStartOnDate(dateISO).toPlainDateTime(),
+            ) === 0
+          );
+        },
+  })) {
+    const value = zonedStartOnDate(dateISO);
+    if (until && value.epochNanoseconds > until.epochNanoseconds) break;
+    if (upper && value.epochNanoseconds > upper.epochNanoseconds) break;
+    if (value.epochNanoseconds < lower.epochNanoseconds) continue;
+    values.push(allDay ? dateISO : value.toPlainDateTime().toString());
+  }
+  return values;
 }

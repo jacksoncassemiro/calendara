@@ -25,7 +25,7 @@ async (page) => {
     const slot = page.locator(`[data-mc-resource="${resource}"] [data-mc-cell-start="${minute}"]`);
     await slot.scrollIntoViewIfNeeded();
     const rect = await slot.boundingBox();
-    // Click in free space in the occupied row, outside the event box.
+    // Target the empty part of an occupied row. / PT: Usa a parte vazia de uma linha ocupada.
     await page.mouse.click(rect.x + rect.width - 3, rect.y + rect.height - 2);
     await page.waitForFunction(
       (reason) => document.querySelector('.demo-feedback').textContent.includes(reason),

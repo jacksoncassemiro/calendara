@@ -1,26 +1,27 @@
-/**
- * Stable imperative calendar API and its attachment ref.
- * Português: API imperativa estável e ref de conexão com o calendário.
- *
- * Devolve `{ ref, api }`: passe `ref` para `<Calendar apiRef={ref} />` e use `api` (métodos
- * estáveis) em handlers para comandar o calendário (prev/next/changeView/…) sem re-render.
+/** Stable actions and attachment ref for Calendar.apiRef.
+ * @remarks Português: Ações estáveis e ref de conexão com Calendar.apiRef.
  */
 import { useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { CalendarHandle } from './types.js';
 
+/** Attachment ref and stable calendar actions.
+ * @remarks Português: Ref de conexão e ações estáveis do calendário.
+ */
 export interface UseCalendar {
-  /** Ligue em `<Calendar apiRef={ref} />`. */
+  /** Attach to Calendar.apiRef. @remarks Português: Conecte a Calendar.apiRef. */
   ref: RefObject<CalendarHandle | null>;
-  /** API estável (delega ao calendário montado; no-op seguro antes da montagem). */
+  /** Stable actions; navigation is a no-op before mount. @remarks Português: Ações estáveis; navegação não atua antes da montagem. */
   api: CalendarHandle;
 }
 
+/** Connect to Calendar.apiRef and control the mounted calendar. @remarks Português: Conecta a Calendar.apiRef e controla o calendário montado. */
 export function useCalendar(): UseCalendar {
   const ref = useRef<CalendarHandle | null>(null);
   const api = useMemo<CalendarHandle>(
     () => ({
       prev: () => ref.current?.prev(),
+      print: (options) => ref.current?.print(options) ?? false,
       next: () => ref.current?.next(),
       today: () => ref.current?.today(),
       setDate: (dateISO) => ref.current?.setDate(dateISO),

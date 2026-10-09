@@ -1,21 +1,16 @@
-/**
- * Shim de compatibilidade do Temporal API (ADR-003 / política de compatibilidade em 03-ARQUITETURA.md).
- *
- * Estratégia: usar `globalThis.Temporal` quando nativo (Chrome 144 / Firefox 139+ / Edge, Node futuro).
- * Quando ausente (Safari, Node atual), carregar `@js-temporal/polyfill` sob demanda.
- *
- * `getTemporal()` é assíncrono e memoizado — deve ser chamado uma vez no bootstrap.
- * `Temporal` (export síncrono) fica disponível após a primeira resolução; o core sempre
- * aguarda `ensureTemporal()` antes de usar tipos Temporal.
- */
-import type { Temporal as TemporalNS } from '@js-temporal/polyfill';
+import type { Temporal as TemporalNS } from 'temporal-polyfill';
 
+/** Temporal namespace supplied natively or by the polyfill.
+ * @remarks Português: Namespace Temporal nativo ou fornecido pelo polyfill.
+ */
 export type TemporalLike = typeof TemporalNS;
 
 let cachedTemporal: TemporalLike | null = null;
 let loadingPromise: Promise<TemporalLike> | null = null;
 
-/** Retorna o namespace Temporal (nativo ou polyfill), carregando o polyfill se necessário. */
+/** Resolve native Temporal or load the polyfill; failed loads can be retried.
+ * @remarks Português: Resolve Temporal nativo ou carrega o polyfill; falhas permitem nova tentativa.
+ */
 export function ensureTemporal(): Promise<TemporalLike> {
   if (cachedTemporal) return Promise.resolve(cachedTemporal);
   if (loadingPromise) return loadingPromise;
@@ -26,22 +21,20 @@ export function ensureTemporal(): Promise<TemporalLike> {
     return Promise.resolve(cachedTemporal);
   }
 
-  loadingPromise = import('@js-temporal/polyfill')
+  loadingPromise = import('temporal-polyfill')
     .then((polyfillModule) => {
-      cachedTemporal = polyfillModule.Temporal as unknown as TemporalLike;
+      cachedTemporal = polyfillModule.Temporal;
       return cachedTemporal;
     })
     .catch((error: unknown) => {
-      // A transient chunk/network error must allow a later initialization retry.
       loadingPromise = null;
       throw error;
     });
   return loadingPromise;
 }
 
-/**
- * Acesso síncrono ao Temporal já resolvido. Lança se `ensureTemporal()` ainda não completou.
- * Usado internamente pelos engines depois do bootstrap.
+/** Read initialized Temporal; throws before ensureTemporal completes.
+ * @remarks Português: Consulta Temporal inicializado; lança erro antes de ensureTemporal concluir.
  */
 export function getTemporal(): TemporalLike {
   if (!cachedTemporal) {
@@ -52,7 +45,9 @@ export function getTemporal(): TemporalLike {
   return cachedTemporal;
 }
 
-/** Testa se o Temporal já está disponível de forma síncrona. */
+/** Whether Temporal is available synchronously.
+ * @remarks Português: Indica se Temporal está disponível de forma síncrona.
+ */
 export function isTemporalReady(): boolean {
   return cachedTemporal !== null;
 }

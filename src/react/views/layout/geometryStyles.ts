@@ -1,28 +1,34 @@
-/** Shared geometry styles; colors and typography belong to the stylesheet. */
+/** Shared presentation geometry. @remarks Português: Geometria compartilhada de apresentação. */
 import type { CSSProperties } from 'react';
 import type { Segment } from '../../../core/index.js';
 
-/** Event accent preserves the default border when a custom color is supplied. */
 export function eventAccentStyle(color: string | undefined): CSSProperties {
   return color
     ? { boxShadow: `inset 3px 0 0 ${color}, inset 0 0 0 1px var(--mc-color-event-border)` }
     : {};
 }
 
-/** Largura da calha (eixo de horas) em px. */
 export const GUTTER_PX = 56;
 
-/** Formata um número como pixels. */
 export function toPx(value: number): string {
   return `${value}px`;
 }
 
-/** Estilo absoluto (top/height) de um segmento vertical em minutos-do-dia. */
-export function segmentStyle(
-  segment: Segment,
-  minuteToY: (minuteOfDay: number) => number,
-  pxPerMinute: number,
-): CSSProperties {
+/** Vertical segment geometry. @remarks Português: Geometria vertical do segmento. */
+export interface SegmentStyleInput {
+  /** Interval in minutes of day. @remarks Português: Intervalo em minutos do dia. */
+  segment: Segment;
+  /** Convert minutes of day to vertical px. @remarks Português: Converte minutos do dia em px verticais. */
+  minuteToY: (minuteOfDay: number) => number;
+  /** Pixels per minute. @remarks Português: Pixels por minuto. */
+  pxPerMinute: number;
+}
+/** Absolute vertical geometry. @remarks Português: Geometria vertical absoluta. */
+export function segmentStyle({
+  segment,
+  minuteToY,
+  pxPerMinute,
+}: SegmentStyleInput): CSSProperties {
   return {
     position: 'absolute',
     left: 0,
@@ -32,8 +38,16 @@ export function segmentStyle(
   };
 }
 
-/** Reserve the creation gutter only at the outer edge of side-by-side lanes. */
-export function timedEventWidth(block: { left: number; width: number }, overlap = false): string {
+/** Reserve an outer gutter without separating internal lanes. @remarks Português: Reserva margem externa sem separar linhas internas. */
+export function timedEventWidth({
+  block,
+  overlap = false,
+}: {
+  /** Fractional left position and width within the column. @remarks Português: Posição esquerda e largura proporcionais à coluna. */
+  block: { left: number; width: number };
+  /** Partial overlap reserves space on each event; defaults to false. @remarks Português: Sobreposição parcial reserva espaço em cada evento; padrão false. */
+  overlap?: boolean;
+}): string {
   const width = block.width * 100;
   const touchesOuterEdge = block.left + block.width >= 1 - 1e-6;
   return overlap || touchesOuterEdge

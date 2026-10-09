@@ -1,20 +1,37 @@
+/** Visible occurrence dates and real resize boundaries. @remarks Português: Datas visíveis e limites reais para redimensionar. */
 import type { EventOccurrence } from '../../../core/index.js';
 import { resolveHour } from '../../../core/render/state.js';
 import type { ViewRenderContext } from '../../viewTypes.js';
 
-/** The interaction controller resolves the complete interval, including continuation days. */
-export function occurrenceEditableForDay(
-  occurrence: EventOccurrence,
-  dayISO: string,
-  context: ViewRenderContext,
-): boolean {
+export interface OccurrenceDayInput {
+  /** Expanded occurrence. @remarks Português: Ocorrência expandida. */
+  occurrence: EventOccurrence;
+  /** Target date, YYYY-MM-DD. @remarks Português: Data alvo, YYYY-MM-DD. */
+  dayISO: string;
+  /** Visible range and display time zone. @remarks Português: Período visível e fuso de exibição. */
+  context: ViewRenderContext;
+}
+
+export function occurrenceEditableForDay({
+  occurrence,
+  dayISO,
+  context,
+}: OccurrenceDayInput): boolean {
   return (
-    occurrence.event.editable !== false && occurrenceDays(occurrence, context).includes(dayISO)
+    occurrence.event.editable !== false && occurrenceDays({ occurrence, context }).includes(dayISO)
   );
 }
 
-/** Visible dates intersecting the half-open event interval, in the display timezone. */
-export function occurrenceDays(occurrence: EventOccurrence, context: ViewRenderContext): string[] {
+/** Visible dates intersecting the exclusive-end occurrence. @remarks Português: Datas visíveis que intersectam a ocorrência de fim exclusivo. */
+export function occurrenceDays({
+  occurrence,
+  context,
+}: {
+  /** Occurrence with original event identity. @remarks Português: Ocorrência com identidade original do evento. */
+  occurrence: EventOccurrence;
+  /** Display zone and visible range. @remarks Português: Fuso de exibição e período visível. */
+  context: ViewRenderContext;
+}): string[] {
   const { temporal, options, range } = context;
   const { time } = occurrence.event;
   if (time.allDay) {
@@ -37,12 +54,10 @@ export function occurrenceDays(occurrence: EventOccurrence, context: ViewRenderC
     .map((day) => day.toString());
 }
 
-/** Resize handles only belong to the real, visible boundaries of the interval. */
-export function occurrenceEdges(
-  occurrence: EventOccurrence,
-  dayISO: string,
-  context: ViewRenderContext,
-): { start: boolean; end: boolean } {
+export function occurrenceEdges({ occurrence, dayISO, context }: OccurrenceDayInput): {
+  start: boolean;
+  end: boolean;
+} {
   const { time } = occurrence.event;
   const { temporal, options } = context;
   if (time.allDay) {

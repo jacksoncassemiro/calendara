@@ -144,11 +144,34 @@ recurrence: {
 }
 ```
 
-Campos públicos: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST e BYYEARDAY para YEARLY. `rDates` adiciona ocorrências; `exDates` exclui; overrides usam `originalStart` como chave. Exclusão date-only remove o dia; datetime remove o início original exato. O motor usa `rrule-temporal` 2.2.8 e Temporal/fallback para composição; não houve remoção completa dessas dependências.
+Campos públicos: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST e BYYEARDAY para YEARLY. `rDates` adiciona ocorrências; `exDates` exclui; overrides usam `originalStart` como chave. Exclusão date-only remove o dia; datetime remove o início original exato. O iterador civil gera datas da regra; Temporal injetada trata fusos e composição dos eventos. Temporal nativo tem prioridade, com fallback lazy `temporal-polyfill`. Horários locais inexistentes na recorrência não consomem COUNT.
 
 `splitEventSeries` corta esta-e-seguintes numa ocorrência RRULE ativa. Corte RDATE-only, filtros incompatíveis, troca de fuso e conversão timed/dia inteiro são recusados. Persista os dois mestres atomicamente e defina janela de validação para séries infinitas. Expandir regra ilimitada diretamente exige janela finita.
 
 ## Tema
+
+### Estado do dia e cabeçalhos a partir da API
+
+Use estado do aplicativo para associar datas/recursos a situações. `getDayStyle` aplica cores ao cabeçalho e corpo do dia; `renderDayHeader` recebe `dateISO`, `viewName`, `resourceId` opcional, `isToday`, `isSelected` opcional e `defaultContent`. Preserve `defaultContent` ao adicionar legenda ou ícone para manter os controles padrão da data. Hooks ficam dentro de um componente retornado.
+
+```tsx
+<Calendar views={[weekView]} events={events}
+  getDayStyle={({ dateISO }) => statuses[dateISO] ? {
+    backgroundColor: `var(--status-${statuses[dateISO]}-bg)`,
+    color: `var(--status-${statuses[dateISO]}-fg)`,
+    '--mc-color-muted': `var(--status-${statuses[dateISO]}-fg)`,
+    '--mc-color-btn-active-bg': `var(--status-${statuses[dateISO]}-fg)`,
+  } : undefined}
+  renderDayHeader={({ dateISO, defaultContent }) => <>
+    {defaultContent}
+    {statuses[dateISO] && <small>{statusLabels[statuses[dateISO]]}</small>}
+  </>}
+/>
+```
+
+Atualize `statuses` com a resposta da API usando estado do aplicativo; a biblioteca não busca nem classifica esses valores. Defina tokens de fundo/texto para claro e escuro com contraste legível. Uma decoração “cheio” ou “indisponível” é visual: use `constraints` ou capacidade do recurso para restringir agendamentos. O [exemplo focado](../../examples/features.html?demo=day-style) simula uma resposta assíncrona.
+
+Deslizar por toque preserva o scroll nativo; segure aproximadamente 450 ms antes de arrastar um evento ou selecionar um intervalo. Grades de horários/timelines com transbordamento fornecem uma scrollbar horizontal superior sincronizada. Cartões do mês continuam como padrão em contêineres estreitos; indicadores opcionais usam `monthCompactBreakpoint`, medido pelo contêiner do calendário.
 
 Importe o CSS da biblioteca; o CSS do playground é separado. Sobrescreva tokens após a importação:
 
@@ -162,6 +185,24 @@ Importe o CSS da biblioteca; o CSS do playground é separado. Sobrescreva tokens
 ```
 
 `event.color` define o destaque, não disponibilidade. `getDayStyle` decora o dia sem bloqueá-lo; restrições usam constraints. Evite mudar geometria na decoração de cartões/dias. `options` substitui valores declarados sobre defaults; remover um campo restaura o default. `setOptions` imperativo aplica patch.
+
+## Entradas nomeadas nos utilitários
+
+Utilitários do núcleo aceitam entradas nomeadas quando vários valores formam uma operação:
+
+```ts
+import { expandRange } from '@jacksoncassemiro/calendara/core';
+
+const occurrences = expandRange({
+  temporal,
+  events,
+  startISO: '2026-10-01',
+  endISO: '2026-10-31',
+  displayTimeZone: 'America/Sao_Paulo',
+});
+```
+
+Use a forma com entradas nomeadas nessas operações; as sobrecargas posicionais foram removidas. Conversões unárias e comparações binárias mantêm suas assinaturas usuais. Views próprias navegam com `navigate({ direction, date, context })`.
 
 ## Recursos e limites
 

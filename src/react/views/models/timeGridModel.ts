@@ -1,8 +1,4 @@
-/**
- * Constrói o GridVM (view model do time-grid) a partir do ViewRenderContext.
- * Extraído do CalendarApp para que Week/Day/NDays compartilhem exatamente o mesmo pipeline
- * (buildDays → geometria waterfall → rótulos → linha "agora") e o mesmo componente de render.
- */
+/** Prepare date columns and interaction geometry. @remarks Português: Prepara colunas de datas e geometria de interação. */
 import { applyDenseLayout } from '../layout/denseLayout.js';
 import { buildDays, occurrenceKey } from '../../../core/index.js';
 import { layoutDay, type GeoGrid } from '../../../core/index.js';
@@ -12,19 +8,28 @@ import { occurrenceEditableForDay, occurrenceEdges } from '../layout/occurrenceD
 import type { ViewRenderContext } from '../../viewTypes.js';
 import type { GridVM, DayColumnVM, EventVM, AllDayVM, DraftVM } from './timeGridViewModel.js';
 
-export function buildTimeGridVM(context: ViewRenderContext, viewName: string): GridVM {
+/** Resolve a time-grid presentation model. @remarks Português: Resolve o modelo de apresentação da grade horária. */
+export function buildTimeGridVM({
+  context,
+  viewName,
+}: {
+  /** Resolved data and rendering callbacks. @remarks Português: Dados resolvidos e callbacks de renderização. */
+  context: ViewRenderContext;
+  /** Registered view requesting the model. @remarks Português: View registrada que solicita o modelo. */
+  viewName: string;
+}): GridVM {
   const { temporal, options, range, occurrences, constraints, renderEvent } = context;
   const startHour = resolveHour(options.startHour);
   const endHour = resolveHour(options.endHour);
 
-  const days = buildDays(
+  const days = buildDays({
     temporal,
-    range.days,
+    days: range.days,
     occurrences,
     constraints,
-    { startHour, endHour },
-    options.timeZone,
-  );
+    grid: { startHour, endHour },
+    displayTimeZone: options.timeZone,
+  });
 
   const nowZoned = temporal.Instant.fromEpochMilliseconds(context.nowMs).toZonedDateTimeISO(
     options.timeZone,
@@ -44,21 +49,32 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
 
   const columns: DayColumnVM[] = days.map((day) => {
     const placementById = new Map(day.timed.map((placement) => [placement.id, placement]));
-    const density = applyDenseLayout(
-      layoutDay(day.timed, geometryGrid),
-      options.timedEventOverflow,
-      options.eventMaxStack,
-      options.minEventWidth,
-      options.slotEventOverlap,
-    );
+    const density = applyDenseLayout({
+      blocks: layoutDay({ items: day.timed, grid: geometryGrid }),
+      policy: options.timedEventOverflow,
+      maxStack: options.eventMaxStack,
+      minEventWidth: options.minEventWidth,
+      slotEventOverlap: options.slotEventOverlap,
+    });
     const blocks = density.blocks;
 
     const events: EventVM[] = blocks.map((block) => {
       const placement = placementById.get(block.id)!;
       const event = placement.occurrence.event;
-      const timeLabel = formatHourLabel(placement.startMin, options.locale);
-      const isEditable = occurrenceEditableForDay(placement.occurrence, day.dateISO, context);
-      const resizeEdges = occurrenceEdges(placement.occurrence, day.dateISO, context);
+      const timeLabel = formatHourLabel({
+        minuteOfDay: placement.startMin,
+        locale: options.locale,
+      });
+      const isEditable = occurrenceEditableForDay({
+        occurrence: placement.occurrence,
+        dayISO: day.dateISO,
+        context,
+      });
+      const resizeEdges = occurrenceEdges({
+        occurrence: placement.occurrence,
+        dayISO: day.dateISO,
+        context,
+      });
       const eventVM: EventVM = {
         id: block.id,
         block,
@@ -109,8 +125,12 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
       minWidth: density.minWidth,
       overflowGroups: density.groups,
       dateISO: day.dateISO,
-      weekdayLabel: formatDate(day.date, options.locale, { weekday: 'short' }),
-      dayLabel: formatDate(day.date, options.locale, { day: 'numeric' }),
+      weekdayLabel: formatDate({
+        date: day.date,
+        locale: options.locale,
+        options: { weekday: 'short' },
+      }),
+      dayLabel: formatDate({ date: day.date, locale: options.locale, options: { day: 'numeric' } }),
       isToday,
       nonBusiness: day.nonBusiness,
       blocked: day.blocked,
@@ -121,8 +141,11 @@ export function buildTimeGridVM(context: ViewRenderContext, viewName: string): G
   });
 
   const hourLabels: GridVM['hourLabels'] = [];
-  for (let minute = gridTopMin; minute < gridBottomMin; minute += timeLabelStep(options)) {
-    hourLabels.push({ min: minute, label: formatHourLabel(minute, options.locale) });
+  for (let minute = gridTopMin; minute < gridBottomMin; minute += timeLabelStep({ options })) {
+    hourLabels.push({
+      min: minute,
+      label: formatHourLabel({ minuteOfDay: minute, locale: options.locale }),
+    });
   }
 
   const uniformMinWidth = Math.max(0, ...columns.map((column) => column.minWidth ?? 0));

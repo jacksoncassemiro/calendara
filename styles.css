@@ -1,27 +1,11 @@
-/*
- * Calendara optional theme; consumers override tokens under [data-mc-root].
- * Português: Tema opcional; o consumidor substitui tokens sob [data-mc-root].
- *
- * Filosofia: o CORE só desenha GEOMETRIA inline (posição/tamanho absolutos, que precisam existir
- * no DOM independente de CSS). TODA a aparência (cor, borda, tipografia, raio, espaçamento) vem
- * daqui, via classes `mc-*` que consomem TOKENS (custom properties). Para customizar, o app
- * redefine os tokens sob `[data-mc-root]` (ou um seletor mais específico) — não precisa reescrever
- * regra nenhuma. Tudo é escopado por `[data-mc-root]` para não vazar/colidir com o CSS do app.
- *
- * Engineering token reference: docs/history/04-ESTILIZACAO.md.
- */
+/* Optional theme; override tokens under [data-mc-root]. / PT: Tema opcional; substitua tokens sob [data-mc-root]. */
 
-/* ---------------------------------------------------------------------------
- * Tokens (customizáveis pelo app)
- * ------------------------------------------------------------------------- */
 [data-mc-root] {
-  /* superfícies / texto */
   --mc-color-bg: #ffffff;
   --mc-color-fg: #223246;
   --mc-color-muted: #59677b;
   --mc-color-border: #dce3eb;
 
-  /* camadas de fundo do grid */
   --mc-color-business: #ffffff;
   --mc-color-nonbusiness: #f8fafc;
   --mc-color-blocked: repeating-linear-gradient(
@@ -40,34 +24,27 @@
   );
   --mc-color-hourline: #edf1f5;
 
-  /* linha "agora" */
   --mc-color-now: #ea4335;
 
-  /* dia de hoje */
   --mc-color-today-bg: #f2f7fd;
 
-  /* eventos */
   --mc-color-event-bg: #e4eefb;
   --mc-color-event-fg: #174376;
   --mc-color-event-border: #a8c4e9;
 
-  /* fantasma do gesto (drag/resize/select) */
   --mc-color-draft-valid-bg: rgba(37, 99, 235, 0.14);
   --mc-color-draft-valid-border: #2563eb;
   --mc-color-draft-invalid-bg: rgba(220, 38, 38, 0.14);
   --mc-color-draft-invalid-border: #dc2626;
 
-  /* recursos: lotação estourada */
   --mc-color-overcapacity: #dc2626;
 
-  /* toolbar */
   --mc-color-toolbar-bg: transparent;
   --mc-color-btn-bg: #ffffff;
   --mc-color-btn-fg: #223246;
   --mc-color-btn-active-bg: #1959b3;
   --mc-color-btn-active-fg: #ffffff;
 
-  /* tipografia / forma */
   --mc-font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --mc-font-size: 14px;
   --mc-font-size-sm: 13px;
@@ -75,13 +52,12 @@
   --mc-event-radius: 4px;
   --mc-gap: 6px;
 
-  /* responsivo — os três pisos que o breakpoint redefine (ver seção "Responsivo" no fim) */
-  --mc-touch-target: 0px; /* área mínima de toque dos botões; vira 44px em toque/tela estreita */
-  --mc-day-min-width: 0px; /* piso da coluna de DIA; > 0 faz o time-grid rolar na horizontal */
-  --mc-resource-min-width: 0px; /* idem para a coluna de RECURSO (Multiagenda) */
-  --mc-grid-max-height: none; /* ex.: 70vh limita a grade e mantém cabeçalhos visíveis no scroll interno */
-  --mc-sticky-top: 0px; /* deslocamento dos cabeçalhos presos à página, ex.: altura do header do app */
-  --mc-event-gap: 8px; /* espaço livre entre cartões para criar/selecionar horários no fundo */
+  --mc-touch-target: 0px; /* Minimum button target; 0px by default, 44px for touch. / PT: Alvo mínimo dos botões; padrão 0px, 44px para toque. */
+  --mc-day-min-width: 0px; /* Minimum day width; 0px allows shrinking. / PT: Largura mínima do dia; 0px permite encolher. */
+  --mc-resource-min-width: 0px; /* Minimum resource width; 0px allows shrinking. / PT: Largura mínima do recurso; 0px permite encolher. */
+  --mc-grid-max-height: none; /* Maximum internal grid height; none by default. / PT: Altura máxima interna da grade; padrão none. */
+  --mc-sticky-top: 0px; /* Page-sticky header offset; default 0px. / PT: Deslocamento do cabeçalho fixo na página; padrão 0px. */
+  --mc-event-gap: 8px; /* Empty space beside events for selection; default 8px. / PT: Espaço junto aos eventos para seleção; padrão 8px. */
 
   box-sizing: border-box;
   font-family: var(--mc-font-family);
@@ -97,9 +73,6 @@
   box-sizing: border-box;
 }
 
-/* ---------------------------------------------------------------------------
- * Toolbar
- * ------------------------------------------------------------------------- */
 [data-mc-root] .mc-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -128,7 +101,7 @@
 [data-mc-root] .mc-nav-next,
 [data-mc-root] .mc-view-btn {
   padding: 6px 10px;
-  /* Piso de área de toque: 0 no desktop (densidade original), 44px em toque/tela estreita. */
+
   min-height: max(32px, var(--mc-touch-target));
   min-width: var(--mc-touch-target);
   border: 1px solid var(--mc-color-border);
@@ -169,27 +142,17 @@
   min-width: 0;
 }
 
-/* ---------------------------------------------------------------------------
- * Scroller horizontal (`mc-hscroll`) — time-grid, Multiagenda e Timeline
- *
- * O core envolve TODAS as faixas de uma view (cabeçalho + dia-inteiro + corpo) num único
- * `.mc-hscroll`. Motivo: quando as colunas ganham piso de largura (`--mc-day-min-width` /
- * `--mc-resource-min-width`, > 0 só em tela estreita) o grid fica mais largo que a viewport e
- * precisa rolar — se cada faixa rolasse sozinha, o rótulo do dia sairia de cima da sua coluna.
- * ------------------------------------------------------------------------- */
+/* One scrollport keeps headers and event columns aligned. / PT: Um único scroll mantém cabeçalhos e colunas alinhados. */
 [data-mc-root] .mc-hscroll {
   overflow-x: auto;
-  /* Sem limite de altura, a grade cresce com seu conteúdo. Um limite explícito habilita
-   * scroll vertical interno: nesse caso os cabeçalhos sticky acompanham a mesma grade.
-   * O padding acomoda o rótulo da última hora sem criar overflow vertical parasita. */
+  /* An explicit height limit enables internal vertical scrolling. / PT: Um limite de altura explícito habilita scroll vertical interno. */
   overflow-y: auto;
   max-height: var(--mc-grid-max-height);
   padding-bottom: calc(var(--mc-font-size-sm) * 1.5);
-  /* Evita que o swipe horizontal vire "voltar página" no navegador. */
+  /* Contain horizontal swipes to avoid browser history navigation. / PT: Contém gestos horizontais para evitar navegar no histórico. */
   overscroll-behavior-x: contain;
 }
-/* Um só scrollport alinha cabeçalho e corpo nos dois eixos. Fixar estas faixas não fixa
- * a faixa dia inteiro, cuja altura depende dos eventos e não deve usar um offset presumido. */
+
 [data-mc-root] .mc-hscroll > .mc-header-row,
 [data-mc-root] .mc-hscroll > .mc-resource-header-row,
 [data-mc-root] .mc-hscroll > .mc-timeline-header {
@@ -207,6 +170,18 @@
   background: var(--mc-color-bg);
   border-bottom: 1px solid var(--mc-color-border);
 }
+[data-mc-root] .mc-header-scrollbar-host {
+  height: 18px;
+}
+[data-mc-root] .mc-header-scrollbar {
+  min-width: 0;
+  height: 18px;
+  box-sizing: border-box;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  z-index: 31;
+  background: var(--mc-color-bg);
+}
 [data-mc-root] .mc-page-sticky-content {
   position: relative;
   min-width: 100%;
@@ -223,7 +198,7 @@
   z-index: 29;
   background: var(--mc-color-bg);
 }
-[data-mc-root] .mc-page-allday-corner {
+[data-mc-root] .mc-hscroll > .mc-page-sticky-allday > .mc-page-allday-corner {
   position: relative !important;
   z-index: 2;
   background: var(--mc-color-bg);
@@ -249,17 +224,12 @@
   width: calc(100% - var(--mc-content-offset, 0px));
   transform: translateX(var(--mc-content-offset, 0px));
 }
-/* Cada faixa: no mínimo a largura visível, no máximo o que o piso das colunas exigir. */
+
 [data-mc-root] .mc-hscroll > * {
   min-width: 100%;
   width: max-content;
 }
-/*
- * Piso de largura por coluna. É o que transforma "7 colunas de 40px" em "N colunas legíveis +
- * scroll". Com o token em 0 (default/desktop) o `flex: 1 1 0` inline do core manda, exatamente
- * como antes — e as células passam a poder encolher de verdade (com `min-width: auto` um título
- * de dia-inteiro `nowrap` longo travava o encolhimento e estourava a faixa).
- */
+
 [data-mc-root] .mc-day-header,
 [data-mc-root] .mc-allday-cell,
 [data-mc-root] .mc-day-col {
@@ -269,23 +239,13 @@
 [data-mc-root] .mc-resource-col {
   min-width: var(--mc-resource-min-width);
 }
-/*
- * Zera a contribuição de largura INTRÍNSECA do conteúdo dessas células. Sem isso, um título de
- * evento dia-inteiro (ou um nome de recurso) longo faria SÓ a faixa dele ficar mais larga que as
- * outras — e o alinhamento coluna↔rótulo quebraria no meio do scroll. Assim toda coluna contribui
- * exatamente o piso, e as três faixas dão sempre a mesma largura.
- */
+/* Intrinsic content width must not misalign header columns. / PT: A largura intrínseca do conteúdo não deve desalinhá-las. */
 [data-mc-root] .mc-day-header,
 [data-mc-root] .mc-allday-cell,
 [data-mc-root] .mc-resource-header {
   contain: inline-size;
 }
-/*
- * Calha (eixo de horas / rótulo do recurso) presa à esquerda enquanto rola — sem isso as horas
- * somem justamente quando se rola para os últimos dias. Única regra do tema que sobrepõe
- * `position` do core: `sticky` é superconjunto de `relative` (mesmo bloco contêiner para os
- * filhos absolutos, sem deslocamento enquanto não gruda), então nada da geometria inline muda.
- */
+/* Keep time and resource labels visible during horizontal scrolling. / PT: Mantém horários e recursos visíveis no scroll horizontal. */
 [data-mc-root] .mc-hscroll .mc-gutter-corner,
 [data-mc-root] .mc-hscroll .mc-allday-label,
 [data-mc-root] .mc-hscroll .mc-time-axis,
@@ -298,9 +258,6 @@
   border-right: 1px solid var(--mc-color-border);
 }
 
-/* ---------------------------------------------------------------------------
- * Cabeçalho dos dias + faixa dia-inteiro
- * ------------------------------------------------------------------------- */
 [data-mc-root] .mc-header-row,
 [data-mc-root] .mc-allday-row {
   border-bottom: 1px solid var(--mc-color-border);
@@ -319,7 +276,7 @@
   line-height: 1.5;
 }
 [data-mc-root] .mc-day-header.mc-today .mc-daynum {
-  color: var(--mc-color-btn-active-bg);
+  color: var(--mc-color-fg);
 }
 [data-mc-root] .mc-allday-label,
 [data-mc-root] .mc-hour-label {
@@ -338,9 +295,6 @@
   text-overflow: ellipsis;
 }
 
-/* ---------------------------------------------------------------------------
- * Corpo: eixo de horas, colunas, linhas de hora, camadas de fundo
- * ------------------------------------------------------------------------- */
 [data-mc-root] .mc-day-col {
   border-left: 1px solid var(--mc-color-border);
   background: var(--mc-color-business);
@@ -361,14 +315,10 @@
   background: var(--mc-color-buffer);
 }
 
-/* linha "agora" */
 [data-mc-root] .mc-now-line {
   border-top: 2px solid var(--mc-color-now);
 }
 
-/* ---------------------------------------------------------------------------
- * Eventos (time-grid)
- * ------------------------------------------------------------------------- */
 [data-mc-root] .mc-event {
   background: var(--mc-color-event-bg);
   color: var(--mc-color-event-fg);
@@ -398,13 +348,9 @@
   box-shadow: inset 0 0 0 1px currentColor;
 }
 [data-mc-root] .mc-resize-handle {
-  /* geometria (posição/altura) é inline; aqui só o afeto visual */
   cursor: ns-resize;
 }
 
-/* ---------------------------------------------------------------------------
- * Fantasma do gesto (preview de drag/resize/select)
- * ------------------------------------------------------------------------- */
 [data-mc-root] .mc-draft {
   border: 1px dashed transparent;
   border-radius: var(--mc-event-radius);
@@ -418,9 +364,6 @@
   border-color: var(--mc-color-draft-invalid-border);
 }
 
-/* ---------------------------------------------------------------------------
- * Recursos (Multiagenda / Timeline)
- * ------------------------------------------------------------------------- */
 [data-mc-root] .mc-resource-header,
 [data-mc-root] .mc-resource-header-row {
   border-bottom: 1px solid var(--mc-color-border);
@@ -448,7 +391,6 @@
   color: var(--mc-color-overcapacity);
 }
 
-/* Timeline */
 [data-mc-root] .mc-timeline-header,
 [data-mc-root] .mc-timeline-row {
   border-bottom: 1px solid var(--mc-color-border);
@@ -462,9 +404,6 @@
   font-size: var(--mc-font-size-sm);
 }
 
-/* ---------------------------------------------------------------------------
- * Lista / Agenda
- * ------------------------------------------------------------------------- */
 [data-mc-root] .mc-list-day-header {
   position: sticky;
   top: var(--mc-sticky-top);
@@ -536,7 +475,7 @@
 }
 [data-mc-root] .mc-month-event[data-mc-editable='true'] {
   cursor: grab;
-  touch-action: none;
+  touch-action: auto;
   padding-right: 14px;
 }
 [data-mc-root] .mc-month-resize {
@@ -568,9 +507,14 @@
   padding: 16px 4px;
 }
 
-/* ---------------------------------------------------------------------------
- * Mês
- * ------------------------------------------------------------------------- */
+[data-mc-root] .mc-month {
+  container-type: inline-size;
+}
+@container (max-width: 420px) {
+  [data-mc-root] .mc-month-more-label {
+    display: none;
+  }
+}
 [data-mc-root] .mc-month-weekdays {
   display: flex;
   position: sticky;
@@ -662,6 +606,9 @@
   font: inherit;
   font-size: var(--mc-font-size-sm);
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 [data-mc-root] .mc-month-popover {
   z-index: 100;
@@ -781,12 +728,13 @@
   color: var(--mc-color-btn-active-fg);
 }
 [data-mc-root] .mc-month-daynum[aria-current='date'] {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 2px var(--mc-color-btn-active-bg);
   font-weight: 700;
+  color: var(--mc-color-fg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+[data-mc-root] .mc-month-daynum[aria-current='date'][aria-pressed='true'] {
+  color: var(--mc-color-btn-active-fg);
 }
 [data-mc-root] .mc-month-detail {
   padding: 12px 8px;
@@ -804,20 +752,7 @@
   margin-top: 12px;
 }
 
-/* ---------------------------------------------------------------------------
- * Responsivo
- *
- * Dois eixos INDEPENDENTES, de propósito (um breakpoint só não cobre os dois casos):
- *   (a) PONTEIRO GROSSO ou tela estreita → alvo de toque de 44px nos botões (WCAG 2.5.5 /
- *       guias iOS e Android). Pega tablet com dedo sem inchar a densidade do desktop.
- *   (b) TELA ESTREITA (<= 640px) → piso de largura por coluna: o time-grid rola na horizontal
- *       em vez de espremer 7 colunas em ~40px (mesma saída do `dayMinWidth` do FullCalendar);
- *       Mês aperta tipografia; Agenda empilha hora/título.
- * Nenhum terceiro breakpoint: de 641px pra cima 7 colunas já cabem com folga.
- *
- * As áreas vazias permitem pan horizontal/vertical. Somente eventos editáveis e alças
- * reservam o toque para gestos; pointercancel encerra o rascunho quando o navegador rola.
- * ------------------------------------------------------------------------- */
+/* Touch targets and narrow layouts adapt independently. / PT: Alvos de toque e layouts estreitos se adaptam separadamente. */
 @media (pointer: coarse), (max-width: 640px) {
   [data-mc-root] {
     --mc-touch-target: 44px;
@@ -826,11 +761,10 @@
 
 @media (max-width: 640px) {
   [data-mc-root] {
-    --mc-day-min-width: 104px; /* ~3 dias visíveis em 375px; os outros rolam */
-    --mc-resource-min-width: 140px; /* recurso precisa caber nome + badge de lotação */
+    --mc-day-min-width: 104px;
+    --mc-resource-min-width: 140px;
   }
 
-  /* Toolbar: título ganha a 1ª linha inteira; navegação e views dividem a 2ª. */
   [data-mc-root] .mc-toolbar {
     flex-wrap: wrap;
   }
@@ -844,8 +778,6 @@
     justify-content: flex-end;
   }
 
-  /* Mês: a grade inteira precisa ser lida de relance, então NÃO rola — aperta a tipografia e
-     garante altura tocável na célula. */
   [data-mc-root] .mc-month-day {
     min-height: 64px;
   }
@@ -862,7 +794,6 @@
     margin: 1px;
   }
 
-  /* Agenda: hora ACIMA do título — a calha de 96px comia 1/4 da tela de um celular. */
   [data-mc-root] .mc-list-item {
     flex-direction: column;
     gap: 2px;
@@ -903,7 +834,7 @@
     display: block;
   }
 }
-/* Optional reusable editor, scoped independently so it can sit beside the calendar. */
+/* The optional editor is scoped independently. / PT: O editor opcional tem seu próprio escopo. */
 .mc-event-editor {
   font: inherit;
   max-width: 40rem;
@@ -953,7 +884,7 @@
   position: relative;
 }
 .mc-allday-event[data-mc-editable='true'] {
-  touch-action: none;
+  touch-action: auto;
   cursor: grab;
   padding-right: 16px;
 }
@@ -990,7 +921,7 @@
 .mc-event-editor [role='alert'] {
   color: #b91c1c;
 }
-/* Keyboard slots stay transparent to pointer drag/selection. */
+/* Keyboard slots must not intercept pointer gestures. / PT: Slots de teclado não devem interceptar gestos do ponteiro. */
 .mc-slot-cell {
   position: absolute;
   border: 0;
@@ -1004,7 +935,7 @@
   z-index: 5;
 }
 
-/* Adaptação pela largura do calendário, inclusive em painéis desktop. */
+/* Adapt to calendar width, including embedded panels. / PT: Adapta à largura do calendário, inclusive em painéis. */
 [data-mc-root] {
   container: mc-calendar / inline-size;
 }
@@ -1042,12 +973,11 @@
   cursor: pointer;
   overflow: hidden;
 }
-/* Rótulos marcam fronteiras dos intervalos; endHour é o limite, não outra célula. */
+/* Labels mark interval boundaries; endHour is exclusive. / PT: Rótulos marcam limites dos intervalos; endHour é exclusivo. */
 [data-mc-root] .mc-hour-label {
   transform: translateY(2px);
 }
 
-/* Keep weekday choices usable within narrow editors without a long checkbox column. */
 .mc-event-editor .mc-recurrence-weekdays {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
@@ -1060,4 +990,230 @@
 [data-mc-root] .mc-list-item[role='button']:hover,
 [data-mc-root] .mc-month-popover-event:hover {
   background: color-mix(in srgb, var(--mc-color-bg), var(--mc-color-fg) 4%);
+}
+[data-mc-root] .mc-resource-group {
+  box-sizing: border-box;
+  padding: 0.5rem 0.35rem;
+  text-align: center;
+  font-weight: 600;
+  border-bottom: 1px solid var(--mc-color-border);
+  border-left: 1px solid var(--mc-color-border);
+  background: var(--mc-color-bg);
+}
+
+[data-mc-root] .mc-resource-header {
+  box-sizing: border-box;
+}
+.mc-multi-month {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 1.5rem;
+  padding: 1rem;
+}
+.mc-multi-month-panel {
+  min-width: 0;
+  border: 1px solid var(--mc-color-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.mc-multi-month-panel > h2 {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+.mc-multi-month-panel .mc-month-week {
+  min-height: 90px;
+}
+.mc-multi-month-panel .mc-month-weekday {
+  padding: 0.5rem 0.25rem;
+}
+.mc-day-agenda {
+  padding: 1.5rem;
+}
+.mc-day-agenda-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.mc-day-agenda-header h2 {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 1.25rem;
+  text-transform: capitalize;
+}
+.mc-day-agenda-header p {
+  margin: 0;
+  color: var(--mc-color-muted);
+  flex: 1;
+}
+.mc-day-agenda-create {
+  padding: 0.5rem 1rem;
+}
+.mc-day-agenda-events {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.mc-day-agenda-item {
+  display: grid;
+  grid-template-columns: minmax(65px, 110px) 1fr;
+  border-block-start: 1px solid var(--mc-color-border);
+  border-inline-start: 3px solid var(--mc-color-event-border);
+  gap: 0.75rem;
+  padding: 1rem;
+}
+.mc-day-agenda-time {
+  color: var(--mc-color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.mc-day-agenda-event {
+  min-width: 0;
+}
+.mc-day-agenda-event[role='button'] {
+  cursor: pointer;
+}
+.mc-day-agenda-event small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--mc-color-muted);
+}
+.mc-day-agenda-empty {
+  margin: 1.5rem 0;
+  color: var(--mc-color-muted);
+}
+.mc-year-planner-scroll {
+  overflow: auto;
+  padding: 1rem;
+}
+.mc-year-planner {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 1680px;
+  table-layout: fixed;
+}
+.mc-year-planner caption {
+  text-align: start;
+  padding-bottom: 0.75rem;
+  color: var(--mc-color-muted);
+}
+.mc-year-planner th,
+.mc-year-planner td {
+  border: 1px solid var(--mc-color-border);
+  padding: 0.25rem;
+  height: 60px;
+  vertical-align: top;
+}
+.mc-year-planner th {
+  background: var(--mc-color-bg);
+}
+.mc-year-planner th:first-child {
+  position: sticky;
+  left: 0;
+  width: 90px;
+  z-index: 1;
+}
+.mc-year-planner-outside {
+  background: var(--mc-color-nonbusiness);
+}
+.mc-year-planner-date {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  min-height: 28px;
+  width: 100%;
+  padding: 0.125rem;
+}
+.mc-year-planner-date[aria-current='date'] {
+  font-weight: 700;
+  color: var(--mc-color-btn-active-bg);
+  text-decoration: underline;
+}
+.mc-year-planner-indicators {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mc-year-planner-event {
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: var(--mc-color-event-bg);
+  width: 100%;
+  border-radius: 2px;
+}
+.mc-year-planner-more {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.75rem;
+}
+
+.mc-year-planner-more {
+  position: relative;
+}
+.mc-year-planner-overflow {
+  position: absolute;
+  z-index: 5;
+  min-width: 180px;
+  padding: 0.5rem;
+  border: 1px solid var(--mc-color-border);
+  background: var(--mc-color-bg);
+}
+.mc-year-planner-overflow button {
+  display: block;
+  width: 100%;
+  text-align: start;
+  margin-block: 0.25rem;
+  padding: 0.375rem;
+}
+
+[data-mc-root] .mc-period-resource-labels {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--mc-color-bg);
+}
+[data-mc-root] .mc-period-resource-labels > div {
+  box-sizing: border-box;
+  padding: 8px;
+  border-bottom: 1px solid var(--mc-color-border);
+  overflow: hidden;
+}
+[data-mc-root] .mc-period-date-header > [data-mc-timeline-date] {
+  box-sizing: border-box;
+  padding: 0;
+  border-left: 0;
+}
+[data-mc-root] .mc-resource-group-toggle {
+  position: sticky;
+  left: 0;
+  margin: 4px;
+}
+[data-mc-root] .mc-timeline-period-day .mc-timeline-label {
+  position: relative !important;
+}
+
+[data-mc-root] .mc-period-date-title {
+  padding: 8px;
+  border-bottom: 1px solid var(--mc-color-border);
+}
+[data-mc-root] .mc-period-allday-heading {
+  box-sizing: border-box;
+  padding: 4px;
+  font-size: var(--mc-font-size-sm);
+  overflow-wrap: anywhere;
+  border-right: 1px solid var(--mc-color-border);
+}
+[data-mc-root] .mc-timeline-period-day .mc-timeline-label {
+  box-sizing: border-box;
+  padding: 4px;
+  border-right: 1px solid var(--mc-color-border);
+  overflow: hidden;
+}
+[data-mc-root] .mc-period-time-header .mc-timeline-axis {
+  padding: 0;
 }

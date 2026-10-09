@@ -1,5 +1,3 @@
-// Personal agenda: keyboard-only editing, isolated recurrence and mobile selection.
-// Run through playwright-cli run-code after loading examples/react.html.
 async (page) => {
   const results = [];
   const check = (condition, label) => {
@@ -34,7 +32,7 @@ async (page) => {
     'Escape devolve foco ao botão +Mais',
   );
 
-  // Edit a middle occurrence and assert adjacent occurrences retain their titles/dates.
+  // Adjacent occurrences must survive an isolated edit. / PT: Ocorrências vizinhas devem permanecer após editar uma ocorrência.
   const repeat = page.locator('[data-mc-month-event^="retorno@"]');
   const before = await repeat.evaluateAll((nodes) =>
     nodes.map((node) => ({
@@ -43,7 +41,7 @@ async (page) => {
       dates: node.dataset.mcMonthDates,
     })),
   );
-  // Attribute selector avoids relying on text or occurrence ordering.
+
   const chosen = page.locator(
     '[data-mc-month-event^="retorno@"][data-mc-month-dates~="2026-10-14"]',
   );

@@ -21,7 +21,9 @@ const INTERACTIVE_CONTROL_SELECTOR = [
   '[role="option"]',
 ].join(', ');
 
-/** Controls rendered inside an event own their activation and pointer gestures. */
+/** Whether a nested control owns the pointer activation.
+ * @remarks Português: Indica se um controle interno deve receber a ativação do ponteiro.
+ */
 export function isNestedInteractiveTarget(
   target: EventTarget | null,
   currentTarget: Element,

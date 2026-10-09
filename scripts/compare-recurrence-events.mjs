@@ -1,8 +1,8 @@
-// Narrow integration experiment, not a replacement for the calendar recurrence set.
+// Isolated recurrence integration experiment. / PT: Experimento isolado de integração de recorrência.
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { writeFileSync } from 'node:fs';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { RRuleTemporal } from 'rrule-temporal';
 import { expandEvent } from '../dist/esm/core/index.js';
 
@@ -28,7 +28,7 @@ const cases = [
 ];
 const compact = (iso) => iso.replaceAll('-', '').replaceAll(':', '');
 const zoned = (iso) => Temporal.PlainDateTime.from(iso).toZonedDateTime(zone);
-const descriptor = (startInstant, wall) => ({
+const descriptor = ({ startInstant, wall }) => ({
   startInstant,
   start: wall.toString(),
   end: wall.add({ hours: 1 }).toString(),
@@ -71,7 +71,7 @@ for (const [name, start, rule, exDates, rDates] of cases) {
     new RRuleTemporal({ rruleString: lines.join('\n'), cache: false, strict: true });
   const prepared = create();
   const production = () =>
-    expandEvent(Temporal, event).map((item) => {
+    expandEvent({ temporal: Temporal, event }).map((item) => {
       const wall = Temporal.PlainDateTime.from(item.event.time.start.dateTime);
       return {
         startInstant: zoned(wall.toString()).toInstant().toString(),
@@ -80,14 +80,12 @@ for (const [name, start, rule, exDates, rDates] of cases) {
       };
     });
   const adapted = (instance) =>
-    instance
-      .all()
-      .map((value) =>
-        descriptor(
-          value.toInstant().toString(),
-          Temporal.PlainDateTime.from(value.toPlainDateTime().toString()),
-        ),
-      );
+    instance.all().map((value) =>
+      descriptor({
+        startInstant: value.toInstant().toString(),
+        wall: Temporal.PlainDateTime.from(value.toPlainDateTime().toString()),
+      }),
+    );
   const expected = production();
   assert.deepEqual(adapted(prepared), expected, name);
   results.push({
@@ -104,7 +102,7 @@ for (const [name, start, rule, exDates, rDates] of cases) {
 const report = {
   checkedAt: new Date().toISOString(),
   node: process.version,
-  productionBackend: 'rrule-temporal 2.2.8 + calendar recurrence-set',
+  productionBackend: 'civil iterator + injected Temporal + calendar recurrence-set',
   cache: false,
   iterations: 25,
   scope:

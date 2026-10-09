@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { dayView } from '../../src/react/views/timeGridViews.js';
 import { describe, expect, it } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { expandRange, type CalendarEvent, type TemporalLike } from '../../src/core/index.js';
 import { CalendarApp, type CalendarConfig } from '../../src/react/app/calendarApp.js';
 import { createHandle } from '../../src/react/handle.js';
@@ -9,12 +9,21 @@ import { createHandle } from '../../src/react/handle.js';
 const temporal = Temporal as unknown as TemporalLike;
 const referenceDate = '2026-10-09';
 
-function timedEvent(
-  id: string,
-  startTime: string,
-  endTime: string,
+function timedEvent({
+  id,
+  startTime,
+  endTime,
   resourceIds = ['room'],
-): CalendarEvent {
+}: {
+  /** Fixture event identifier. / PT: Identificador do evento de teste. */
+  id: string;
+  /** Local start time, HH:mm. / PT: Horário local inicial, HH:mm. */
+  startTime: string;
+  /** Exclusive local end time, HH:mm. / PT: Horário local final exclusivo, HH:mm. */
+  endTime: string;
+  /** Assigned resource identifiers. / PT: Identificadores dos recursos atribuidos. */
+  resourceIds?: string[];
+}): CalendarEvent {
   return {
     id,
     calendarId: 'appointments',
@@ -28,10 +37,13 @@ function timedEvent(
   };
 }
 
-async function withCalendar(
-  configuration: Omit<CalendarConfig, 'views'>,
-  assertions: (app: CalendarApp) => void,
-): Promise<void> {
+async function withCalendar({
+  configuration,
+  assertions,
+}: {
+  configuration: Omit<CalendarConfig, 'views'>;
+  assertions: (app: CalendarApp) => void;
+}): Promise<void> {
   const app = new CalendarApp({
     views: [dayView],
     temporal,
@@ -52,11 +64,13 @@ describe('editor event candidate validation', () => {
   it('rejects calls before Temporal is ready instead of silently skipping capacity', async () => {
     const app = new CalendarApp({ views: [dayView], temporal, date: referenceDate });
     try {
-      expect(() => app.evaluateEvent(timedEvent('new', '09:00', '10:00'))).toThrow(
-        /evaluateEvent.*ready/,
-      );
+      expect(() =>
+        app.evaluateEvent(timedEvent({ id: 'new', startTime: '09:00', endTime: '10:00' })),
+      ).toThrow(/evaluateEvent.*ready/);
       await app.ready();
-      expect(app.evaluateEvent(timedEvent('new', '09:00', '10:00'))).toEqual({
+      expect(
+        app.evaluateEvent(timedEvent({ id: 'new', startTime: '09:00', endTime: '10:00' })),
+      ).toEqual({
         valid: true,
         reason: 'ok',
       });
@@ -66,59 +80,77 @@ describe('editor event candidate validation', () => {
   });
 
   it('validates creation through the public handle against capacity, buffers and global blocks', async () => {
-    await withCalendar(
-      {
+    await withCalendar({
+      configuration: {
         resources: [{ id: 'room', title: 'Sala', capacity: 1, bufferAfter: 15 }],
-        events: [timedEvent('existing', '09:00', '10:00')],
+        events: [timedEvent({ id: 'existing', startTime: '09:00', endTime: '10:00' })],
         constraints: {
           blocked: [{ scope: 'time', date: referenceDate, startTime: '13:00', endTime: '14:00' }],
         },
       },
-      (app) => {
+      assertions: (app) => {
         const handle = createHandle(app);
-        expect(handle.evaluateEvent(timedEvent('new', '09:30', '10:00'))).toEqual({
+        expect(
+          handle.evaluateEvent(timedEvent({ id: 'new', startTime: '09:30', endTime: '10:00' })),
+        ).toEqual({
           valid: false,
           reason: 'over-capacity',
         });
-        expect(handle.evaluateEvent(timedEvent('new', '10:00', '10:30'))).toEqual({
+        expect(
+          handle.evaluateEvent(timedEvent({ id: 'new', startTime: '10:00', endTime: '10:30' })),
+        ).toEqual({
           valid: false,
           reason: 'buffer-conflict',
         });
-        expect(handle.evaluateEvent(timedEvent('new', '10:15', '10:45'))).toEqual({
+        expect(
+          handle.evaluateEvent(timedEvent({ id: 'new', startTime: '10:15', endTime: '10:45' })),
+        ).toEqual({
           valid: true,
           reason: 'ok',
         });
-        expect(handle.evaluateEvent(timedEvent('new', '13:00', '13:30'))).toEqual({
+        expect(
+          handle.evaluateEvent(timedEvent({ id: 'new', startTime: '13:00', endTime: '13:30' })),
+        ).toEqual({
           valid: false,
           reason: 'blocked',
         });
         expect(app.getState().events.map((event) => event.id)).toEqual(['existing']);
       },
-    );
+    });
   });
 
   it('excludes the original occurrence while validating every resource assigned to the edited candidate', async () => {
     const series = {
-      ...timedEvent('series', '09:00', '10:00', ['room', 'professional']),
+      ...timedEvent({
+        id: 'series',
+        startTime: '09:00',
+        endTime: '10:00',
+        resourceIds: ['room', 'professional'],
+      }),
       recurrence: { rule: 'FREQ=DAILY;COUNT=2' },
     };
-    const professionalAppointment = timedEvent('other', '11:00', '12:00', ['professional']);
-    const originalOccurrence = expandRange(
+    const professionalAppointment = timedEvent({
+      id: 'other',
+      startTime: '11:00',
+      endTime: '12:00',
+      resourceIds: ['professional'],
+    });
+    const originalOccurrence = expandRange({
       temporal,
-      [series],
-      referenceDate,
-      referenceDate,
-      'UTC',
-    )[0]!;
-    await withCalendar(
-      {
+      events: [series],
+      startISO: referenceDate,
+      endISO: referenceDate,
+      displayTimeZone: 'UTC',
+    })[0]!;
+    await withCalendar({
+      configuration: {
         resources: [
           { id: 'room', title: 'Sala', capacity: false },
           { id: 'professional', title: 'Profissional', capacity: 1 },
         ],
         events: [series, professionalAppointment],
       },
-      (app) => {
+      assertions: (app) => {
         const handle = createHandle(app);
         expect(handle.evaluateEvent(originalOccurrence.event, originalOccurrence)).toEqual({
           valid: true,
@@ -126,32 +158,47 @@ describe('editor event candidate validation', () => {
         });
         expect(
           handle.evaluateEvent(
-            timedEvent('series', '10:00', '11:00', ['room', 'professional']),
+            timedEvent({
+              id: 'series',
+              startTime: '10:00',
+              endTime: '11:00',
+              resourceIds: ['room', 'professional'],
+            }),
             originalOccurrence,
           ),
         ).toEqual({ valid: true, reason: 'ok' });
         expect(
           handle.evaluateEvent(
-            timedEvent('series', '11:00', '12:00', ['room', 'professional']),
+            timedEvent({
+              id: 'series',
+              startTime: '11:00',
+              endTime: '12:00',
+              resourceIds: ['room', 'professional'],
+            }),
             originalOccurrence,
           ),
         ).toEqual({ valid: false, reason: 'over-capacity' });
         expect(
           handle.evaluateEvent(
-            timedEvent('series', '11:00', '12:00', ['room']),
+            timedEvent({
+              id: 'series',
+              startTime: '11:00',
+              endTime: '12:00',
+              resourceIds: ['room'],
+            }),
             originalOccurrence,
           ),
         ).toEqual({ valid: true, reason: 'ok' });
       },
-    );
+    });
   });
 
   it('checks every occupied day while leaving an exclusive midnight endpoint unoccupied', async () => {
-    await withCalendar(
-      {
+    await withCalendar({
+      configuration: {
         constraints: { blocked: [{ scope: 'day', date: '2026-10-10' }] },
       },
-      (app) => {
+      assertions: (app) => {
         const allDayCandidate: CalendarEvent = {
           id: 'holiday',
           calendarId: 'personal',
@@ -166,7 +213,12 @@ describe('editor event candidate validation', () => {
           }),
         ).toEqual({ valid: false, reason: 'blocked' });
 
-        const overnightCandidate = timedEvent('overnight', '22:00', '23:00', []);
+        const overnightCandidate = timedEvent({
+          id: 'overnight',
+          startTime: '22:00',
+          endTime: '23:00',
+          resourceIds: [],
+        });
         overnightCandidate.time.end = { dateTime: '2026-10-10T00:00:00', timeZone: 'UTC' };
         expect(app.evaluateEvent(overnightCandidate)).toEqual({ valid: true, reason: 'ok' });
         expect(
@@ -179,6 +231,6 @@ describe('editor event candidate validation', () => {
           }),
         ).toEqual({ valid: false, reason: 'blocked' });
       },
-    );
+    });
   });
 });

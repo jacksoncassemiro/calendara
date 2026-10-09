@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import { dayView, monthView } from '../../src/react/views/index.js';
 import type { TemporalLike } from '../../src/core/index.js';

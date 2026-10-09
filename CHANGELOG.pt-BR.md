@@ -4,6 +4,28 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-09
+
+### Adicionado
+
+- Colunas de recursos em vários dias, timelines agrupadas por recurso em períodos diário/semanal/mensal, painéis de vários meses/ano/trimestre e planejamento anual; views registradas explicitamente.
+- Agenda imprimível do período visível e saída PDF nativa do navegador, independente do recorte de recursos renderizado.
+- Contratos com entradas nomeadas nos utilitários do núcleo e na navegação de views próprias; sobrecargas posicionais e adaptadores de compatibilidade removidos (mudança incompatível).
+- Auditoria de contratos e referência gerada EN/PT abrangem controlador, editor e tipos de integração de views próprias.
+
+- `renderDayHeader` personaliza cabeçalhos de dias/recursos preservando o conteúdo padrão; decoração do dia responde aos dados da API do consumidor.
+- Scrollbar horizontal sincronizada acima de grades de horários e timelines com transbordamento.
+
+### Corrigido
+
+- Recorrência usa o iterador civil existente com uma implementação Temporal injetada; o motor anterior permanece apenas como referência de desenvolvimento. O bundle de consumidor Mês + Dia diminui de 146.041 para 70.925 bytes gzip na comparação com versões fixadas.
+- Catálogos duplicados da API e ferramentas de migração pontual retirados; registros de engenharia preservam decisões e cenários neutros.
+- Deslizar por toque faz scroll sem exibir brevemente um gesto; segurar habilita movimentos intencionais.
+- Rótulos de dia inteiro permanecem alinhados ao eixo de horários durante scroll da página e horizontal.
+- Semanas do mês com limite de eventos têm altura uniforme; ver mais cabe nas células estreitas e o número de hoje usa destaque compacto.
+- Cores do exemplo de estados do dia funcionam nos dois temas. Exemplos focados exibem a configuração aplicada e a fonte da view própria.
+- Guias de publicação contêm instruções reutilizáveis, sem histórico de conversa ou aprovação.
+
 ## [0.1.1] - 2026-10-08
 
 ### Adicionado

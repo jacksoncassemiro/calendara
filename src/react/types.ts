@@ -5,6 +5,7 @@
  */
 import type { CSSProperties, RefObject, ReactNode } from 'react';
 import type { ExternalEventDropHandler, EventDropOutsideInfo } from './externalDrag.js';
+import type { CalendarPrintOptions } from './printing.js';
 import type {
   CalendarEvent,
   EventOccurrence,
@@ -56,6 +57,10 @@ export interface CalendarHandle {
    * @remarks Português: Retorna o primeiro e o último dia visíveis, ambos inclusivos.
    */
   getVisibleRange(): RangeChange;
+  /** Print loaded events in the visible range; PDF uses the browser dialog.
+   * @remarks Português: Imprime eventos carregados do período; PDF pelo diálogo do navegador.
+   */
+  print(options?: CalendarPrintOptions): boolean;
   /** Read the current calendar state.
    * @remarks Português: Retorna o estado atual para consulta; trate os dados como imutáveis.
    */
@@ -63,7 +68,12 @@ export interface CalendarHandle {
   /** List the configured view names and labels.
    * @remarks Português: Lista somente as views registradas nesta instância.
    */
-  listViews(): { name: string; label: string }[];
+  listViews(): {
+    /** Registered view identifier. @remarks Português: Identificador da view registrada. */
+    name: string;
+    /** Display text. @remarks Português: Texto exibido. */
+    label: string;
+  }[];
   /** Check global constraints for a slot.
    * @remarks Português: Verifica regras gerais; capacidade e buffers usam
    * evaluatePlacement/evaluateEvent.
@@ -160,6 +170,10 @@ export interface CalendarProps {
    * @remarks Português: Estiliza o dia; para bloquear horários, use constraints.
    */
   getDayStyle?: DayStyleCallback;
+  /** Custom date/resource headings; wrap defaultContent to preserve navigation.
+   * @remarks Português: Personaliza títulos; envolva defaultContent para preservar navegação.
+   */
+  renderDayHeader?: DayHeaderRenderSlot;
   /** Handle month overflow; false replaces the built-in opening.
    * @remarks Português: Recebe data/ocorrências; false substitui a abertura padrão.
    */
@@ -254,5 +268,6 @@ import type {
   MonthMoreInfo,
   MonthMoreRenderSlot,
   DayStyleCallback,
+  DayHeaderRenderSlot,
 } from './viewTypes.js';
 import type { RangeChange, EventSource } from './app/calendarApp.js';

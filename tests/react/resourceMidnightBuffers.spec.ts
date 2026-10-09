@@ -1,12 +1,23 @@
 import { BUILTIN_VIEWS } from '../../src/react/views/index.js';
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import type { CalendarEvent, CalendarResource } from '../../src/core/index.js';
 import { createResourceDayView, createTimelineView } from '../../src/react/views/index.js';
 
-const timed = (id: string, start: string, end: string): CalendarEvent => ({
+const timed = ({
+  id,
+  start,
+  end,
+}: {
+  /** Fixture event identifier. / PT: Identificador do evento de teste. */
+  id: string;
+  /** Local start date-time. / PT: Data e hora local inicial. */
+  start: string;
+  /** Exclusive local end date-time. / PT: Data e hora local final. */
+  end: string;
+}): CalendarEvent => ({
   id,
   calendarId: 'c',
   title: id,
@@ -24,8 +35,8 @@ describe('resource preparation across date boundaries', () => {
       { id: 'room', title: 'Sala', capacity: 1, bufferBefore: 20, bufferAfter: 20 },
     ];
     const events = [
-      timed('previous', '2026-07-22T23:40', '2026-07-22T23:50'),
-      timed('next', '2026-07-24T00:10', '2026-07-24T00:20'),
+      timed({ id: 'previous', start: '2026-07-22T23:40', end: '2026-07-22T23:50' }),
+      timed({ id: 'next', start: '2026-07-24T00:10', end: '2026-07-24T00:20' }),
     ];
     const app = new CalendarApp({
       temporal: Temporal as never,
@@ -67,7 +78,7 @@ describe('resource preparation across date boundaries', () => {
       title: 'after a reservation ending yesterday',
       bufferAfter: 20,
       bufferBefore: 0,
-      event: timed('late', '2026-07-22T23:40', '2026-07-22T23:50'),
+      event: timed({ id: 'late', start: '2026-07-22T23:40', end: '2026-07-22T23:50' }),
       date: '2026-07-23',
       start: 5,
       end: 15,
@@ -78,7 +89,7 @@ describe('resource preparation across date boundaries', () => {
       title: 'before a reservation beginning tomorrow',
       bufferAfter: 0,
       bufferBefore: 20,
-      event: timed('early', '2026-07-23T00:10', '2026-07-23T00:20'),
+      event: timed({ id: 'early', start: '2026-07-23T00:10', end: '2026-07-23T00:20' }),
       date: '2026-07-22',
       start: 1435,
       end: 1440,
@@ -89,7 +100,7 @@ describe('resource preparation across date boundaries', () => {
       title: 'candidate preparation reaching into yesterday',
       bufferAfter: 0,
       bufferBefore: 20,
-      event: timed('late', '2026-07-22T23:40', '2026-07-22T23:50'),
+      event: timed({ id: 'late', start: '2026-07-22T23:40', end: '2026-07-22T23:50' }),
       date: '2026-07-23',
       start: 5,
       end: 15,
@@ -145,7 +156,6 @@ describe('resource preparation across date boundaries', () => {
               endMin: scenario.freeEnd,
             }),
           ).toEqual({ valid: true, reason: 'ok' });
-          // Navigation to the source reservation's day must not change the result.
           app.setDate(scenario.event.time.start.dateTime!.slice(0, 10));
           expect(app.evaluatePlacement(candidate).valid).toBe(configuration.valid);
         } finally {

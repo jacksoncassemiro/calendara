@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { BUILTIN_VIEWS } from '../../src/react/views/registry/defaultViews.js';
 import { describe, it, expect } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import { InteractionEngine, type InteractionDeps } from '../../src/core/index.js';
 import type {
@@ -18,31 +18,48 @@ import type { CalendarResource } from '../../src/core/index.js';
 const TZ = 'America/Sao_Paulo';
 const REF = '2026-07-22';
 
-/** Dispara um "pointer event" (jsdom não constrói PointerEvent; MouseEvent basta). */
-function firePointer(target: EventTarget, type: string, clientX: number, clientY: number): void {
+/** Use MouseEvent when jsdom lacks PointerEvent. / PT: Usa MouseEvent quando jsdom não oferece PointerEvent. */
+function firePointer({
+  target,
+  type,
+  clientX,
+  clientY,
+}: {
+  /** Dispatch target. / PT: Alvo do disparo. */
+  target: EventTarget;
+  /** Pointer event name. / PT: Nome do evento de ponteiro. */
+  type: string;
+  /** Horizontal client coordinate in pixels. / PT: Coordenada horizontal do cliente em pixels. */
+  clientX: number;
+  /** Vertical client coordinate in pixels. / PT: Coordenada vertical do cliente em pixels. */
+  clientY: number;
+}): void {
   target.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, clientY, button: 0 }));
 }
 
-/**
- * Igual a `firePointer`, mas com um `pointerId` explícito (MouseEvent não tem esse campo nativo —
- * o motor lê `event.pointerId` via `readCoords`, então injetamos como propriedade expando antes
- * do dispatch). Usado para simular múltiplos ponteiros (multi-touch) num mesmo teste.
- */
-function firePointerId(
-  target: EventTarget,
-  type: string,
-  clientX: number,
-  clientY: number,
-  pointerId: number,
-): void {
+/** Attach pointer identity to simulate concurrent contacts. / PT: Adiciona identidade para simular contatos simultâneos. */
+function firePointerId({
+  target,
+  type,
+  clientX,
+  clientY,
+  pointerId,
+}: {
+  /** Dispatch target. / PT: Alvo do disparo. */
+  target: EventTarget;
+  /** Pointer event name. / PT: Nome do evento de ponteiro. */
+  type: string;
+  /** Horizontal client coordinate in pixels. / PT: Coordenada horizontal do cliente em pixels. */
+  clientX: number;
+  /** Vertical client coordinate in pixels. / PT: Coordenada vertical do cliente em pixels. */
+  clientY: number;
+  /** Identity of the simulated pointer. / PT: Identidade do ponteiro simulado. */
+  pointerId: number;
+}): void {
   const event = new MouseEvent(type, { bubbles: true, clientX, clientY, button: 0 });
   Object.defineProperty(event, 'pointerId', { value: pointerId, configurable: true });
   target.dispatchEvent(event);
 }
-
-// ---------------------------------------------------------------------------
-// InteractionEngine isolado (localizador injetado ⇒ determinístico, sem layout).
-// ---------------------------------------------------------------------------
 
 describe('InteractionEngine — máquina de gesto (localizador injetado)', () => {
   function buildDom(): {
@@ -97,13 +114,12 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
       getGridBounds: () => ({ startMin: 360, endMin: 1200 }),
       getSlotMinutes: () => 30,
       getMinDurationMin: () => 15,
-      // localizador injetado: minuto == clientY (linear e previsível).
       locateSlot: (clientX: number, clientY: number): PointerSlot => ({
         dateISO: REF,
         minuteOfDay: clientY,
       }),
       evaluate: (input) => {
-        const blockedZone = input.startMin >= 720; // ≥12:00 é inválido neste stub
+        const blockedZone = input.startMin >= 720;
         return blockedZone ? { valid: false, reason: 'blocked' } : { valid: true, reason: 'ok' };
       },
       resolveOccurrence: () => occurrence,
@@ -125,9 +141,9 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     const { container, eventNode } = buildDom();
     const { engine, calls } = makeEngine();
     engine.attach(container);
-    firePointer(eventNode, 'pointerdown', 5, 540);
-    firePointer(document, 'pointermove', 5, 660);
-    firePointer(document, 'pointerup', 5, 660);
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 540 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 660 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 660 });
     expect(calls.move).toHaveLength(1);
     expect(calls.move[0]!.startMin).toBe(660);
     expect(calls.move[0]!.endMin).toBe(720);
@@ -139,9 +155,9 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     const { container, eventNode } = buildDom();
     const { engine, calls } = makeEngine();
     engine.attach(container);
-    firePointer(eventNode, 'pointerdown', 5, 540);
-    firePointer(document, 'pointermove', 5, 780); // ≥12:00 ⇒ inválido
-    firePointer(document, 'pointerup', 5, 780);
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 540 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 780 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 780 });
     expect(calls.move).toHaveLength(0);
     expect(calls.blocked).toHaveLength(1);
     expect(calls.blocked[0]!.reason).toBe('blocked');
@@ -152,9 +168,9 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     const { container, handle } = buildDom();
     const { engine, calls } = makeEngine();
     engine.attach(container);
-    firePointer(handle, 'pointerdown', 5, 600);
-    firePointer(document, 'pointermove', 5, 690);
-    firePointer(document, 'pointerup', 5, 690);
+    firePointer({ target: handle, type: 'pointerdown', clientX: 5, clientY: 600 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 690 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 690 });
     expect(calls.resize).toHaveLength(1);
     expect(calls.resize[0]!.startMin).toBe(540);
     expect(calls.resize[0]!.endMin).toBe(690);
@@ -165,10 +181,9 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     const { container, column } = buildDom();
     const { engine, calls } = makeEngine();
     engine.attach(container);
-    // 10:00 (600) → 11:00 (660), abaixo da zona inválida do stub (≥720).
-    firePointer(column, 'pointerdown', 5, 600);
-    firePointer(document, 'pointermove', 5, 660);
-    firePointer(document, 'pointerup', 5, 660);
+    firePointer({ target: column, type: 'pointerdown', clientX: 5, clientY: 600 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 660 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 660 });
     expect(calls.select).toHaveLength(1);
     expect(calls.select[0]).toEqual({ dateISO: REF, startMin: 600, endMin: 660 });
     engine.detach();
@@ -178,8 +193,8 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     const { container, eventNode } = buildDom();
     const { engine, calls } = makeEngine();
     engine.attach(container);
-    firePointer(eventNode, 'pointerdown', 5, 540);
-    firePointer(document, 'pointerup', 5, 540);
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 540 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 540 });
     expect(calls.move).toHaveLength(0);
     expect(calls.clickEvent).toHaveLength(1);
     engine.detach();
@@ -189,11 +204,22 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     const { container, eventNode, column } = buildDom();
     const { engine, calls } = makeEngine();
     engine.attach(container);
-    firePointerId(eventNode, 'pointerdown', 5, 540, 1);
-    // segundo "dedo" toca a coluna vazia enquanto o gesto 1 (mover) está ativo.
-    firePointerId(column, 'pointerdown', 5, 600, 2);
-    firePointerId(document, 'pointermove', 5, 660, 1);
-    firePointerId(document, 'pointerup', 5, 660, 1);
+    firePointerId({
+      target: eventNode,
+      type: 'pointerdown',
+      clientX: 5,
+      clientY: 540,
+      pointerId: 1,
+    });
+    firePointerId({ target: column, type: 'pointerdown', clientX: 5, clientY: 600, pointerId: 2 });
+    firePointerId({
+      target: document,
+      type: 'pointermove',
+      clientX: 5,
+      clientY: 660,
+      pointerId: 1,
+    });
+    firePointerId({ target: document, type: 'pointerup', clientX: 5, clientY: 660, pointerId: 1 });
     expect(calls.move).toHaveLength(1);
     expect(calls.move[0]!.startMin).toBe(660);
     expect(calls.select).toHaveLength(0);
@@ -204,16 +230,39 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     const { container, eventNode, column } = buildDom();
     const { engine, calls } = makeEngine();
     engine.attach(container);
-    firePointerId(eventNode, 'pointerdown', 5, 540, 1);
-    firePointerId(document, 'pointermove', 5, 660, 1);
-    firePointerId(document, 'pointercancel', 5, 660, 1);
+    firePointerId({
+      target: eventNode,
+      type: 'pointerdown',
+      clientX: 5,
+      clientY: 540,
+      pointerId: 1,
+    });
+    firePointerId({
+      target: document,
+      type: 'pointermove',
+      clientX: 5,
+      clientY: 660,
+      pointerId: 1,
+    });
+    firePointerId({
+      target: document,
+      type: 'pointercancel',
+      clientX: 5,
+      clientY: 660,
+      pointerId: 1,
+    });
     expect(calls.move).toHaveLength(0);
     expect(calls.blocked).toHaveLength(0);
 
-    // o motor não ficou travado: um gesto novo com pointerId diferente completa normalmente.
-    firePointerId(column, 'pointerdown', 5, 600, 2);
-    firePointerId(document, 'pointermove', 5, 660, 2);
-    firePointerId(document, 'pointerup', 5, 660, 2);
+    firePointerId({ target: column, type: 'pointerdown', clientX: 5, clientY: 600, pointerId: 2 });
+    firePointerId({
+      target: document,
+      type: 'pointermove',
+      clientX: 5,
+      clientY: 660,
+      pointerId: 2,
+    });
+    firePointerId({ target: document, type: 'pointerup', clientX: 5, clientY: 660, pointerId: 2 });
     expect(calls.select).toHaveLength(1);
     engine.detach();
   });
@@ -222,22 +271,41 @@ describe('InteractionEngine — máquina de gesto (localizador injetado)', () =>
     const { container, eventNode } = buildDom();
     const { engine, calls } = makeEngine();
     engine.attach(container);
-    firePointerId(eventNode, 'pointerdown', 5, 540, 1);
-    firePointerId(document, 'pointermove', 5, 660, 1);
-    firePointerId(document, 'pointermove', 5, 900, 2);
-    firePointerId(document, 'pointerup', 5, 660, 1);
+    firePointerId({
+      target: eventNode,
+      type: 'pointerdown',
+      clientX: 5,
+      clientY: 540,
+      pointerId: 1,
+    });
+    firePointerId({
+      target: document,
+      type: 'pointermove',
+      clientX: 5,
+      clientY: 660,
+      pointerId: 1,
+    });
+    firePointerId({
+      target: document,
+      type: 'pointermove',
+      clientX: 5,
+      clientY: 900,
+      pointerId: 2,
+    });
+    firePointerId({ target: document, type: 'pointerup', clientX: 5, clientY: 660, pointerId: 1 });
     expect(calls.move).toHaveLength(1);
     expect(calls.move[0]!.startMin).toBe(660);
     engine.detach();
   });
 });
 
-// ---------------------------------------------------------------------------
-// Integração via CalendarApp (retângulos das colunas stubados ⇒ minuto=360+clientY).
-// ---------------------------------------------------------------------------
-
-/** Stub de layout: cada coluna do dia ocupa [0..100]x, altura = (endHour-startHour)*60. */
-function stubColumnRects(container: HTMLElement, heightMin: number): void {
+function stubColumnRects({
+  container,
+  heightMin,
+}: {
+  container: HTMLElement; /** Column height at one pixel per minute. / PT: Altura da coluna com um pixel por minuto. */
+  heightMin: number;
+}): void {
   for (const column of Array.from(container.querySelectorAll('[data-mc-day]'))) {
     (column as HTMLElement).getBoundingClientRect = () =>
       ({
@@ -346,13 +414,23 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, 840);
-    firePointer(container.querySelector('[data-mc-event]')!, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
-    firePointer(container.querySelector('[data-mc-event]')!, 'pointerdown', 5, 300);
-    firePointer(document, 'pointermove', 5, 360);
-    firePointer(document, 'pointerup', 5, 360);
+    stubColumnRects({ container, heightMin: 840 });
+    firePointer({
+      target: container.querySelector('[data-mc-event]')!,
+      type: 'pointerdown',
+      clientX: 5,
+      clientY: 180,
+    });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
+    firePointer({
+      target: container.querySelector('[data-mc-event]')!,
+      type: 'pointerdown',
+      clientX: 5,
+      clientY: 300,
+    });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 360 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 360 });
     expect(resolvers).toHaveLength(2);
     resolvers[0]!(false);
     await Promise.resolve();
@@ -433,11 +511,11 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, 840);
+    stubColumnRects({ container, heightMin: 840 });
     const node = container.querySelector('[data-mc-event]')!;
-    firePointer(node, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
+    firePointer({ target: node, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
     expect(drops[0]?.timeZone).toBe(TZ);
     expect(app.getState().events[0]?.time.start).toEqual({
       dateTime: '2026-07-22T11:00:00',
@@ -470,11 +548,11 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, 840);
+    stubColumnRects({ container, heightMin: 840 });
     const node = container.querySelector('[data-mc-day] [data-mc-event][data-mc-start-min]')!;
-    firePointer(node, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
+    firePointer({ target: node, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
     expect(blocked[0]?.reason).toBe('over-capacity');
     expect(app.getState().events[0]?.time.start.dateTime).toBe('2026-07-22T09:00:00');
     app.destroy();
@@ -499,11 +577,11 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, 840);
+    stubColumnRects({ container, heightMin: 840 });
     const node = container.querySelector('[data-mc-event="e1@2026-07-22T09:00:00"]')!;
-    firePointer(node, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
+    firePointer({ target: node, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
     app.setEvents([app.getState().events[0]!, { ...other, title: 'Updated' }]);
     rejectDrop(false);
     await Promise.resolve();
@@ -529,10 +607,15 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, 840);
-    firePointer(container.querySelector('[data-mc-event]')!, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
+    stubColumnRects({ container, heightMin: 840 });
+    firePointer({
+      target: container.querySelector('[data-mc-event]')!,
+      type: 'pointerdown',
+      clientX: 5,
+      clientY: 180,
+    });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
     expect(app.getState().events[0]!.time.start.dateTime).toBe(eventE1.time.start.dateTime);
     expect(container.querySelector('[data-mc-draft]')).toBeNull();
     app.destroy();
@@ -575,14 +658,13 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, (20 - 6) * 60);
+    stubColumnRects({ container, heightMin: (20 - 6) * 60 });
 
     const eventNode = container.querySelector('[data-mc-event]') as HTMLElement;
     expect(eventNode).toBeTruthy();
-    // topo do evento = (540-360)=180px ⇒ minuto 540; solta em clientY 300 ⇒ minuto 660 (11:00)
-    firePointer(eventNode, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
 
     expect(drops).toHaveLength(1);
     const movedEvent = app.getState().events[0]!;
@@ -610,17 +692,15 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, (20 - 6) * 60);
+    stubColumnRects({ container, heightMin: (20 - 6) * 60 });
 
     const eventNode = container.querySelector('[data-mc-event]') as HTMLElement;
-    // solta em clientY 360 ⇒ minuto 720 (12:00), dentro do bloqueio
-    firePointer(eventNode, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 360);
-    firePointer(document, 'pointerup', 5, 360);
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 360 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 360 });
 
     expect(blocked).toHaveLength(1);
     expect(blocked[0]!.reason).toBe('blocked');
-    // revert: evento continua às 09:00
     expect(app.getState().events[0]!.time.start.dateTime).toBe('2026-07-22T09:00:00');
     app.destroy();
   });
@@ -640,13 +720,12 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, (20 - 6) * 60);
+    stubColumnRects({ container, heightMin: (20 - 6) * 60 });
 
     const column = container.querySelector('[data-mc-day]') as HTMLElement;
-    // 13:00 (clientY 420) → 14:00 (clientY 480)
-    firePointer(column, 'pointerdown', 5, 420);
-    firePointer(document, 'pointermove', 5, 480);
-    firePointer(document, 'pointerup', 5, 480);
+    firePointer({ target: column, type: 'pointerdown', clientX: 5, clientY: 420 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 480 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 480 });
 
     expect(selections).toHaveLength(1);
     expect(selections[0]).toEqual({ dateISO: REF, startMin: 780, endMin: 840 });
@@ -684,20 +763,18 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, (20 - 6) * 60);
+    stubColumnRects({ container, heightMin: (20 - 6) * 60 });
 
-    // e1 (09:00, topo 180) movido para 11:00 (clientY 300) — colide com e2 no mesmo recurso.
     const e1Node = container.querySelector(
       '[data-mc-event="e1@2026-07-22T09:00:00"]',
     ) as HTMLElement;
     expect(e1Node).toBeTruthy();
-    firePointer(e1Node, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
+    firePointer({ target: e1Node, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
 
     expect(blocked).toHaveLength(1);
     expect(blocked[0]!.reason).toBe('over-capacity');
-    // revert: e1 continua às 09:00
     expect(app.getState().events.find((event) => event.id === 'e1')!.time.start.dateTime).toBe(
       '2026-07-22T09:00:00',
     );
@@ -721,27 +798,23 @@ describe('CalendarApp — interação ponta-a-ponta (jsdom)', () => {
     });
     app.mount(container);
     await app.ready();
-    stubColumnRects(container, (20 - 6) * 60);
+    stubColumnRects({ container, heightMin: (20 - 6) * 60 });
 
     const eventNode = container.querySelector('[data-mc-event]') as HTMLElement;
-    firePointer(eventNode, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300); // passa o threshold ⇒ agenda o render do fantasma
-    // o render do rascunho agora é throttled via rAF (Bug de hardening #3) — espera o frame.
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
     await new Promise((resolve) => requestAnimationFrame(resolve));
     expect(container.querySelector('[data-mc-draft]')).toBeTruthy();
 
-    firePointer(document, 'pointercancel', 5, 300);
+    firePointer({ target: document, type: 'pointercancel', clientX: 5, clientY: 300 });
 
-    // aborto: nenhum commit, evento permanece no horário original.
     expect(drops).toHaveLength(0);
     expect(app.getState().events[0]!.time.start.dateTime).toBe('2026-07-22T09:00:00');
-    // fantasma limpo (onDraftChange(null) renderizou de imediato).
     expect(container.querySelector('[data-mc-draft]')).toBeNull();
 
-    // o motor não ficou travado: um novo arrasto (mesmo pointerId, gesto novo) ainda funciona.
-    firePointer(eventNode, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
     expect(drops).toHaveLength(1);
     expect(app.getState().events[0]!.time.start.dateTime).toBe('2026-07-22T11:00:00');
 

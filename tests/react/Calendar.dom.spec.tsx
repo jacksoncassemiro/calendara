@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 /** @jsxRuntime automatic @jsxImportSource react */
-/**
- * Native React integration: lifecycle, props, imperative navigation and consumer context.
- */
+
 import { BUILTIN_VIEWS } from '../../src/react/views/registry/defaultViews.js';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, waitFor, act, cleanup } from '@testing-library/react';
 import { useRef, useEffect, useState, StrictMode, createContext, useContext } from 'react';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { Calendar } from '../../src/react/Calendar.js';
 import { useCalendar } from '../../src/react/useCalendar.js';
 import { createReactView } from '../../src/react/createReactView.js';
@@ -49,6 +47,49 @@ const events: CalendarEvent[] = [
 ];
 
 describe('<Calendar/> (jsdom)', () => {
+  it('updates day decorations and header content from consumer state, then restores defaults', async () => {
+    const views = [dayView];
+    const base = { views, initialDate: REF, temporal, options, events };
+    const { container, rerender } = render(
+      <Calendar
+        {...base}
+        getDayStyle={() => ({ backgroundColor: 'rgb(36, 70, 55)' })}
+        renderDayHeader={({ defaultContent, dateISO }) => (
+          <>
+            {defaultContent}
+            <small data-status={dateISO}>Available</small>
+          </>
+        )}
+      />,
+    );
+    await waitFor(() =>
+      expect(container.querySelector('[data-status]')?.textContent).toBe('Available'),
+    );
+    expect(container.querySelector('[data-status]')?.getAttribute('data-status')).toBe(REF);
+    expect(container.querySelector('.mc-day-col')?.getAttribute('style')).toContain(
+      'rgb(36, 70, 55)',
+    );
+    rerender(
+      <Calendar
+        {...base}
+        renderDayHeader={({ defaultContent }) => (
+          <>
+            {defaultContent}
+            <small data-status="full">Full</small>
+          </>
+        )}
+      />,
+    );
+    await waitFor(() => expect(container.querySelector('[data-status]')?.textContent).toBe('Full'));
+    expect(container.querySelector('.mc-day-col')?.getAttribute('style')).not.toContain(
+      'rgb(36, 70, 55)',
+    );
+    expect(container.querySelector('[data-mc-event]')?.textContent).toContain('Consulta');
+    rerender(<Calendar {...base} />);
+    await waitFor(() => expect(container.querySelector('[data-status]')).toBeNull());
+    expect(container.querySelector('.mc-daynum')?.textContent).toBe('22');
+  });
+
   it('updates resource columns from live props, supports empty lists and restores factory defaults', async () => {
     const fallback = [{ id: 'fallback', title: 'Factory resource' }];
     const views = [createResourceDayView(fallback, 'live-resources')];
@@ -389,7 +430,7 @@ describe('<Calendar/> (jsdom)', () => {
       />,
     );
     await waitFor(() => expect(container.querySelectorAll('[data-mc-event]')).toHaveLength(1));
-    // mesma instância: o nó raiz do core não foi recriado.
+
     expect(container.querySelector('[data-mc-root]')).toBe(rootBefore);
     cleanup();
   });
@@ -437,7 +478,7 @@ describe('<Calendar/> (jsdom)', () => {
     await waitFor(() =>
       expect(container.querySelector('[data-testid="react-toolbar"]')).toBeTruthy(),
     );
-    // a toolbar nativa não é desenhada quando há customToolbar.
+
     expect(container.querySelector('[data-mc-toolbar]')).toBeNull();
     cleanup();
   });
@@ -499,7 +540,7 @@ describe('<Calendar/> (jsdom)', () => {
   });
 
   it('rejects invalid registries without changing the mounted selection', () => {
-    // @ts-expect-error A view selection is required for consumers as well as at runtime.
+    // @ts-expect-error Views are required. PT: Views são obrigatórias.
     expect(() => new CalendarApp({ temporal })).toThrow('pelo menos uma view');
     expect(() => new CalendarApp({ views: [] })).toThrow('pelo menos uma view');
     expect(() => new CalendarApp({ views: [dayView, dayView] })).toThrow('view duplicada');

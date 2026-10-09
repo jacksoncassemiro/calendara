@@ -1,6 +1,6 @@
 {
   "name": "@jacksoncassemiro/calendara",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "engines": {
     "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "docs:model": "node scripts/build-docs-model.mjs",
+    "audit:contracts": "node scripts/audit-code-contracts.mjs --check",
     "typecheck": "yarn docs:model && node scripts/typecheck.mjs",
     "dev": "yarn docs:model && vite --host 127.0.0.1 --open /",
     "test:package": "node scripts/package-smoke.mjs",
@@ -18,12 +19,12 @@
     "test:browser": "node scripts/run-browser-review.mjs",
     "audit:dependencies": "node scripts/audit-dependencies.mjs",
     "check:publication": "node scripts/check-publication.mjs",
-    "export:clean": "node scripts/export-clean-repository.mjs",
     "format": "prettier --write src tests scripts examples *.ts *.json *.html styles.css",
     "format:check": "prettier --check src tests scripts examples *.ts *.json *.html styles.css",
-    "verify": "yarn typecheck && yarn test && yarn build && yarn test:package && yarn build:demo"
+    "verify": "yarn audit:contracts && yarn typecheck && yarn test && yarn build && yarn test:package && yarn build:demo"
   },
   "devDependencies": {
+    "@js-temporal/polyfill": "0.5.1",
     "@playwright/cli": "0.1.22",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.1.0",
@@ -35,6 +36,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "rrule": "2.8.1",
+    "rrule-temporal": "2.2.8",
     "typescript": "5.5.4",
     "vite": "8.3.3",
     "vitest": "5.0.3"
@@ -86,8 +88,7 @@
   ],
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
-    "@js-temporal/polyfill": "0.5.1",
-    "rrule-temporal": "2.2.8"
+    "temporal-polyfill": "1.0.5"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",

@@ -1,54 +1,48 @@
-# Comparação de bundle e integração
+# Comparação de tamanho e integração
 
-Medição de 08/10/2026. Manter um pacote React. Os resultados apontam uma oportunidade de melhorar o tree shaking interno; não justificam dividir a instalação em vários pacotes.
+Manter um pacote React. As medições da fonte atual mostram que eliminar a duplicação de recorrência/Temporal rende mais que separar pacotes de views.
 
-## Contribuição de JavaScript
+## Contribuição JavaScript medida
 
-Todas as linhas usam Vite 8.3.3 em produção, ES2022 e a mesma exclusão de React/React DOM. CSS fica fora. Os totais incluem todos os chunks JavaScript, comprimidos individualmente. São medidas da contribuição da biblioteca, não do playground, do arquivo npm, da velocidade no navegador ou de recursos avançados equivalentes.
+Vite 8.3.3, ES2022, minificação de produção e tree shaking. React, React DOM e CSS são excluídos igualmente. Os totais incluem todos os chunks JavaScript, comprimidos separadamente; não representam transferência inicial, tamanho do arquivo de instalação, velocidade nem igualdade de recursos.
 
-| Cenário                                          | Versão                       | Bytes minificados | Bytes gzip | Chunks JS |
-| ------------------------------------------------ | ---------------------------- | ----------------: | ---------: | --------: |
-| Calendara: Dia                                   | local 0.1.0                  |           478.823 |    139.609 |         4 |
-| Calendara: Mês + Dia                             | local 0.1.0                  |           490.413 |    142.417 |         4 |
-| Calendara: padrão + recursos + timeline + editor | local 0.1.0                  |           520.452 |    149.747 |         4 |
-| FullCalendar: Mês + Dia, tema Monarch            | React 7.1.1                  |           256.315 |     70.580 |         1 |
-| Schedule-X: Mês + Dia, Temporal exigido          | calendar 4.9.1 / React 4.1.0 |           235.920 |     68.704 |         1 |
-| Mantine: Mês + Dia, provider                     | 9.7.1                        |           276.794 |     85.076 |         1 |
-| React Big Calendar: Mês + Dia, localizer Day.js  | 1.20.0 / Day.js 1.11.23      |           184.318 |     54.871 |         1 |
+| Cenário | Bytes minificados | Bytes gzip |
+| --- | ---: | ---: |
+| Calendara Dia | 212.628 | 67.928 |
+| Calendara Mês + Dia | 225.137 | 70.925 |
+| FullCalendar Mês + Dia, React 7.1.1 | 256.315 | 70.580 |
+| Schedule-X Mês + Dia, calendar 4.9.1 / React 4.1.0 | 235.920 | 68.704 |
+| Mantine Mês + Dia, 9.7.1 | 276.794 | 85.076 |
+| React Big Calendar Mês + Dia, 1.20.0 / Day.js 1.11.23 | 184.318 | 54.871 |
 
-Mês + Dia da Calendara contém uma entrada de 79.660 bytes gzip, um fallback Temporal de 45.459, um popover lazy de 16.761 e um chunk compartilhado de rótulos de 537. Temporal nativo pode evitar o download do fallback. O popover fechado não precisa carregar seu chunk imediatamente. Comparar o total com uma entrada única do concorrente representa a transferência no pior caso, não uma classificação do custo inicial.
+Antes da mudança de recorrência, Calendara Mês + Dia ocupava **146.041 bytes gzip**. Reutilizar o iterador civil com Temporal injetada e escolher o fallback menor remove **75.116 bytes (51,4%)**. A entrada cai de 83.195 para **34.516 bytes gzip**. O total ainda inclui o fallback Temporal lazy (19.022 bytes), popover (16.763 bytes) e rótulos compartilhados (624 bytes). Temporal nativo evita baixar o fallback; abrir eventos excedentes carrega o popover quando necessário. Dia exclui MonthView, ListView e o editor.
 
-A auditoria inicialmente encontrou `MonthView`, `ListView` e `defaultViews` na configuração de Dia: o controller referenciava `BUILTIN_VIEWS` como fallback quando as views eram omitidas. Dia tinha 145.645 bytes gzip e Mês + Dia tinha 145.652, diferença de apenas 7 bytes. Na rodada anterior às atualizações finais de dependências/localização, após retirar esse fallback do controller e exigir definições explícitas, Dia eliminou os três módulos e caiu para 142.381 bytes. Mês + Dia caiu para 145.208: selecionar somente Dia então economizava 2.827 bytes frente a essa configuração. A [baseline](../../experiments/bundle-audit/baseline.json) preserva as medidas originais.
+O motor anterior embutia uma segunda implementação de Temporal. Agora permanece apenas como referência diferencial de desenvolvimento; produção usa o iterador civil e um namespace injetado/nativo/fallback. Testes de integração cobrem regras, horários inexistentes no DST, COUNT, UNTIL, exceções, overrides e identidade original. A mudança reduz transferência, sem prometer expansão mais rápida em toda carga.
 
-O popover compartilhado permanece intencionalmente: Dia o usa para acessar eventos excedentes. A implementação de recorrência também permanece sem eventos recorrentes. Adicionar views padrão, recursos, timeline e editor aumenta o total gzip final de Mês + Dia em 7.330 bytes nesta fixture. A maior parte do custo atual é do mecanismo compartilhado, não das views opcionais.
+[Resultados atuais](../../experiments/bundle-audit/current-results.json), [resultados anteriores à mudança](../../experiments/bundle-audit/pre-civil-results.json) e [receita com versões fixadas](../../experiments/bundle-audit/README.md) preservam versões e evidência dos chunks. Os [resultados 0.1.0](../../experiments/bundle-audit/results.json) e [baseline da seleção de views](../../experiments/bundle-audit/baseline.json) são históricos. A medição usa a entrada pública da fonte; consumo do arquivo de release é verificado separadamente por `yarn test:package`.
 
-A [receita com lockfile fixado](../../experiments/bundle-audit/README.md) reproduz a comparação. Os [resultados brutos](../../experiments/bundle-audit/results.json) registram tamanhos por chunk e módulos locais mantidos. Calendara usa a entrada pública `src/index.ts` com transformação de produção; este experimento não testa instalação do arquivo de release ou a entrada gerada em `dist`. A compilação Vite valida o bundle; não valida interações ou acessibilidade dos concorrentes.
+## Escolhas de integração
 
-A execução final acima inclui o fallback `@js-temporal/polyfill` 0.5.1 da Calendara e as correções de localização/interação. O ambiente de desenvolvimento do pacote usa React/React DOM 19.3.0 e jsdom 30.1.2; React está excluído desta medição, e jsdom é dependência somente de testes. A fixture fixada dos concorrentes ainda registra React 19.2.0, também excluído. Não afirmamos igualdade das dependências de desenvolvimento instaladas. Dia agora economiza 2.808 bytes gzip frente a Mês + Dia. Os valores anteriores preservam a evidência histórica da correção do registro de views, não representam os totais atuais.
+O fallback escolhido e seus recursos/desempenho estão documentados na [comparação de Temporal](temporal-comparison.md).
 
-## Vantagens e desvantagens da integração
+| Biblioteca | Integração inicial | Consequência prática |
+| --- | --- | --- |
+| Calendara | JSX, eventos, views selecionadas obrigatórias; CSS/editor opcionais | Uma instalação e persistência explícita; contratos de datas e recursos precisam de explicação |
+| FullCalendar | JSX e plugins de views/tema | Seleção precisa de recursos; escolhas de plugins/tema/licença acrescentam etapas |
+| Schedule-X | Hook da aplicação, fábricas de views, wrapper e peers | Extensões amplas; mais runtimes e versões para alinhar |
+| Mantine | Views, provider, estilos e dependências de datas | Conveniente no ecossistema Mantine; configuração adicional fora dele |
+| React Big Calendar | JSX, localizer, CSS e altura do container | API familiar e escolha de biblioteca de datas; localização e geometria exigem configuração |
 
-| Biblioteca         | Integração inicial                                              | Capacidades separadas                                              | Consequência prática                                                                                                                                   |
-| ------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Calendara          | JSX, eventos e definições obrigatórias das views; tema opcional | Um pacote com entrada `/core`; editor pode ficar fora do JSX       | Menos decisões de instalação; persistência explícita e contratos de datas precisam de explicação; custo compartilhado de recorrência/runtime permanece |
-| FullCalendar 7     | JSX, plugins de views/tema e estilos                            | Subpaths de plugins no React; Scheduler separado e premium         | Seleção precisa de capacidades; plugins, tema e licença acrescentam escolhas                                                                           |
-| Schedule-X         | Hook da aplicação, factories de views, wrapper React e estilos  | Serviços e interações por plugins; peers Preact/signals e Temporal | Extensibilidade ampla; mais versões e runtimes para alinhar                                                                                            |
-| Mantine            | Schedule ou views isoladas, provider e estilos Mantine          | Pacotes schedule/dates/core/hooks                                  | Conveniente em app Mantine existente; mais configuração sem Mantine; peers atuais exigem React 19.2                                                    |
-| React Big Calendar | JSX, localizer, altura explícita e estilos                      | Addon de drag-and-drop e escolha de localizer                      | API React familiar e escolha da biblioteca de datas; configuração de localização e geometria obrigatória                                               |
+São contratos observáveis, não estudo de usabilidade: [FullCalendar React](https://fullcalendar.io/docs/react), [Schedule-X React](https://schedule-x.dev/docs/frameworks/react), [configuração Mantine](https://mantine.dev/schedule/getting-started/) e [React Big Calendar](https://github.com/bigcalendar/react-big-calendar#readme).
 
-Essas diferenças são contratos observáveis, não um estudo com usuários comprovando maior facilidade. FullCalendar documenta plugins e React 17–19 no [guia React](https://fullcalendar.io/docs/react). Schedule-X lista hook, peers e componentes customizados no [guia React](https://schedule-x.dev/docs/frameworks/react). Mantine documenta dependências, estilos e Day.js obrigatório em [getting started](https://mantine.dev/schedule/getting-started/). React Big Calendar documenta localizers, CSS e altura no [README](https://github.com/bigcalendar/react-big-calendar#readme).
+Recursos, timelines, recorrência, drag/resize e impressão implementados na Calendara são MIT. FullCalendar lista views de recursos, timelines e impressão sob [Premium](https://fullcalendar.io/docs/premium). Schedule-X distribui extensões por [plugins](https://schedule-x.dev/docs/calendar/plugins); conferir cada licença. Isso não estabelece paridade completa nem maturidade de produção. Virtualização automática continua como [proposta](../../specs/extended-views/virtualization.md), não recurso implementado.
 
-Os recursos implementados da Calendara são MIT, incluindo recursos, timeline, recorrência e mover/redimensionar. FullCalendar lista views de recursos, timelines e impressão no [Premium](https://fullcalendar.io/docs/premium). Schedule-X distribui extensões por [plugins](https://schedule-x.dev/docs/calendar/plugins); confira a licença atual de cada um, sem estender automaticamente a licença MIT do core a todas as extensões. Isso não afirma paridade completa ou maturidade de produção.
+## Floating UI e limites dos pacotes
 
-## Reclamações e conclusões acionáveis
+O popover compartilhado de eventos excedentes é lazy também em Dia; sua presença não registra Mês implicitamente. Seus **16.763 bytes gzip** representam cerca de 23,6% do total atual Mês + Dia. Posicionamento, fechamento, retorno do foco e interação por teclado fazem parte do comportamento. Um probe menor somente de posicionamento não oferece interações equivalentes. Ver [separação entre posicionamento e interação no Floating UI](https://floating-ui.com/docs/react) e [medições isoladas](../../experiments/bundle-audit/floating-results.json).
 
-A issue [#7029](https://github.com/fullcalendar/fullcalendar/issues/7029) do FullCalendar relatou aumento de tamanho no Bundlephobia em uma beta v6 de 2022 e está fechada. Ela reforça medir bundles de consumidores, em vez de citar o tamanho do pacote; não descreve o desempenho da v7 atual. Um relato não estabelece frequência de reclamações. Não foi encontrada nas fontes revisadas uma reclamação verificada que exigisse vários pacotes para uma API equivalente à Calendara.
+[Popover nativo](https://developer.mozilla.org/en-US/docs/Web/API/Popover_API) e [ancoragem CSS](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Anchor_positioning) são candidatos após validar foco, transbordamento, scroll aninhado e navegadores. Manter a implementação lazy atual até verificar uma alternativa equivalente.
 
-Prioridades recomendadas:
+A [issue #7029 do FullCalendar](https://github.com/fullcalendar/fullcalendar/issues/7029) relatou aumento de tamanho num beta v6 de 2022 e está fechada. Sustenta medir bundles de consumidores, sem concluir desempenho atual v7 nem frequência de reclamações. Não foi encontrada reclamação verificada nas fontes revisadas exigindo vários pacotes semelhantes à Calendara.
 
-1. Preservar uma instalação e contrato de compatibilidade. O fallback do controller foi retirado; avaliar entradas leves por subpath somente se novas medidas de consumidores justificarem.
-2. Medir carregamento opcional da recorrência antes de mudar seu contrato. Preservar o fallback Temporal para navegadores que precisam dele.
-3. Documentar lazy loading por rota para apps que usam o calendário ocasionalmente. Isso adia o carregamento; não elimina o custo total.
-4. Manter editor, CSS e renderers próprios opcionais. A seleção agora elimina implementações de views não utilizadas, mas não deve ser divulgada como uma grande redução do bundle.
-
-Vários pacotes npm trariam alinhamento de versões, coordenação de releases e mais decisões de instalação. Subpath exports e limites internos compartilhados podem oferecer modularidade mantendo um único pacote. A auditoria levou à definição obrigatória e explícita das views; o experimento não adiciona dependências de produção.
+Manter pacote único e views/editor/CSS opcionais. Subpaths ou carregamento lazy da rota podem melhorar integração sem alinhamento de versões e múltiplas releases. Separar pacotes sozinho não elimina o custo compartilhado de Temporal.

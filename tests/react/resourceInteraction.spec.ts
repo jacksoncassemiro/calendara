@@ -1,18 +1,8 @@
 import { BUILTIN_VIEWS } from '../../src/react/views/index.js';
 // @vitest-environment jsdom
-/**
- * Regressão de interação (drag/resize/select) para as views orientadas a recurso — Multiagenda
- * (`createResourceDayView`) e Timeline (`createTimelineView`). Antes desta leva de mudanças as
- * duas views eram NO-OPS de interação (o InteractionEngine só entendia `[data-mc-day]`); aqui
- * cobrimos o novo contrato `[data-mc-slot]` (`locateBySlots`) fim-a-fim via CalendarApp real.
- *
- * Padrão: mesmo approach de `interactionApp.spec.ts` — monta um CalendarApp de verdade, dispara
- * Pointer Events sintéticos em coordenadas calculadas, e verifica o resultado no DOM/store/callbacks.
- * jsdom devolve retângulos zerados por padrão, então as colunas (Multiagenda) e faixas (Timeline)
- * têm `getBoundingClientRect` stubado — ver `stubMultiagendaRects`/`stubTimelineRects`.
- */
+
 import { describe, it, expect } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import { createResourceDayView, createTimelineView } from '../../src/react/views/index.js';
 import type { CalendarEvent } from '../../src/core/index.js';
@@ -37,22 +27,41 @@ const baseOptions = {
   minEventMinutes: 15,
 };
 
-/** Extensão do grid em minutos (840 = 14h * 60). Com pxPerMinute=1 e rects stubados com esse
- * tamanho, `clientX`/`clientY` mapeiam 1:1 para "minutos a partir de startHour" — mesma convenção
- * usada em `interactionApp.spec.ts`. */
 const SPAN_MIN = (baseOptions.endHour - baseOptions.startHour) * 60;
 
-/** Dispara um "pointer event" (jsdom não constrói PointerEvent; MouseEvent basta — mesmo padrão de interactionApp.spec.ts). */
-function firePointer(target: EventTarget, type: string, clientX: number, clientY: number): void {
+function firePointer({
+  target,
+  type,
+  clientX,
+  clientY,
+}: {
+  /** Dispatch target. / PT: Alvo do disparo. */
+  target: EventTarget;
+  /** Pointer event name. / PT: Nome do evento de ponteiro. */
+  type: string;
+  /** Horizontal client coordinate in pixels. / PT: Coordenada horizontal do cliente em pixels. */
+  clientX: number;
+  /** Vertical client coordinate in pixels. / PT: Coordenada vertical do cliente em pixels. */
+  clientY: number;
+}): void {
   target.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, clientY, button: 0 }));
 }
 
-function timedEvent(
-  id: string,
-  startHM: string,
-  endHM: string,
-  resourceIds: string[],
-): CalendarEvent {
+function timedEvent({
+  id,
+  startHM,
+  endHM,
+  resourceIds,
+}: {
+  /** Fixture event identifier. / PT: Identificador do evento de teste. */
+  id: string;
+  /** Local start time, HH:mm. / PT: Horário local inicial, HH:mm. */
+  startHM: string;
+  /** Exclusive local end time, HH:mm. / PT: Horário local final exclusivo, HH:mm. */
+  endHM: string;
+  /** Assigned resource identifiers. / PT: Identificadores dos recursos atribuidos. */
+  resourceIds: string[];
+}): CalendarEvent {
   return {
     id,
     calendarId: 'c1',
@@ -66,8 +75,14 @@ function timedEvent(
   };
 }
 
-/** Multiagenda: colunas verticais lado a lado, uma por recurso (ordem = `resource.order`, mesma ordem de `buildResourceColumns`). */
-function stubMultiagendaRects(container: HTMLElement, colWidth = 100): void {
+/** One pixel per minute; resources occupy adjacent columns. / PT: Um pixel por minuto; recursos em colunas adjacentes. */
+function stubMultiagendaRects({
+  container,
+  colWidth = 100,
+}: {
+  container: HTMLElement; /** Resource column width in pixels. / PT: Largura da coluna do recurso em pixels. */
+  colWidth?: number;
+}): void {
   const columns = Array.from(container.querySelectorAll('[data-mc-slot="y"]')) as HTMLElement[];
   columns.forEach((col, index) => {
     const left = index * colWidth;
@@ -87,8 +102,14 @@ function stubMultiagendaRects(container: HTMLElement, colWidth = 100): void {
   });
 }
 
-/** Timeline: faixas horizontais empilhadas, uma por recurso. */
-function stubTimelineRects(container: HTMLElement, rowHeight = 100): void {
+/** One pixel per minute; resources occupy stacked rows. / PT: Um pixel por minuto; recursos em linhas empilhadas. */
+function stubTimelineRects({
+  container,
+  rowHeight = 100,
+}: {
+  container: HTMLElement; /** Resource row height in pixels. / PT: Altura da linha do recurso em pixels. */
+  rowHeight?: number;
+}): void {
   const rows = Array.from(container.querySelectorAll('[data-mc-slot="x"]')) as HTMLElement[];
   rows.forEach((row, index) => {
     const top = index * rowHeight;
@@ -108,13 +129,18 @@ function stubTimelineRects(container: HTMLElement, rowHeight = 100): void {
   });
 }
 
-/** Localiza o nó de um evento DENTRO de uma coluna/faixa de recurso específica — necessário para
- * eventos multi-recurso, que renderizam um `[data-mc-event]` por coluna. */
-function eventInResource(
-  container: HTMLElement,
-  resourceId: string,
-  eventKey: string,
-): HTMLElement {
+function eventInResource({
+  container,
+  resourceId,
+  eventKey,
+}: {
+  /** Mounted calendar container. / PT: Container do calendário montado. */
+  container: HTMLElement;
+  /** Resource containing the event copy. / PT: Recurso que contém a cópia do evento. */
+  resourceId: string;
+  /** Occurrence key rendered in the resource. / PT: Chave da ocorrência renderizada no recurso. */
+  eventKey: string;
+}): HTMLElement {
   const slot = container.querySelector(
     `[data-mc-slot][data-mc-slot-resource="${resourceId}"]`,
   ) as HTMLElement | null;
@@ -158,10 +184,6 @@ function makeResourceApp(cfg: ResourceAppConfig): { app: CalendarApp; container:
   return { app, container };
 }
 
-// ---------------------------------------------------------------------------
-// Multiagenda (createResourceDayView / ResourceGrid / ResourceColumn)
-// ---------------------------------------------------------------------------
-
 describe('Multiagenda — interação (jsdom)', () => {
   it('mover um evento dentro da MESMA coluna de recurso: commita via onEventDrop, recurso inalterado', async () => {
     const resources: CalendarResource[] = [{ id: 'r1', title: 'R1', order: 1 }];
@@ -169,17 +191,20 @@ describe('Multiagenda — interação (jsdom)', () => {
     const { app, container } = makeResourceApp({
       view: 'resources',
       resources,
-      events: [timedEvent('e1', '09:00', '10:00', ['r1'])],
+      events: [timedEvent({ id: 'e1', startHM: '09:00', endHM: '10:00', resourceIds: ['r1'] })],
       onEventDrop: (change) => drops.push(change),
     });
     await app.ready();
-    stubMultiagendaRects(container);
+    stubMultiagendaRects({ container });
 
-    const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
-    // topo do evento (09:00 ⇒ minuto 540, offset 180 do startHour); solta às 11:00 (minuto 660, offset 300)
-    firePointer(eventNode, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
+    const eventNode = eventInResource({
+      container,
+      resourceId: 'r1',
+      eventKey: 'e1@2026-07-22T09:00:00',
+    });
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
 
     expect(drops).toHaveLength(1);
     expect(drops[0]!.startDateTime).toBe('2026-07-22T11:00:00');
@@ -201,19 +226,23 @@ describe('Multiagenda — interação (jsdom)', () => {
     const { app, container } = makeResourceApp({
       view: 'resources',
       resources,
-      events: [timedEvent('e1', '09:00', '10:00', ['r1'])],
+      events: [timedEvent({ id: 'e1', startHM: '09:00', endHM: '10:00', resourceIds: ['r1'] })],
       onEventDrop: (change) => drops.push(change),
     });
     await app.ready();
-    stubMultiagendaRects(container); // r1 = [0,100), r2 = [100,200)
+    stubMultiagendaRects({ container });
 
-    const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
-    firePointer(eventNode, 'pointerdown', 5, 180); // r1, 09:00
-    firePointer(document, 'pointermove', 150, 180); // r2, mesmo horário (mesmo clientY)
-    firePointer(document, 'pointerup', 150, 180);
+    const eventNode = eventInResource({
+      container,
+      resourceId: 'r1',
+      eventKey: 'e1@2026-07-22T09:00:00',
+    });
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 150, clientY: 180 });
+    firePointer({ target: document, type: 'pointerup', clientX: 150, clientY: 180 });
 
     expect(drops).toHaveLength(1);
-    expect(drops[0]!.startDateTime).toBe('2026-07-22T09:00:00'); // horário não mudou
+    expect(drops[0]!.startDateTime).toBe('2026-07-22T09:00:00');
     expect(drops[0]!.resourceId).toBe('r2');
     expect(drops[0]!.fromResourceId).toBe('r1');
     const moved = app.getState().events.find((event) => event.id === 'e1')!;
@@ -231,23 +260,27 @@ describe('Multiagenda — interação (jsdom)', () => {
     const { app, container } = makeResourceApp({
       view: 'resources',
       resources,
-      events: [timedEvent('m', '09:00', '10:00', ['room1', 'profA'])],
+      events: [
+        timedEvent({ id: 'm', startHM: '09:00', endHM: '10:00', resourceIds: ['room1', 'profA'] }),
+      ],
       onEventDrop: (change) => drops.push(change),
     });
     await app.ready();
-    stubMultiagendaRects(container); // room1=[0,100), profA=[100,200), profB=[200,300)
+    stubMultiagendaRects({ container });
 
-    // o evento aparece nas colunas room1 E profA — pegamos o bloco de DENTRO da coluna profA.
-    const eventNode = eventInResource(container, 'profA', 'm@2026-07-22T09:00:00');
-    firePointer(eventNode, 'pointerdown', 150, 180); // profA, 09:00
-    firePointer(document, 'pointermove', 250, 180); // profB, mesmo horário
-    firePointer(document, 'pointerup', 250, 180);
+    const eventNode = eventInResource({
+      container,
+      resourceId: 'profA',
+      eventKey: 'm@2026-07-22T09:00:00',
+    });
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 150, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 250, clientY: 180 });
+    firePointer({ target: document, type: 'pointerup', clientX: 250, clientY: 180 });
 
     expect(drops).toHaveLength(1);
     expect(drops[0]!.resourceId).toBe('profB');
     expect(drops[0]!.fromResourceId).toBe('profA');
     const moved = app.getState().events.find((event) => event.id === 'm')!;
-    // reassignResource(['room1','profA'], 'profA', 'profB') ⇒ ['room1', 'profB']
     expect(moved.resourceIds).toEqual(['room1', 'profB']);
     app.destroy();
   });
@@ -263,24 +296,27 @@ describe('Multiagenda — interação (jsdom)', () => {
       view: 'resources',
       resources,
       events: [
-        timedEvent('e1', '09:00', '10:00', ['r1']), // será arrastado
-        timedEvent('e2', '11:00', '12:00', ['r2']), // já ocupa r2 no horário de destino
+        timedEvent({ id: 'e1', startHM: '09:00', endHM: '10:00', resourceIds: ['r1'] }),
+        timedEvent({ id: 'e2', startHM: '11:00', endHM: '12:00', resourceIds: ['r2'] }),
       ],
       onEventDrop: (change) => drops.push(change),
       onDropBlocked: (info) => blocked.push(info),
     });
     await app.ready();
-    stubMultiagendaRects(container); // r1=[0,100), r2=[100,200)
+    stubMultiagendaRects({ container });
 
-    const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
-    firePointer(eventNode, 'pointerdown', 5, 180); // r1, 09:00
-    firePointer(document, 'pointermove', 150, 300); // r2, 11:00 — colide com e2
-    firePointer(document, 'pointerup', 150, 300);
+    const eventNode = eventInResource({
+      container,
+      resourceId: 'r1',
+      eventKey: 'e1@2026-07-22T09:00:00',
+    });
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 150, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 150, clientY: 300 });
 
     expect(drops).toHaveLength(0);
     expect(blocked).toHaveLength(1);
     expect(blocked[0]!.reason).toBe('over-capacity');
-    // sem commit: e1 permanece em r1 às 09:00
     const untouched = app.getState().events.find((event) => event.id === 'e1')!;
     expect(untouched.time.start.dateTime).toBe('2026-07-22T09:00:00');
     expect(untouched.resourceIds).toEqual(['r1']);
@@ -293,19 +329,22 @@ describe('Multiagenda — interação (jsdom)', () => {
     const { app, container } = makeResourceApp({
       view: 'resources',
       resources,
-      events: [timedEvent('e1', '09:00', '10:00', ['r1'])],
+      events: [timedEvent({ id: 'e1', startHM: '09:00', endHM: '10:00', resourceIds: ['r1'] })],
       onEventResize: (change) => resizes.push(change),
     });
     await app.ready();
-    stubMultiagendaRects(container);
+    stubMultiagendaRects({ container });
 
-    const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
+    const eventNode = eventInResource({
+      container,
+      resourceId: 'r1',
+      eventKey: 'e1@2026-07-22T09:00:00',
+    });
     const handle = eventNode.querySelector('[data-mc-resize="end"]') as HTMLElement;
     expect(handle).toBeTruthy();
-    // borda inferior (10:00 ⇒ minuto 600, offset 240) arrastada até 10:30 (minuto 630, offset 270)
-    firePointer(handle, 'pointerdown', 5, 240);
-    firePointer(document, 'pointermove', 5, 270);
-    firePointer(document, 'pointerup', 5, 270);
+    firePointer({ target: handle, type: 'pointerdown', clientX: 5, clientY: 240 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 270 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 270 });
 
     expect(resizes).toHaveLength(1);
     expect(resizes[0]!.startDateTime).toBe('2026-07-22T09:00:00');
@@ -324,13 +363,12 @@ describe('Multiagenda — interação (jsdom)', () => {
       onDateSelect: (selection) => selections.push(selection),
     });
     await app.ready();
-    stubMultiagendaRects(container);
+    stubMultiagendaRects({ container });
 
     const column = container.querySelector('[data-mc-slot-resource="r1"]') as HTMLElement;
-    // 13:00 (offset 420) → 14:00 (offset 480)
-    firePointer(column, 'pointerdown', 5, 420);
-    firePointer(document, 'pointermove', 5, 480);
-    firePointer(document, 'pointerup', 5, 480);
+    firePointer({ target: column, type: 'pointerdown', clientX: 5, clientY: 420 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 480 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 480 });
 
     expect(selections).toHaveLength(1);
     expect(selections[0]).toEqual({ dateISO: REF, startMin: 780, endMin: 840, resourceId: 'r1' });
@@ -345,15 +383,18 @@ describe('Multiagenda — interação (jsdom)', () => {
     const { app, container } = makeResourceApp({
       view: 'resources',
       resources,
-      events: [timedEvent('e1', '09:00', '10:00', ['r1'])],
+      events: [timedEvent({ id: 'e1', startHM: '09:00', endHM: '10:00', resourceIds: ['r1'] })],
     });
     await app.ready();
-    stubMultiagendaRects(container);
+    stubMultiagendaRects({ container });
 
-    const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
-    firePointer(eventNode, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300); // ainda dentro da coluna r1
-    // o render do rascunho é throttled via rAF (ver interactionApp.spec.ts) — espera o frame.
+    const eventNode = eventInResource({
+      container,
+      resourceId: 'r1',
+      eventKey: 'e1@2026-07-22T09:00:00',
+    });
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
     const r1Slot = container.querySelector('[data-mc-slot-resource="r1"]') as HTMLElement;
@@ -361,14 +402,10 @@ describe('Multiagenda — interação (jsdom)', () => {
     expect(r1Slot.querySelector('[data-mc-draft]')).toBeTruthy();
     expect(r2Slot.querySelector('[data-mc-draft]')).toBeNull();
 
-    firePointer(document, 'pointerup', 5, 300);
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
     app.destroy();
   });
 });
-
-// ---------------------------------------------------------------------------
-// Timeline (createTimelineView / Timeline)
-// ---------------------------------------------------------------------------
 
 describe('Timeline — interação (jsdom)', () => {
   it('mover um evento ao longo do eixo X dentro da sua linha: commita, recurso inalterado', async () => {
@@ -377,17 +414,20 @@ describe('Timeline — interação (jsdom)', () => {
     const { app, container } = makeResourceApp({
       view: 'timeline',
       resources,
-      events: [timedEvent('e1', '09:00', '10:00', ['r1'])],
+      events: [timedEvent({ id: 'e1', startHM: '09:00', endHM: '10:00', resourceIds: ['r1'] })],
       onEventDrop: (change) => drops.push(change),
     });
     await app.ready();
-    stubTimelineRects(container); // r1 = linha [0,100)
+    stubTimelineRects({ container });
 
-    const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
-    // 09:00 ⇒ minuto 540, offset-X 180; solta em 11:00 (minuto 660, offset-X 300)
-    firePointer(eventNode, 'pointerdown', 180, 50);
-    firePointer(document, 'pointermove', 300, 50);
-    firePointer(document, 'pointerup', 300, 50);
+    const eventNode = eventInResource({
+      container,
+      resourceId: 'r1',
+      eventKey: 'e1@2026-07-22T09:00:00',
+    });
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 180, clientY: 50 });
+    firePointer({ target: document, type: 'pointermove', clientX: 300, clientY: 50 });
+    firePointer({ target: document, type: 'pointerup', clientX: 300, clientY: 50 });
 
     expect(drops).toHaveLength(1);
     expect(drops[0]!.startDateTime).toBe('2026-07-22T11:00:00');
@@ -407,19 +447,23 @@ describe('Timeline — interação (jsdom)', () => {
     const { app, container } = makeResourceApp({
       view: 'timeline',
       resources,
-      events: [timedEvent('e1', '09:00', '10:00', ['r1'])],
+      events: [timedEvent({ id: 'e1', startHM: '09:00', endHM: '10:00', resourceIds: ['r1'] })],
       onEventDrop: (change) => drops.push(change),
     });
     await app.ready();
-    stubTimelineRects(container); // r1=[0,100), r2=[100,200)
+    stubTimelineRects({ container });
 
-    const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
-    firePointer(eventNode, 'pointerdown', 180, 50); // linha r1, 09:00
-    firePointer(document, 'pointermove', 180, 150); // linha r2, mesmo horário (mesmo clientX)
-    firePointer(document, 'pointerup', 180, 150);
+    const eventNode = eventInResource({
+      container,
+      resourceId: 'r1',
+      eventKey: 'e1@2026-07-22T09:00:00',
+    });
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 180, clientY: 50 });
+    firePointer({ target: document, type: 'pointermove', clientX: 180, clientY: 150 });
+    firePointer({ target: document, type: 'pointerup', clientX: 180, clientY: 150 });
 
     expect(drops).toHaveLength(1);
-    expect(drops[0]!.startDateTime).toBe('2026-07-22T09:00:00'); // horário não mudou
+    expect(drops[0]!.startDateTime).toBe('2026-07-22T09:00:00');
     expect(drops[0]!.resourceId).toBe('r2');
     expect(drops[0]!.fromResourceId).toBe('r1');
     const moved = app.getState().events.find((event) => event.id === 'e1')!;
@@ -433,19 +477,22 @@ describe('Timeline — interação (jsdom)', () => {
     const { app, container } = makeResourceApp({
       view: 'timeline',
       resources,
-      events: [timedEvent('e1', '09:00', '10:00', ['r1'])],
+      events: [timedEvent({ id: 'e1', startHM: '09:00', endHM: '10:00', resourceIds: ['r1'] })],
       onEventResize: (change) => resizes.push(change),
     });
     await app.ready();
-    stubTimelineRects(container);
+    stubTimelineRects({ container });
 
-    const eventNode = eventInResource(container, 'r1', 'e1@2026-07-22T09:00:00');
+    const eventNode = eventInResource({
+      container,
+      resourceId: 'r1',
+      eventKey: 'e1@2026-07-22T09:00:00',
+    });
     const handle = eventNode.querySelector('[data-mc-resize="end"]') as HTMLElement;
     expect(handle).toBeTruthy();
-    // borda direita (10:00 ⇒ minuto 600, offset-X 240) arrastada até 10:30 (minuto 630, offset-X 270)
-    firePointer(handle, 'pointerdown', 240, 50);
-    firePointer(document, 'pointermove', 270, 50);
-    firePointer(document, 'pointerup', 270, 50);
+    firePointer({ target: handle, type: 'pointerdown', clientX: 240, clientY: 50 });
+    firePointer({ target: document, type: 'pointermove', clientX: 270, clientY: 50 });
+    firePointer({ target: document, type: 'pointerup', clientX: 270, clientY: 50 });
 
     expect(resizes).toHaveLength(1);
     expect(resizes[0]!.startDateTime).toBe('2026-07-22T09:00:00');
@@ -454,11 +501,6 @@ describe('Timeline — interação (jsdom)', () => {
     app.destroy();
   });
 });
-
-// ---------------------------------------------------------------------------
-// Guarda de regressão: registrar views de recurso no mesmo CalendarApp não pode afetar o
-// caminho legado (`[data-mc-day]` / locateByRects) usado pelo TimeGrid (Semana/Dia).
-// ---------------------------------------------------------------------------
 
 describe('TimeGrid — guarda de regressão (locateByRects não é afetado por locateBySlots)', () => {
   it('arrastar um evento na view Dia ainda funciona com views de recurso registradas no mesmo app', async () => {
@@ -469,7 +511,7 @@ describe('TimeGrid — guarda de regressão (locateByRects não é afetado por l
     const app = new CalendarApp({
       date: REF,
       view: 'day',
-      events: [timedEvent('e1', '09:00', '10:00', [])],
+      events: [timedEvent({ id: 'e1', startHM: '09:00', endHM: '10:00', resourceIds: [] })],
       temporal: Temporal as unknown as never,
       views: [
         ...BUILTIN_VIEWS,
@@ -482,7 +524,6 @@ describe('TimeGrid — guarda de regressão (locateByRects não é afetado por l
     app.mount(container);
     await app.ready();
 
-    // caminho legado: só `[data-mc-day]` existe no DOM (a view Dia está ativa, não as de recurso).
     for (const column of Array.from(container.querySelectorAll('[data-mc-day]'))) {
       (column as HTMLElement).getBoundingClientRect = () =>
         ({
@@ -500,9 +541,9 @@ describe('TimeGrid — guarda de regressão (locateByRects não é afetado por l
     expect(container.querySelectorAll('[data-mc-slot]')).toHaveLength(0);
 
     const eventNode = container.querySelector('[data-mc-event]') as HTMLElement;
-    firePointer(eventNode, 'pointerdown', 5, 180);
-    firePointer(document, 'pointermove', 5, 300);
-    firePointer(document, 'pointerup', 5, 300);
+    firePointer({ target: eventNode, type: 'pointerdown', clientX: 5, clientY: 180 });
+    firePointer({ target: document, type: 'pointermove', clientX: 5, clientY: 300 });
+    firePointer({ target: document, type: 'pointerup', clientX: 5, clientY: 300 });
 
     expect(drops).toHaveLength(1);
     expect(app.getState().events[0]!.time.start.dateTime).toBe('2026-07-22T11:00:00');
