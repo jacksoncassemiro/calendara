@@ -97,11 +97,20 @@ async (page) => {
   )
     throw new Error(`Transferência truncou plantão: ${JSON.stringify(moved)}`);
   await page.evaluate(() => window.clinicianApp.changeView('month'));
+  for (const date of ['2026-10-07', '2026-10-08']) {
+    if (!(await root.locator(`[data-mc-month-day="${date}"] .mc-month-more`).isVisible()))
+      throw new Error(`Plantão ausente da contagem mobile: ${date}`);
+  }
+  await root.locator('[data-mc-month-day="2026-10-07"] .mc-month-more').click();
+  await root.locator('.mc-month-popover [data-mc-event^="night@"]').waitFor();
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1200, height: 900 });
   const dates = await root
     .locator('[data-mc-month-event^="night@"]')
     .getAttribute('data-mc-month-dates');
   if (dates !== '2026-10-07 2026-10-08')
     throw new Error(`Troca de view perdeu intervalo: ${dates}`);
+  await page.setViewportSize({ width: 375, height: 900 });
   await page.evaluate(() => {
     window.clinicianApp.setOptions({ startHour: 0, endHour: 24 });
     window.clinicianApp.changeView('timeline');

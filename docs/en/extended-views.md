@@ -4,6 +4,8 @@
 
 Register each view explicitly. The extra views do not change `BUILTIN_VIEWS`, which remains the week/day/month/list shortcut.
 
+Month cards adapt to the measured width of each month panel, including calendars placed side by side. `monthMaxEvents` is an upper limit (default 3); narrow cells progressively show fewer cards until only the date and +more count remain. `monthMaxEvents: false` preserves unlimited cards. Hidden events retain the same `onMonthMoreClick`, `renderMonthMore` and `monthMoreView` behavior; this does not enable the separate opt-in compact date-picker mode.
+
 Month, year and quarter panels show six weeks by default. Set `options={{ monthFixedWeeks: false }}` for four to six weeks according to the month. Load the complete reported visible range, including adjacent-month dates. Annual planner rows keep a uniform height and a synchronized top scrollbar; their day width can be styled with `--mc-year-day-width` (default 120px).
 
 ```tsx

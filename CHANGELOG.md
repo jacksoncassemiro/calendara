@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-09
+
+- Improve month overflow-control contrast and reduce its vertical spacing.
+- Adapt visible month cards and minimum day height to each panel's measured width, including year/quarter views; preserve overflow callbacks and explicit unlimited rendering.
+
 ## [0.4.1] - 2026-10-09
 
 - Align month-panel and week heights across year/quarter views when event density differs.

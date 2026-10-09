@@ -4,7 +4,17 @@
  */
 import { occurrenceKey } from '../../core/render/derive.js';
 import { DayHeaderContent } from './components/DayHeaderContent.js';
-import { createElement, lazy, Suspense, useEffect, useId, useRef, useState, type JSX } from 'react';
+import {
+  createElement,
+  lazy,
+  Suspense,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type JSX,
+} from 'react';
 import { hasAvailableTime } from '../../core/constraint/constraintEngine.js';
 import type { EventOccurrence, TemporalLike } from '../../core/index.js';
 import { occurrenceStart, resolveHour } from '../../core/index.js';
@@ -146,6 +156,7 @@ function MonthGrid(props: {
 }): JSX.Element {
   const compactBreakpoint = props.context.options.monthCompactBreakpoint ?? false;
   const rootRef = useRef<HTMLDivElement>(null);
+  const [panelWidth, setPanelWidth] = useState(0);
   const [compact, setCompact] = useState(false);
   const [selectedISO, setSelectedISO] = useState<string>();
   const [expandedISO, setExpandedISO] = useState<string>();
@@ -157,7 +168,10 @@ function MonthGrid(props: {
     const element = rootRef.current;
     if (!element) return;
     const updateWidth = (width: number) => {
-      if (width > 0) setCompact(compactBreakpoint !== false && width < compactBreakpoint);
+      if (width > 0) {
+        setPanelWidth(Math.floor(width));
+        setCompact(compactBreakpoint !== false && width < compactBreakpoint);
+      }
     };
     const measure = () => updateWidth(element.getBoundingClientRect().width);
     measure();
@@ -240,7 +254,15 @@ function MonthGrid(props: {
     setMoreInfo(undefined);
   }, [range.startDate.toString(), props.context.referenceDateISO]);
   const showDetail = compact || expandedISO === selectedDay.toString();
-  const maxEvents = options.monthMaxEvents === false ? Infinity : (options.monthMaxEvents ?? 3);
+  // Reserve date and overflow controls before fitting cards to the cell width. / PT: Reserva data e overflow antes de ajustar cartões à largura da célula.
+  const availableCardRows =
+    panelWidth > 0 ? Math.max(0, Math.floor((panelWidth / 7 - 48) / 22)) : 3;
+  const maxEvents =
+    options.monthMaxEvents === false
+      ? Infinity
+      : compact
+        ? (options.monthMaxEvents ?? 3)
+        : Math.min(options.monthMaxEvents ?? 3, availableCardRows);
   const closeDetail = () => {
     setExpandedISO(undefined);
     moreAnchorRef.current?.focus({ preventScroll: true });
@@ -260,13 +282,20 @@ function MonthGrid(props: {
   );
   const monthLaneCount = Math.max(0, ...weekSegments.flat().map((segment) => segment.lane + 1));
   const monthEventsHeight =
-    Math.min(monthLaneCount, maxEvents) * 22 + (monthLaneCount > maxEvents ? 28 : 0);
+    Math.min(monthLaneCount, maxEvents) * 22 + (monthLaneCount > maxEvents ? 24 : 0);
 
   return (
     <div
       ref={rootRef}
       className={`mc-month${compact ? ' mc-month-compact' : ''}`}
       data-mc-view="month"
+      style={
+        panelWidth > 0
+          ? ({
+              '--mc-month-day-min-height': `${Math.min(96, Math.max(48, panelWidth / 7))}px`,
+            } as CSSProperties)
+          : undefined
+      }
     >
       {compact && <p className="mc-month-legend">{labels.monthLegend}</p>}
       <div className="mc-month-weekdays" style={{ display: 'flex' }}>

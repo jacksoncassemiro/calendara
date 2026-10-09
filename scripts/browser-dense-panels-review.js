@@ -3,7 +3,7 @@ async (page) => {
   const errors = [];
   const recordError = (error) => errors.push(error.message);
   page.on('pageerror', recordError);
-  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.setViewportSize({ width: 1800, height: 900 });
   await page.goto(`${origin}/examples/features.html?demo=quarter&lang=en&theme=dark`);
   await page.locator('[data-mc-root]').waitFor();
   await page.evaluate(async () => {
@@ -11,7 +11,7 @@ async (page) => {
     document.querySelector('main').hidden = true;
     const host = document.createElement('div');
     host.id = 'dense-panels-fixture';
-    host.style.cssText = 'width:1200px;max-width:100%;margin:20px auto';
+    host.style.cssText = 'width:1600px;max-width:100%;margin:20px auto';
     document.body.append(host);
     const events = Array.from({ length: 20 }, (_, index) => ({
       id: `dense-${index}`,
