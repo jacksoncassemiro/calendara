@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- Mede a largura dos painéis mensais antes da pintura para evitar layouts de ano/trimestre temporariamente esticados na troca de views.
+
 ## [0.4.3] - 2026-10-09
 
 - Alinha o controle de excedentes do planejamento anual aos botões/popovers do mês e aos callbacks/navegação existentes.

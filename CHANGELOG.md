@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- Measure month-panel width before paint to avoid temporary oversized year/quarter layouts when switching views.
+
 ## [0.4.3] - 2026-10-09
 
 - Align annual-planner overflow controls with month buttons/popovers and existing overflow callbacks/navigation.
