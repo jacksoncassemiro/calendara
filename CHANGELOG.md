@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-10-09
+
 - Align annual-planner overflow controls with month buttons/popovers and existing overflow callbacks/navigation.
 - Expand the API-driven day-background example to month, quarter, year, year planner and resource timeline views.
 

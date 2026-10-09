@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-10-09
+
 - Alinha o controle de excedentes do planejamento anual aos botões/popovers do mês e aos callbacks/navegação existentes.
 - Amplia o exemplo de fundo do dia por API para mês, trimestre, ano, planejamento anual e timeline de recursos.
 
