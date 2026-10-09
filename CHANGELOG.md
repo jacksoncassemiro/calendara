@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-09
+
 - Align month-panel and week heights across year/quarter views when event density differs.
 - Measure wrapped resource/group titles to keep timeline rows and virtualization geometry aligned, including font changes.
 - Use automatic hour-label spacing in the narrow hierarchical timeline example.
