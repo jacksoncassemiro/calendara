@@ -70,8 +70,8 @@ export interface CalendarOptions {
    * @remarks Português: Duração mínima visual e de redimensionamento em minutos; padrão 15.
    */
   minEventMinutes: number;
-  /** Month cards per day; default 3, false shows all.
-   * @remarks Português: Cartões por dia no mês; padrão 3, false exibe todos.
+  /** Maximum month cards per day; default 3, narrowed panels may show fewer or only +more; false shows all.
+   * @remarks Português: Máximo de cartões por dia; padrão 3, painéis estreitos podem reduzir até só +mais; false exibe todos.
    */
   monthMaxEvents?: number | false;
   /** Six weeks in month panels; default true, false uses 4–6 weeks as needed.

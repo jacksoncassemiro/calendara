@@ -104,7 +104,13 @@ async (page) => {
   ]) {
     await page.evaluate((name) => window.extendedApp.changeView(name), view);
     await page.waitForTimeout(100);
-    const text = await page.locator('#extended-fixture').innerText();
+    let text = await page.locator('#extended-fixture').innerText();
+    if (!text.includes('Appointment') && ['quarter', 'year'].includes(view)) {
+      await page.locator('#extended-fixture .mc-month-more').first().click();
+      await page.locator('#extended-fixture .mc-month-popover').waitFor();
+      text = await page.locator('#extended-fixture').innerText();
+      await page.keyboard.press('Escape');
+    }
     if (!text.includes('Appointment')) throw new Error(`Missing event in ${view}`);
     if (
       view === 'quarter' &&
