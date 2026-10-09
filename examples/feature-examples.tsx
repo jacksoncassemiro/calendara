@@ -286,7 +286,7 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
     endHour: 14,
     pxPerMinute: 1.5,
     slotMinutes: 30,
-    timeLabelInterval: 60,
+    timeLabelInterval: id === 'timeline-tree' ? undefined : 60,
     nowMs: Date.parse('2026-10-08T12:00:00Z'),
     ...definition.options,
     ...(id === 'month' ? { monthCompactBreakpoint: monthIndicators ? 480 : false } : {}),

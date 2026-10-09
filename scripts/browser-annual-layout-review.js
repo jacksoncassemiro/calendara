@@ -116,6 +116,10 @@ async (page) => {
   )
     throw new Error('Natural month weeks option ignored');
   await page.evaluate(() => window.annualLayoutApp.setOptions({ monthFixedWeeks: true }));
+  await page.evaluate(() => {
+    window.annualLayoutEvents = window.annualLayoutApp.getState().events;
+    window.annualLayoutApp.setEvents([]);
+  });
   const year = await fixture
     .locator('[data-mc-month-panel]')
     .first()
@@ -140,7 +144,10 @@ async (page) => {
   )
     throw new Error(`Multi-month sizing/borders: ${JSON.stringify(year)}`);
   await page.screenshot({ path: 'output/layout-review/annual-layout-year.png' });
-  await page.evaluate(() => window.annualLayoutApp.changeView('period'));
+  await page.evaluate(() => {
+    window.annualLayoutApp.setEvents(window.annualLayoutEvents);
+    window.annualLayoutApp.changeView('period');
+  });
   const group = fixture.locator('.mc-period-group-row');
   if ((await group.locator('.mc-period-group-day').count()) !== 7)
     throw new Error('Missing day boundaries in resource group row');
