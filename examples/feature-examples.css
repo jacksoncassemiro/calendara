@@ -24,6 +24,12 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
+.mc-month-day .focused-day-status {
+  padding-inline: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .focused-main {
   max-width: 1500px;
   margin: 0 auto;

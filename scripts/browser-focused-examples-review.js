@@ -116,6 +116,28 @@ async (page) => {
       throw new Error('API status contrast failed: ' + theme + JSON.stringify(decorated));
     await page.screenshot({ path: `output/layout-review/day-status-${theme}.png`, fullPage: true });
   }
+  for (const view of ['month', 'quarter', 'year', 'year-planner', 'timeline-week']) {
+    const button = page.locator(`[data-mc-view-btn="${view}"]`);
+    if (await button.isVisible()) await button.click();
+    else await page.locator('.mc-view-select').selectOption(view);
+    const cell = page
+      .locator(
+        view === 'year-planner'
+          ? '[data-mc-year-planner-date="2026-10-09"]'
+          : view === 'timeline-week'
+            ? '[data-mc-timeline-date="2026-10-09"]'
+            : '[data-mc-month-day="2026-10-09"]',
+      )
+      .first();
+    await cell.waitFor();
+    const label = cell.locator('[data-day-status="unavailable"]').first();
+    await label.waitFor();
+    if (
+      await cell.evaluate((node) => getComputedStyle(node).backgroundColor === 'rgba(0, 0, 0, 0)')
+    )
+      throw new Error(`Missing API day background in ${view}`);
+    await page.screenshot({ path: `output/layout-review/day-status-${view}.png`, fullPage: true });
+  }
   await page.goto(url('month'));
   await page.getByRole('button', { name: 'Phone · 360 px', exact: true }).click();
   const monthLayout = await page.locator('.mc-month').evaluate((month) => {
