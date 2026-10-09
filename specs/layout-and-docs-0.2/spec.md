@@ -29,7 +29,7 @@
 - [x] Final local verification: 567 tests in 44 suites, 41 generated contracts, package consumption and complete browser suite (138.35 s). Additional horizontal timeline swipe passed.
 - [x] Inspect annual event containment, searchable feature directory and resource-window/RTL screenshots.
 - [x] GitHub Linux/Chrome CI after bounding native number controls at 320 px: run 37959495682 passed (commit de92ff0).
-- [ ] Protected feature/release PRs, tagged archive/checksum, independent consumer installation and Pages deployment.
+- [x] Protected feature/release PRs, tagged archive/checksum, independent consumer installation and Pages deployment; see release evidence below.
 
 Horizontal virtualization, projection caching, complete iCalendar/invitation semantics and physical-mobile/Safari/screen-reader certification remain explicit product limits. Storybook migration is outside this change. They must not be described as implemented by the vertical row window or simulated touch checks.
 
@@ -39,4 +39,13 @@ Brand review: documentation and playground share petrol/mint brand tokens with n
 Editor follow-up: partial CalendarEditorMessages overrides, EN/PT fallback, Intl month/weekday labels and intraday options are validated by 13 editor integration cases. Complete verification passed 573 tests in 44 suites with 42 generated contracts; the full browser suite passed in 115.89 s, including the 28th focused translation example. A finite-count default mitigates accidental unbounded intraday expansion. Transparent 3x site-logo exports replace opaque README captures.
 
 Grouped editor dictionary: fields/actions/scope/recurrence/validation/feedback expose partial per-section overrides; dynamic validation receives a named context object. Final local verification passed 573 tests in 44 suites and 50 generated contracts (367 fields); the complete browser suite passed in 117.54 s. Limiting concurrent test workers to four prevents a monthly timeline timeout observed only in the full parallel suite. The measured Month + Day fixture stays at 72,856 gzip bytes; the optional editor fixture totals 82,073 gzip bytes across its chunks.
+
+## Release evidence — 0.3.0
+
+- Implementation PR #26, release PR #27 and main → develop synchronization PR #28 were integrated after required CI checks.
+- Tag `v0.3.0` points to reviewed commit `538b9e703e20bacb567662f148dd1cdc499edff2`. Release workflow `37966362140` repeated package/browser validation before the protected draft job.
+- Public assets: `calendara-0.3.0.tgz` and `SHA256SUMS`; archive SHA256 `e041b644b1d45392185816206d00c11f28ba4a9d31102a98e1d90fc46a263cb8` matched the downloaded file.
+- Independent consumer installed the public release URL with Yarn 1.22.22, then passed frozen-lockfile installation and production build. Edge verified move to 10:00, resize until 11:30, month/day state preservation and a bounded 360 px desktop viewport with no page errors. No source aliases or workspace links were used.
+- Pages workflow `37966343182` deployed successfully. HTTPS was enforced; the public documentation exposes version 0.3.0 and grouped message contracts. The published editor translation example loaded and opened with its Spanish overrides without page errors.
+- Evidence logs/screenshots are local Git-ignored outputs. Physical mobile, Safari and screen-reader certification remain outside this evidence.
 
