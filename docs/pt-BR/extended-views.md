@@ -4,6 +4,8 @@
 
 Registre cada view explicitamente. As views adicionais não alteram `BUILTIN_VIEWS`, que continua como atalho de semana/dia/mês/lista.
 
+Os painéis de mês, ano e trimestre exibem seis semanas por padrão. Use `options={{ monthFixedWeeks: false }}` para quatro a seis semanas conforme o mês. Carregue todo o intervalo visível informado, incluindo datas de meses adjacentes. As linhas do planejamento anual mantêm altura uniforme e um scrollbar superior sincronizado; sua largura de dia pode ser estilizada por `--mc-year-day-width` (padrão 120px).
+
 ```tsx
 import {
   Calendar,

@@ -74,6 +74,10 @@ export interface CalendarOptions {
    * @remarks Português: Cartões por dia no mês; padrão 3, false exibe todos.
    */
   monthMaxEvents?: number | false;
+  /** Six weeks in month panels; default true, false uses 4–6 weeks as needed.
+   * @remarks Português: Seis semanas nos painéis mensais; padrão true, false usa 4–6 conforme necessário.
+   */
+  monthFixedWeeks?: boolean;
   /** Opt-in date-picker threshold in container CSS pixels; default false keeps event cards.
    * @remarks Português: Limite opcional do modo compacto em pixels CSS do contêiner; padrão false mantém cartões.
    */
@@ -157,6 +161,7 @@ export const DEFAULT_OPTIONS: CalendarOptions = {
   nowMs: null,
   minEventMinutes: 15,
   monthMaxEvents: 3,
+  monthFixedWeeks: true,
   monthCompactBreakpoint: false,
   slotEventOverlap: false,
 };
@@ -165,6 +170,8 @@ export const DEFAULT_OPTIONS: CalendarOptions = {
  * @remarks Português: Rejeita intervalos, escalas e limites inválidos antes da renderização.
  */
 export function validateCalendarOptions(options: CalendarOptions): void {
+  if (options.monthFixedWeeks !== undefined && typeof options.monthFixedWeeks !== 'boolean')
+    throw new RangeError('monthFixedWeeks must be a boolean');
   if (options.direction !== undefined && options.direction !== 'ltr' && options.direction !== 'rtl')
     throw new RangeError('direction must be ltr or rtl');
   const validHour = (value: GridHour): boolean => {

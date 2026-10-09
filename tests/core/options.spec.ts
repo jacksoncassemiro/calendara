@@ -27,4 +27,9 @@ describe('grid option validation', () => {
       validateCalendarOptions({ ...DEFAULT_OPTIONS, startHour: '07:30', endHour: '24:00' }),
     ).not.toThrow();
   });
+  it('requires a boolean for fixed month weeks', () => {
+    expect(() =>
+      validateCalendarOptions({ ...DEFAULT_OPTIONS, monthFixedWeeks: 'six' as unknown as boolean }),
+    ).toThrow(RangeError);
+  });
 });

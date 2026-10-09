@@ -10,7 +10,7 @@ export function usePageStickyHeaders(
     const scroller = scrollRef.current;
     if (!scroller) return;
     const header = scroller.querySelector<HTMLElement>(
-      ':scope > .mc-header-row, :scope > .mc-resource-header-row, :scope > .mc-timeline-header',
+      ':scope > .mc-header-row, :scope > .mc-resource-header-row, :scope > .mc-timeline-header, :scope > .mc-year-planner > thead',
     );
     if (!header) return;
     let allDay = scroller.querySelector<HTMLElement>(
@@ -86,7 +86,12 @@ export function usePageStickyHeaders(
         }
       });
       copy.classList.add('mc-page-sticky-content');
-      corners = [...copy.querySelectorAll<HTMLElement>('.mc-gutter-corner, .mc-timeline-corner')];
+      if (header.tagName === 'THEAD') copy.classList.add('mc-year-planner');
+      corners = [
+        ...copy.querySelectorAll<HTMLElement>(
+          '.mc-gutter-corner, .mc-timeline-corner, .mc-year-planner-corner',
+        ),
+      ];
       if (!corners.length && copy.firstElementChild)
         corners = [copy.firstElementChild as HTMLElement];
       corners.forEach((corner) => corner.classList.add('mc-page-sticky-corner'));

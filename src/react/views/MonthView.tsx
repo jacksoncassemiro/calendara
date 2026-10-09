@@ -103,9 +103,12 @@ export const monthView: CalendarView = {
     const firstOfMonth = date.with({ day: 1 });
     const lastOfMonth = date.with({ day: date.daysInMonth });
     const gridStart = dateUtils.startOfWeek({ date: firstOfMonth, weekStart: options.weekStart });
-    const gridEndExclusive = dateUtils
-      .startOfWeek({ date: lastOfMonth, weekStart: options.weekStart })
-      .add({ days: 7 });
+    const gridEndExclusive =
+      options.monthFixedWeeks !== false
+        ? gridStart.add({ days: 42 })
+        : dateUtils
+            .startOfWeek({ date: lastOfMonth, weekStart: options.weekStart })
+            .add({ days: 7 });
     const days = dateUtils.eachDayOfRange({ start: gridStart, end: gridEndExclusive });
     return {
       days,

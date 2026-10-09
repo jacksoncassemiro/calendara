@@ -73,13 +73,16 @@ function makeApp(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Fase 3 — Month / List / NDays', () => {
-  it('MonthView: 35 células e recorrência semanal expandida (5 quartas)', async () => {
+  it('MonthView: 42 células e recorrência semanal incluindo datas adjacentes (6 quartas)', async () => {
     const { app, container } = makeApp();
     await app.ready();
     app.changeView('month');
 
-    expect(container.querySelectorAll('[data-mc-month-day]')).toHaveLength(35);
-    expect(container.querySelectorAll('[data-mc-month-event^="e3@"]').length).toBe(5);
+    expect(container.querySelectorAll('[data-mc-month-day]')).toHaveLength(42);
+    expect(container.querySelectorAll('[data-mc-month-event^="e3@"]').length).toBe(6);
+    expect(
+      container.querySelector('[data-mc-month-day="2026-08-05"] [data-mc-month-event^="e3@"]'),
+    ).not.toBeNull();
     const wed22 = container.querySelector('[data-mc-month-day="2026-07-22"]') as HTMLElement;
     expect(wed22.querySelectorAll('[data-mc-month-event]').length).toBe(2);
     app.destroy();

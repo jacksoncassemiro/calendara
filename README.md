@@ -72,6 +72,10 @@ export function App() {
 
 This developing library does not offer complete scheduler parity. Civil recurrence uses injected Temporal, with a lazy `temporal-polyfill` fallback. Physical Safari/mobile and assistive-technology checks remain separate from automated Chromium validation. See [features and limits](docs/en/features.md).
 
+## AI-assisted integration
+
+Using an AI assistant? Start with the [AI integration guide](docs/en/ai-integration.md). The site's [llms.txt](https://jacksoncassemiro.me/calendara/llms.txt) indexes readable guides and generated API contracts.
+
 ## Develop
 
 ```sh

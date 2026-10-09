@@ -9,6 +9,28 @@ async (page) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${origin}${siteBase}index.html`);
   await page.getByRole('heading', { name: 'Uma agenda que se adapta ao seu trabalho.' }).waitFor();
+  const indexResponse = await page.request.get(`${origin}${siteBase}llms.txt`);
+  if (!indexResponse.ok()) throw new Error('AI documentation index unavailable');
+  const indexText = await indexResponse.text();
+  const indexedUrls = [
+    ...indexText.matchAll(/\]\((https:\/\/jacksoncassemiro\.me\/calendara\/docs\/[^)]+)\)/g),
+  ];
+  if (indexedUrls.length < 8) throw new Error('AI index is missing integration guides');
+  for (const [, url] of indexedUrls) {
+    const path = new URL(url).pathname.replace('/calendara/', siteBase);
+    const response = await page.request.get(`${origin}${path}`);
+    const content = await response.text();
+    if (!response.ok() || !content.startsWith('# '))
+      throw new Error(`Unreadable AI guide: ${path}`);
+    if (
+      path.endsWith('api-reference.md') &&
+      (!content.includes('monthFixedWeeks') || !content.includes('Português:'))
+    )
+      throw new Error('Generated Markdown API missing current bilingual contracts');
+  }
+  const discoveryHref = await page.locator('link[rel="describedby"]').getAttribute('href');
+  if (!discoveryHref || new URL(discoveryHref, page.url()).href !== `${origin}${siteBase}llms.txt`)
+    throw new Error('AI documentation discovery link missing');
   if (runtimeErrors.length) throw new Error(runtimeErrors.join('\n'));
   const demo = page.getByRole('link', { name: 'Experimentar a agenda', exact: true }).first();
   if (!(await demo.getAttribute('href')).split('?')[0].endsWith('examples/react.html'))

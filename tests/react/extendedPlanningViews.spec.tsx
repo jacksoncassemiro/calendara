@@ -19,6 +19,7 @@ import {
 } from '../../src/react/views/MultiMonthView.js';
 import { yearPlannerView } from '../../src/react/views/YearPlannerView.js';
 import { dayAgendaView } from '../../src/react/views/DayAgendaView.js';
+import { monthView } from '../../src/react/views/MonthView.js';
 
 const temporal = Temporal as unknown as TemporalLike;
 const base = {
@@ -99,6 +100,38 @@ const trip = occurrence({
 });
 
 describe('multi-month planning ranges', () => {
+  it.each([
+    { dateISO: '2021-02-01', naturalDays: 28 },
+    { dateISO: '2026-10-01', naturalDays: 35 },
+    { dateISO: '2026-03-01', naturalDays: 42 },
+  ])('uses six complete weeks for $dateISO unless disabled', ({ dateISO, naturalDays }) => {
+    const date = temporal.PlainDate.from(dateISO);
+    const fixed = monthView.getRange(date, base);
+    expect(fixed.days).toHaveLength(42);
+    expect(fixed.days.at(-1)!.since(fixed.days[0]!).days).toBe(41);
+    const natural = monthView.getRange(date, {
+      ...base,
+      options: { ...base.options, monthFixedWeeks: false },
+    });
+    expect(natural.days).toHaveLength(naturalDays);
+  });
+  it('shares fixed-week configuration across every annual panel', () => {
+    const { element } = mount({ view: yearView, dateISO: '2026-10-07' });
+    for (const panel of element.querySelectorAll('[data-mc-month-panel]'))
+      expect(panel.querySelectorAll('.mc-month-week')).toHaveLength(6);
+    const natural = mount({
+      view: quarterView,
+      dateISO: '2026-10-07',
+      overrides: {
+        options: { ...base.options, monthFixedWeeks: false },
+      },
+    });
+    expect(
+      [...natural.element.querySelectorAll('[data-mc-month-panel]')].map(
+        (panel) => panel.querySelectorAll('.mc-month-week').length,
+      ),
+    ).toEqual([5, 6, 5]);
+  });
   it('aligns quarters and navigates to the next aligned quarter', () => {
     const date = temporal.PlainDate.from('2024-02-29');
     const range = quarterView.getRange(date, base);

@@ -1,5 +1,7 @@
 # Calendara documentation
 
+- [AI integration guide](ai-integration.md)
+
 [Português](../pt-BR/README.md)
 
 - [Getting started](getting-started.md): GitHub asset installation and first React app.
