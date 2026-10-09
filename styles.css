@@ -1034,9 +1034,12 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 1.5rem;
   padding: 1rem;
-  align-items: start;
+  align-items: stretch;
+  grid-auto-rows: 1fr;
 }
 .mc-multi-month-panel {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   border: 1px solid var(--mc-color-border);
   border-radius: 0.5rem;
@@ -1050,6 +1053,12 @@
 }
 .mc-multi-month-panel .mc-month-week {
   min-height: 64px;
+  flex: 1;
+}
+.mc-multi-month-panel .mc-month:not(.mc-month-compact) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 .mc-multi-month-panel .mc-month-day {
   min-height: 64px;
@@ -1246,9 +1255,8 @@
   color: inherit;
   font: inherit;
   text-align: start;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 [data-mc-root] .mc-period-resource-labels > div {
   box-sizing: border-box;
