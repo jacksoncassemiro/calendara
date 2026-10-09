@@ -1,10 +1,12 @@
-/**
- * Adapta a API imperativa do `CalendarApp` para o `CalendarHandle` público (superfície estável,
- * sem vazar o objeto interno do core).
+/** Expose controller actions without exposing its internal instance.
+ * @remarks Português: Expõe ações do controlador sem expor sua instância interna.
  */
 import type { CalendarApp } from './app/calendarApp.js';
 import type { CalendarHandle } from './types.js';
 
+/** Adapt the controller to the stable public API.
+ * @remarks Português: Adapta o controlador à API pública estável.
+ */
 export function createHandle(app: CalendarApp): CalendarHandle {
   return {
     prev: () => app.prev(),

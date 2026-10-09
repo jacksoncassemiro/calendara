@@ -1,9 +1,7 @@
+/** Pin visual headers and synchronize horizontal scrolling. @remarks Português: Fixa cabeçalhos visuais e sincroniza scroll horizontal. */
 import { useEffect, useRef, type RefObject } from 'react';
 
-/** Keeps the visible header above a horizontally scrolling grid during page scrolling.
- * The original header remains in flow and accessible; its visual copy has no interactions.
- * DOM updates avoid React renders on pointer/scroll frames. */
-export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
+export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement | null> {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const scroller = scrollRef.current;
@@ -23,6 +21,38 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
     overlay.setAttribute('aria-hidden', 'true');
     overlay.inert = true;
     scroller.after(overlay);
+    const scrollbarHost = document.createElement('div');
+    scrollbarHost.className = 'mc-header-scrollbar-host';
+    const scrollbar = document.createElement('div');
+    scrollbar.className = 'mc-header-scrollbar';
+    scrollbar.tabIndex = 0;
+    scrollbar.setAttribute('role', 'region');
+    scrollbar.setAttribute(
+      'aria-label',
+      (locale ?? document.documentElement.lang).startsWith('pt')
+        ? 'Rolagem horizontal do calendário'
+        : 'Calendar horizontal scrolling',
+    );
+    const scrollbarContent = document.createElement('div');
+    scrollbarContent.style.height = '1px';
+    scrollbar.append(scrollbarContent);
+    scrollbarHost.append(scrollbar);
+    scroller.before(scrollbarHost);
+    let pendingScrollbarPosition: number | null = null;
+    const syncScroll = (): void => {
+      // Ignore queued events from synchronization. PT: Ignora eventos enfileirados pela sincronização.
+      if (
+        pendingScrollbarPosition !== null &&
+        Math.abs(scrollbar.scrollLeft - pendingScrollbarPosition) <= 1
+      ) {
+        pendingScrollbarPosition = null;
+        return;
+      }
+      pendingScrollbarPosition = null;
+      if (Math.abs(scroller.scrollLeft - scrollbar.scrollLeft) > 1)
+        scroller.scrollLeft = scrollbar.scrollLeft;
+    };
+    scrollbar.addEventListener('scroll', syncScroll, { passive: true });
     const placeholder = document.createElement('div');
     placeholder.className = 'mc-page-allday-placeholder';
     placeholder.style.display = 'none';
@@ -44,7 +74,7 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
     let disposed = false;
     const refreshCopy = (): void => {
       copy = header.cloneNode(true) as HTMLElement;
-      // The visual copy must not become a second event/slot/header in DOM integrations.
+      // Exclude visual copies from DOM integrations. PT: Exclui cópias visuais das integrações DOM.
       [copy, ...copy.querySelectorAll('*')].forEach((element) => {
         for (const attribute of [...element.attributes]) {
           if (attribute.name === 'id' || attribute.name.startsWith('data-mc-'))
@@ -77,7 +107,7 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
       const offset =
         Number.parseFloat(window.getComputedStyle(scroller).getPropertyValue('--mc-sticky-top')) ||
         0;
-      // A consumer can opt into a bounded internal scrollport, whose original header is sticky.
+      // Internal scrollports retain their original sticky header. PT: Rolagem interna mantém o cabeçalho fixo original.
       const internal = scroller.scrollHeight > scroller.clientHeight + 1;
       scroller.classList.toggle('mc-internal-scroll', internal);
       scroller.style.setProperty('--mc-sticky-header-height', `${source.height}px`);
@@ -88,11 +118,26 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
         viewport.bottom > offset + source.height &&
         viewport.right > 0 &&
         viewport.left < window.innerWidth;
+      const hasHorizontalOverflow = scroller.scrollWidth > scroller.clientWidth + 1;
+      scrollbarHost.style.display = hasHorizontalOverflow ? 'block' : 'none';
+      scrollbarContent.style.width = `${scroller.scrollWidth}px`;
+      scrollbar.style.position = visible ? 'fixed' : 'relative';
+      scrollbar.style.top = visible
+        ? `${offset + source.height + (allDay?.getBoundingClientRect().height ?? 0)}px`
+        : '0px';
+      scrollbar.style.left = visible ? `${viewport.left + scroller.clientLeft}px` : '0px';
+      scrollbar.style.width = `${scroller.clientWidth}px`;
+      if (Math.abs(scrollbar.scrollLeft - scroller.scrollLeft) > 1) {
+        scrollbar.scrollLeft = scroller.scrollLeft;
+        pendingScrollbarPosition = scrollbar.scrollLeft;
+      }
       overlay.style.display = visible ? 'block' : 'none';
       if (!visible) restoreAllDay();
       const pinnedHeight =
         visible || (internal && scroller.scrollTop > 0)
-          ? source.height + (allDay?.getBoundingClientRect().height ?? 0)
+          ? source.height +
+            (allDay?.getBoundingClientRect().height ?? 0) +
+            (visible && hasHorizontalOverflow ? scrollbar.offsetHeight : 0)
           : 0;
       const contentTop = internal
         ? viewport.top + pinnedHeight
@@ -144,7 +189,7 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
         copyDirty = true;
       schedule();
     });
-    // Do not observe styles: content offsets written during scroll must not schedule themselves.
+    // Ignore style mutations to prevent scroll-update loops. PT: Ignora mudanças de estilo para evitar ciclos de atualização na rolagem.
     observer.observe(scroller, {
       childList: true,
       subtree: true,
@@ -169,6 +214,8 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
       window.removeEventListener('scroll', schedule, true);
       window.removeEventListener('resize', schedule);
       overlay.remove();
+      scrollbar.removeEventListener('scroll', syncScroll);
+      scrollbarHost.remove();
       restoreAllDay();
       placeholder.remove();
       scroller.classList.remove('mc-internal-scroll');
@@ -177,6 +224,6 @@ export function usePageStickyHeaders(): RefObject<HTMLDivElement | null> {
         .querySelectorAll<HTMLElement>('.mc-event-content')
         .forEach((content) => content.style.removeProperty('--mc-content-offset'));
     };
-  }, []);
+  }, [locale]);
   return scrollRef;
 }

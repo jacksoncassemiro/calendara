@@ -18,7 +18,21 @@ const resources: CalendarResource[] = [
   { id: 'r2', title: 'Sala 2', capacity: 2, bufferAfter: 15, order: 2 },
 ];
 
-function timed(id: string, startHM: string, endHM: string, resourceIds: string[]): CalendarEvent {
+function timed({
+  id,
+  startHM,
+  endHM,
+  resourceIds,
+}: {
+  /** Fixture event identifier. / PT: Identificador do evento de teste. */
+  id: string;
+  /** Local start time, HH:mm. / PT: Horário local inicial, HH:mm. */
+  startHM: string;
+  /** Exclusive local end time, HH:mm. / PT: Horário local final exclusivo, HH:mm. */
+  endHM: string;
+  /** Assigned resource identifiers. / PT: Identificadores dos recursos atribuidos. */
+  resourceIds: string[];
+}): CalendarEvent {
   return {
     id,
     calendarId: 'c1',
@@ -32,13 +46,11 @@ function timed(id: string, startHM: string, endHM: string, resourceIds: string[]
   };
 }
 
-// r1: a(09-10) e b(09:30-10:30) → concorrência 2 > capacity 1 (lotação estourada)
-// r2: c(09-10) e m(11-12); m é multi-recurso (r1+r2). bufferAfter 15 → 2 bandas de buffer em r2.
 const events: CalendarEvent[] = [
-  timed('a', '09:00', '10:00', ['r1']),
-  timed('b', '09:30', '10:30', ['r1']),
-  timed('c', '09:00', '10:00', ['r2']),
-  timed('m', '11:00', '12:00', ['r1', 'r2']),
+  timed({ id: 'a', startHM: '09:00', endHM: '10:00', resourceIds: ['r1'] }),
+  timed({ id: 'b', startHM: '09:30', endHM: '10:30', resourceIds: ['r1'] }),
+  timed({ id: 'c', startHM: '09:00', endHM: '10:00', resourceIds: ['r2'] }),
+  timed({ id: 'm', startHM: '11:00', endHM: '12:00', resourceIds: ['r1', 'r2'] }),
 ];
 
 function makeApp(view: string) {
@@ -82,8 +94,8 @@ describe('Fase 3B — Multiagenda (colunas por recurso)', () => {
     await app.ready();
     const r1 = container.querySelector('[data-mc-resource-header="r1"]') as HTMLElement;
     const r2 = container.querySelector('[data-mc-resource-header="r2"]') as HTMLElement;
-    expect(r1.querySelector('[data-mc-over-capacity]')).toBeTruthy(); // 2/1
-    expect(r2.querySelector('[data-mc-over-capacity]')).toBeNull(); // 1/2 ok
+    expect(r1.querySelector('[data-mc-over-capacity]')).toBeTruthy();
+    expect(r2.querySelector('[data-mc-over-capacity]')).toBeNull();
     app.destroy();
   });
 
@@ -98,7 +110,7 @@ describe('Fase 3B — Multiagenda (colunas por recurso)', () => {
     const { app, container } = makeApp('resources');
     await app.ready();
     const r2 = container.querySelector('[data-mc-resource="r2"]') as HTMLElement;
-    expect(r2.querySelectorAll('[data-mc-buffer]').length).toBe(2); // após c e após m
+    expect(r2.querySelectorAll('[data-mc-buffer]').length).toBe(2);
     const r1 = container.querySelector('[data-mc-resource="r1"]') as HTMLElement;
     expect(r1.querySelectorAll('[data-mc-buffer]').length).toBe(0);
     app.destroy();
@@ -119,7 +131,6 @@ describe('Fase 3B — Timeline (recursos em linhas)', () => {
     const { app, container } = makeApp('timeline');
     await app.ready();
     expect(container.querySelectorAll('[data-mc-timeline-row]')).toHaveLength(2);
-    // evento multi-recurso aparece nas duas linhas
     expect(container.querySelectorAll('[data-mc-event="m@2026-07-22T11:00:00"]')).toHaveLength(2);
     app.destroy();
   });

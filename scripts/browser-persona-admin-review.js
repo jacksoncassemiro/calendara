@@ -17,7 +17,7 @@ async (page) => {
     host.id = 'admin-fixture';
     document.body.append(host);
     const resources = [{ id: 'triage', title: 'Triagem', capacity: false }];
-    const event = (id, start, end) => ({
+    const event = ({ id, start, end }) => ({
       id,
       calendarId: 'c',
       title: id,
@@ -29,8 +29,10 @@ async (page) => {
       },
     });
     const events = [
-      ...Array.from({ length: 8 }, (_, i) => event('admin' + i, '09:00', '10:00')),
-      event('isolated', '11:00', '11:30'),
+      ...Array.from({ length: 8 }, (_, i) =>
+        event({ id: 'admin' + i, start: '09:00', end: '10:00' }),
+      ),
+      event({ id: 'isolated', start: '11:00', end: '11:30' }),
     ];
     const app = new CalendarApp({
       temporal: await ensureTemporal(),

@@ -27,13 +27,12 @@ interface RuleStartsInput {
  */
 export function ruleStarts({ temporal, event, model, window }: RuleStartsInput): string[] {
   const allDay = event.time.allDay;
-  if (!hasPossibleMonthDay(model.byMonth ?? [], model.byMonthDay ?? [])) return [];
+  if (!hasPossibleMonthDay({ months: model.byMonth ?? [], monthDays: model.byMonthDay ?? [] }))
+    return [];
   const zone = allDay ? 'UTC' : (event.time.start.timeZone ?? 'UTC');
   const start = allDay ? `${event.time.start.date}T00:00:00` : event.time.start.dateTime!;
   const plain = temporal.PlainDateTime.from(start);
   const anchor = plain.toZonedDateTime(zone);
-  // Explicit DTSTART is shifted by the upstream library in gaps. Reject rather
-  // than silently move the entire series to another wall-clock hour.
   if (temporal.PlainDateTime.compare(plain, anchor.toPlainDateTime()) !== 0) {
     throw new RangeError('[calendara] início da série contém horário local inexistente');
   }

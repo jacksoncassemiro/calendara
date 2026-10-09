@@ -1,6 +1,7 @@
 export type {
   CalendarView,
   ViewContext,
+  ViewNavigationInput,
   ViewRange,
   ViewRenderContext,
   EventSlotInfo,
@@ -8,6 +9,8 @@ export type {
   MonthMoreInfo,
   DayStyleInfo,
   DayStyleCallback,
+  DayHeaderInfo,
+  DayHeaderRenderSlot,
   EventMoreInfo,
   EventMoreRenderSlot,
   MonthMoreRenderSlot,

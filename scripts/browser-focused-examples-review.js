@@ -31,14 +31,85 @@ async (page) => {
     await page.locator(`[data-mc-root][data-mc-view="${view}"]`).waitFor();
     if ((await page.locator('.focused-catalog a').count()) !== 16)
       throw new Error('Incomplete focused catalog');
-    if (!(await page.locator('.focused-code').textContent()).includes('Calendar'))
+    if (!(await page.locator('.focused-code').first().textContent()).includes('Calendar'))
       throw new Error('Missing integration code: ' + demo);
     if (demo === 'source')
       await page.getByRole('status').filter({ hasText: 'Simulated source loaded' }).waitFor();
     if (demo === 'custom-render' && !(await page.locator('[data-mc-event] strong').count()))
       throw new Error('Custom render did not apply');
+    const configuration = JSON.parse(await page.locator('.focused-config').textContent());
+    if (configuration.initialView !== view || !configuration.views.includes(view))
+      throw new Error('Displayed configuration differs from rendered view: ' + demo);
+    if (demo === 'custom-view') {
+      const code = await page.locator('.focused-code').first().textContent();
+      if (!code.includes('context.occurrences.map') || !code.includes('context.onEventClick'))
+        throw new Error('Custom view code does not show the rendered event list');
+    }
+  }
+  await page.goto(url('day-style'));
+  await page.getByRole('button', { name: 'Simulate API response', exact: true }).click();
+  await page
+    .locator('.mc-hscroll > .mc-header-row [data-day-status="unavailable"]')
+    .waitFor({ state: 'attached' });
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate((theme) => {
+      document.documentElement.dataset.theme = theme;
+    }, theme);
+    const decorated = await page
+      .locator('.mc-hscroll > .mc-header-row [data-day-status]')
+      .evaluateAll((labels) => {
+        const luminance = (color) => {
+          const channels = color
+            .match(/\d+/g)
+            .slice(0, 3)
+            .map((channel) => Number(channel) / 255)
+            .map((channel) =>
+              channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+            );
+          return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+        };
+        return labels.map((label) => {
+          const header = label.closest('.mc-day-header');
+          const background = getComputedStyle(header).backgroundColor;
+          const foreground = getComputedStyle(label).color;
+          const values = [luminance(background), luminance(foreground)].sort((a, b) => b - a);
+          return {
+            status: label.dataset.dayStatus,
+            contrast: (values[0] + 0.05) / (values[1] + 0.05),
+          };
+        });
+      });
+    if (decorated.length !== 4 || decorated.some((item) => item.contrast < 4.5))
+      throw new Error('API status contrast failed: ' + theme + JSON.stringify(decorated));
+    await page.screenshot({ path: `output/layout-review/day-status-${theme}.png`, fullPage: true });
   }
   await page.goto(url('month'));
+  await page.getByRole('button', { name: 'Phone · 360 px', exact: true }).click();
+  const monthLayout = await page.locator('.mc-month').evaluate((month) => {
+    const weeks = [...month.querySelectorAll('.mc-month-week')].map(
+      (week) => week.getBoundingClientRect().height,
+    );
+    const more = month.querySelector('.mc-month-more');
+    const moreBounds = more.getBoundingClientRect();
+    const dayBounds = more.closest('.mc-month-day').getBoundingClientRect();
+    const today = month.querySelector('[aria-current="date"]');
+    return {
+      weeks,
+      moreBottom: moreBounds.bottom,
+      dayBottom: dayBounds.bottom,
+      todayShadow: getComputedStyle(today).boxShadow,
+    };
+  });
+  if (
+    Math.max(...monthLayout.weeks) - Math.min(...monthLayout.weeks) > 1 ||
+    monthLayout.moreBottom > monthLayout.dayBottom + 1 ||
+    monthLayout.todayShadow !== 'none'
+  )
+    throw new Error(
+      'Month week height, overflow action or today styling regressed: ' +
+        JSON.stringify(monthLayout),
+    );
+  await page.screenshot({ path: 'output/layout-review/month-narrow-cards.png', fullPage: true });
   await page.getByRole('checkbox', { name: 'Indicators and list', exact: true }).check();
   await page.getByRole('button', { name: 'Phone · 360 px', exact: true }).click();
   await page.locator('.mc-month-compact').waitFor();

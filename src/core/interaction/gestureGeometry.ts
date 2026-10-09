@@ -1,34 +1,47 @@
-/**
- * Geometria de GESTO (Fase 4) — pura, sem DOM, sem Temporal. Trabalha em minutos-do-dia.
- *
- * NÃO confundir com `geometry/geometry.ts` (o GeometryEngine de RENDER, que empacota eventos
- * existentes em colunas). Aqui é o inverso: converte o gesto do ponteiro
- * (mover/redimensionar/selecionar) numa NOVA posição tentativa, com SNAP à grade (`slotMinutes`),
- * duração mínima e recorte aos limites do grid. O resultado alimenta o fantasma e a avaliação.
- *
- * A dimensão de RECURSO não tem matemática nenhuma: é só carregada adiante (mover ⇒ recurso do
- * ponteiro, pois atravessar colunas reatribui; redimensionar/selecionar ⇒ recurso de origem/âncora).
- * Por isso a Timeline (eixo transposto) reusa estas funções sem mudança: quem decide se o minuto
- * veio de X ou de Y é o localizador do motor, não a geometria.
- */
 import type { DraftGeometry, GridBounds, PlacementInfo, PointerSlot, ResizeEdge } from './model.js';
 import { calendarDayOffset, normalizeCalendarMinute, shiftCalendarDate } from './model.js';
 
-/** Copia o recurso para a geometria só quando existe (views de data ficam sem a chave). */
-function withResource(geometry: DraftGeometry, resourceId: string | undefined): DraftGeometry {
+function withResource({
+  geometry,
+  resourceId,
+}: {
+  /** Proposed interval geometry. @remarks Português: Geometria do intervalo proposto. */
+  geometry: DraftGeometry;
+  /** Destination resource; omitted keeps the geometry unchanged. @remarks Português: Recurso de destino; ausente preserva a geometria. */
+  resourceId: string | undefined;
+}): DraftGeometry {
   if (resourceId === undefined) return geometry;
   return { ...geometry, resourceId };
 }
 
-/** Modo de arredondamento ao snap. */
+/** Rounding direction when snapping minutes to slots.
+ * @remarks Português: Direção do arredondamento de minutos para slots.
+ */
 export type SnapRounding = 'nearest' | 'floor' | 'ceil';
 
-/** Arredonda um minuto à grade de `slotMinutes`. */
-export function snapMinute(
-  minute: number,
-  slotMinutes: number,
-  rounding: SnapRounding = 'nearest',
-): number {
+/** Named inputs for snapMinute.
+ * @remarks Português: Entradas nomeadas de snapMinute.
+ */
+export interface SnapMinuteInput {
+  /** Minute value to align to the grid.
+   * @remarks Português: Valor em minutos a alinhar à grade.
+   */
+  minute: number;
+  /** Gesture snap step in minutes.
+   * @remarks Português: Passo do alinhamento do gesto em minutos.
+   */
+  slotMinutes: number;
+  /** Rounding direction; default nearest.
+   * @remarks Português: Direção de arredondamento; padrão nearest.
+   */
+  rounding?: SnapRounding | undefined;
+}
+
+/** Round a minute to slotMinutes; nonpositive steps round to an integer minute.
+ * @remarks Português: Arredonda para slotMinutes; passos não positivos arredondam para minuto inteiro.
+ */
+
+export function snapMinute({ minute, slotMinutes, rounding = 'nearest' }: SnapMinuteInput): number {
   const hasGrid = slotMinutes > 0;
   if (!hasGrid) return Math.round(minute);
   const ratio = minute / slotMinutes;
@@ -41,20 +54,47 @@ export function snapMinute(
   return snappedRatio * slotMinutes;
 }
 
-/** Limita um valor a [lowerBound, upperBound]. */
-function clamp(value: number, lowerBound: number, upperBound: number): number {
+function clamp({
+  value,
+  lowerBound,
+  upperBound,
+}: {
+  /** Value to constrain. @remarks Português: Valor a limitar. */
+  value: number;
+  /** Inclusive lower limit. @remarks Português: Limite inferior inclusivo. */
+  lowerBound: number;
+  /** Inclusive upper limit. @remarks Português: Limite superior inclusivo. */
+  upperBound: number;
+}): number {
   return Math.max(lowerBound, Math.min(value, upperBound));
 }
 
-/**
- * Recorta [startMin, endMin] aos limites do grid PRESERVANDO a duração: se transbordar,
- * desliza a janela para dentro em vez de cortá-la (comportamento esperado ao arrastar).
+/** Named inputs for clampSpanToGrid.
+ * @remarks Português: Entradas nomeadas de clampSpanToGrid.
  */
-export function clampSpanToGrid(
-  startMin: number,
-  endMin: number,
-  bounds: GridBounds,
-): { startMin: number; endMin: number } {
+export interface ClampSpanToGridInput {
+  /** Inclusive minute-of-day window start.
+   * @remarks Português: Início inclusivo da janela em minutos do dia.
+   */
+  startMin: number;
+  /** Exclusive minute-of-day window end.
+   * @remarks Português: Fim exclusivo da janela em minutos do dia.
+   */
+  endMin: number;
+  /** Visible grid limits in minutes.
+   * @remarks Português: Limites visíveis da grade em minutos.
+   */
+  bounds: GridBounds;
+}
+
+/** Move the interval inside grid bounds without shortening its duration.
+ * @remarks Português: Move o intervalo para os limites da grade sem reduzir sua duração.
+ */
+
+export function clampSpanToGrid({ startMin, endMin, bounds }: ClampSpanToGridInput): {
+  startMin: number;
+  endMin: number;
+} {
   const duration = Math.max(0, endMin - startMin);
   const maxStart = bounds.endMin - duration;
   const overflowsBottom = startMin > maxStart;
@@ -63,18 +103,48 @@ export function clampSpanToGrid(
   return { startMin: finalStart, endMin: finalStart + duration };
 }
 
-/**
- * MOVER: mantém a duração do evento e reposiciona o início sob o ponto de agarre.
- * `grabOffsetMin` = quanto abaixo do topo do evento o usuário agarrou (mantém o agarre no lugar).
+/** Named inputs for computeMoveDraft.
+ * @remarks Português: Entradas nomeadas de computeMoveDraft.
  */
-export function computeMoveDraft(
-  origin: PlacementInfo,
-  pointer: PointerSlot,
-  grabOffsetMin: number,
-  slotMinutes: number,
-  bounds: GridBounds,
+export interface ComputeMoveDraftInput {
+  /** Original grabbed event placement.
+   * @remarks Português: Posição original do evento arrastado.
+   */
+  origin: PlacementInfo;
+  /** Current pointer slot.
+   * @remarks Português: Slot atual do ponteiro.
+   */
+  pointer: PointerSlot;
+  /** Pointer offset from event start in minutes.
+   * @remarks Português: Deslocamento do ponteiro desde o início em minutos.
+   */
+  grabOffsetMin: number;
+  /** Gesture snap step in minutes.
+   * @remarks Português: Passo do alinhamento do gesto em minutos.
+   */
+  slotMinutes: number;
+  /** Visible grid limits in minutes.
+   * @remarks Português: Limites visíveis da grade em minutos.
+   */
+  bounds: GridBounds;
+  /** Allow timed/all-day conversion; default false.
+   * @remarks Português: Permite conversão de horário/dia inteiro; padrão false.
+   */
+  allowTypeChange?: boolean | undefined;
+}
+
+/** Preserve duration and grab offset while proposing a snapped destination.
+ * @remarks Português: Preserva duração e deslocamento do ponto de agarre ao propor destino alinhado à grade.
+ */
+
+export function computeMoveDraft({
+  origin,
+  pointer,
+  grabOffsetMin,
+  slotMinutes,
+  bounds,
   allowTypeChange = false,
-): DraftGeometry {
+}: ComputeMoveDraftInput): DraftGeometry {
   if (allowTypeChange && !pointer.dateOnly && Boolean(pointer.allDay) !== Boolean(origin.allDay)) {
     const resourceId = pointer.resourceId ?? origin.resourceId;
     if (pointer.allDay) {
@@ -83,25 +153,28 @@ export function computeMoveDraft(
         origin.endMin -
         origin.startMin;
       const durationDays = Math.max(1, Math.ceil((origin.durationMinutes ?? civilDuration) / 1440));
-      return withResource(
-        {
+      return withResource({
+        geometry: {
           dateISO: pointer.dateISO,
           startMin: 0,
           endMin: 0,
-          endDateISO: shiftCalendarDate(pointer.dateISO, durationDays),
+          endDateISO: shiftCalendarDate({ dateISO: pointer.dateISO, days: durationDays }),
           allDay: true,
         },
         resourceId,
-      );
+      });
     }
     const durationDays = Math.max(1, calendarDayOffset(origin.dateISO, origin.endDateISO!));
-    const start = normalizeCalendarMinute(
-      pointer.dateISO,
-      snapMinute(pointer.minuteOfDay, slotMinutes),
-    );
-    const end = normalizeCalendarMinute(start.dateISO, start.minute + durationDays * 1440);
-    return withResource(
-      {
+    const start = normalizeCalendarMinute({
+      dateISO: pointer.dateISO,
+      minute: snapMinute({ minute: pointer.minuteOfDay, slotMinutes }),
+    });
+    const end = normalizeCalendarMinute({
+      dateISO: start.dateISO,
+      minute: start.minute + durationDays * 1440,
+    });
+    return withResource({
+      geometry: {
         dateISO: start.dateISO,
         startMin: start.minute,
         endDateISO: end.dateISO,
@@ -109,146 +182,193 @@ export function computeMoveDraft(
         allDay: false,
       },
       resourceId,
-    );
+    });
   }
   if (pointer.dateOnly && !origin.allDay) {
     const grabbedDays = Math.round((grabOffsetMin + origin.startMin) / 1440);
-    const dateISO = shiftCalendarDate(pointer.dateISO, -grabbedDays);
+    const dateISO = shiftCalendarDate({ dateISO: pointer.dateISO, days: -grabbedDays });
     return {
       dateISO,
       startMin: origin.startMin,
       endMin: origin.endMin,
-      endDateISO: shiftCalendarDate(
+      endDateISO: shiftCalendarDate({
         dateISO,
-        calendarDayOffset(origin.dateISO, origin.endDateISO ?? origin.dateISO),
-      ),
+        days: calendarDayOffset(origin.dateISO, origin.endDateISO ?? origin.dateISO),
+      }),
     };
   }
   if (origin.allDay) {
     const durationDays = Math.max(1, calendarDayOffset(origin.dateISO, origin.endDateISO!));
-    const start = normalizeCalendarMinute(pointer.dateISO, -grabOffsetMin).dateISO;
-    return withResource(
-      {
+    const start = normalizeCalendarMinute({
+      dateISO: pointer.dateISO,
+      minute: -grabOffsetMin,
+    }).dateISO;
+    return withResource({
+      geometry: {
         dateISO: start,
         startMin: 0,
         endMin: 0,
-        endDateISO: shiftCalendarDate(start, durationDays),
+        endDateISO: shiftCalendarDate({ dateISO: start, days: durationDays }),
         allDay: true,
       },
-      pointer.resourceId,
-    );
+      resourceId: pointer.resourceId,
+    });
   }
   if (origin.endDateISO && origin.endDateISO !== origin.dateISO) {
     const duration =
       calendarDayOffset(origin.dateISO, origin.endDateISO) * 1440 + origin.endMin - origin.startMin;
-    const start = normalizeCalendarMinute(
-      pointer.dateISO,
-      snapMinute(pointer.minuteOfDay - grabOffsetMin, slotMinutes),
-    );
-    const end = normalizeCalendarMinute(start.dateISO, start.minute + duration);
-    return withResource(
-      {
+    const start = normalizeCalendarMinute({
+      dateISO: pointer.dateISO,
+      minute: snapMinute({ minute: pointer.minuteOfDay - grabOffsetMin, slotMinutes }),
+    });
+    const end = normalizeCalendarMinute({
+      dateISO: start.dateISO,
+      minute: start.minute + duration,
+    });
+    return withResource({
+      geometry: {
         dateISO: start.dateISO,
         startMin: start.minute,
         endDateISO: end.dateISO,
         endMin: end.minute,
       },
-      pointer.resourceId,
-    );
+      resourceId: pointer.resourceId,
+    });
   }
   const duration = Math.max(0, origin.endMin - origin.startMin);
   const rawStart = pointer.minuteOfDay - grabOffsetMin;
-  const snappedStart = snapMinute(rawStart, slotMinutes, 'nearest');
-  const clamped = clampSpanToGrid(snappedStart, snappedStart + duration, bounds);
-  // Recurso vem do PONTEIRO (não da origem): arrastar para outra coluna reatribui o recurso.
-  return withResource(
-    { dateISO: pointer.dateISO, startMin: clamped.startMin, endMin: clamped.endMin },
-    pointer.resourceId,
-  );
+  const snappedStart = snapMinute({
+    minute: rawStart,
+    slotMinutes,
+    rounding: 'nearest',
+  });
+  const clamped = clampSpanToGrid({
+    startMin: snappedStart,
+    endMin: snappedStart + duration,
+    bounds,
+  });
+  return withResource({
+    geometry: { dateISO: pointer.dateISO, startMin: clamped.startMin, endMin: clamped.endMin },
+    resourceId: pointer.resourceId,
+  });
 }
 
-/**
- * REDIMENSIONAR: move a borda escolhida e mantém a oposta, com duração mínima.
- * Pode atravessar dias; o recurso de origem é preservado em ambos os sentidos.
+/** Named inputs for computeResizeDraft.
+ * @remarks Português: Entradas nomeadas de computeResizeDraft.
  */
-export function computeResizeDraft(
-  origin: PlacementInfo,
-  pointer: PointerSlot,
-  slotMinutes: number,
-  minDurationMin: number,
-  bounds: GridBounds,
-  edge: ResizeEdge = 'end',
-): DraftGeometry {
+export interface ComputeResizeDraftInput {
+  /** Original grabbed event placement.
+   * @remarks Português: Posição original do evento arrastado.
+   */
+  origin: PlacementInfo;
+  /** Current pointer slot.
+   * @remarks Português: Slot atual do ponteiro.
+   */
+  pointer: PointerSlot;
+  /** Gesture snap step in minutes.
+   * @remarks Português: Passo do alinhamento do gesto em minutos.
+   */
+  slotMinutes: number;
+  /** Minimum permitted interval length in minutes.
+   * @remarks Português: Duração mínima permitida do intervalo em minutos.
+   */
+  minDurationMin: number;
+  /** Visible grid limits in minutes.
+   * @remarks Português: Limites visíveis da grade em minutos.
+   */
+  bounds: GridBounds;
+  /** Resize endpoint; default end.
+   * @remarks Português: Extremo do redimensionamento; padrão end.
+   */
+  edge?: ResizeEdge | undefined;
+}
+
+/** Move one endpoint, preserving the opposite endpoint and original resource.
+ * @remarks Português: Move um extremo, preservando o extremo oposto e o recurso original.
+ */
+
+export function computeResizeDraft({
+  origin,
+  pointer,
+  slotMinutes,
+  minDurationMin,
+  bounds,
+  edge = 'end',
+}: ComputeResizeDraftInput): DraftGeometry {
   if (edge === 'start') {
     const endDate = origin.endDateISO ?? origin.dateISO;
     if (origin.allDay) {
-      const latestStart = shiftCalendarDate(endDate, -1);
-      return withResource(
-        {
+      const latestStart = shiftCalendarDate({ dateISO: endDate, days: -1 });
+      return withResource({
+        geometry: {
           dateISO: pointer.dateISO < latestStart ? pointer.dateISO : latestStart,
           startMin: 0,
           endMin: 0,
           endDateISO: endDate,
           allDay: true,
         },
-        origin.resourceId,
-      );
+        resourceId: origin.resourceId,
+      });
     }
     const endAbsolute = calendarDayOffset(origin.dateISO, endDate) * 1440 + origin.endMin;
     const requestedStart =
       calendarDayOffset(origin.dateISO, pointer.dateISO) * 1440 +
-      (pointer.dateOnly ? origin.startMin : snapMinute(pointer.minuteOfDay, slotMinutes));
+      (pointer.dateOnly
+        ? origin.startMin
+        : snapMinute({ minute: pointer.minuteOfDay, slotMinutes }));
     const minimumDuration = pointer.dateOnly
       ? minDurationMin
       : Math.max(minDurationMin, slotMinutes);
     let startAbsolute = Math.min(requestedStart, endAbsolute - minimumDuration);
-    // A same-day time grid clips its start edge to its visible upper boundary.
     if (!pointer.dateOnly && pointer.dateISO === origin.dateISO && endDate === origin.dateISO) {
       startAbsolute = Math.min(
         Math.max(startAbsolute, bounds.startMin),
         endAbsolute - minimumDuration,
       );
     }
-    const start = normalizeCalendarMinute(origin.dateISO, startAbsolute);
-    return withResource(
-      {
+    const start = normalizeCalendarMinute({ dateISO: origin.dateISO, minute: startAbsolute });
+    return withResource({
+      geometry: {
         dateISO: start.dateISO,
         startMin: start.minute,
         endMin: origin.endMin,
         ...(origin.endDateISO || start.dateISO !== endDate ? { endDateISO: endDate } : {}),
       },
-      origin.resourceId,
-    );
+      resourceId: origin.resourceId,
+    });
   }
   if (pointer.dateOnly && !origin.allDay) {
-    const endDate = shiftCalendarDate(pointer.dateISO, origin.endMin === 0 ? 1 : 0);
+    const endDate = shiftCalendarDate({
+      dateISO: pointer.dateISO,
+      days: origin.endMin === 0 ? 1 : 0,
+    });
     const requestedEnd = calendarDayOffset(origin.dateISO, endDate) * 1440 + origin.endMin;
-    const end = normalizeCalendarMinute(
-      origin.dateISO,
-      Math.max(requestedEnd, origin.startMin + minDurationMin),
-    );
-    return withResource(
-      {
+    const end = normalizeCalendarMinute({
+      dateISO: origin.dateISO,
+      minute: Math.max(requestedEnd, origin.startMin + minDurationMin),
+    });
+    return withResource({
+      geometry: {
         dateISO: origin.dateISO,
         startMin: origin.startMin,
         endDateISO: end.dateISO,
         endMin: end.minute,
       },
-      origin.resourceId,
-    );
+      resourceId: origin.resourceId,
+    });
   }
   if (origin.allDay) {
     const days = Math.max(1, calendarDayOffset(origin.dateISO, pointer.dateISO) + 1);
-    return withResource(
-      {
+    return withResource({
+      geometry: {
         dateISO: origin.dateISO,
         startMin: 0,
         endMin: 0,
-        endDateISO: shiftCalendarDate(origin.dateISO, days),
+        endDateISO: shiftCalendarDate({ dateISO: origin.dateISO, days }),
         allDay: true,
       },
-      origin.resourceId,
-    );
+      resourceId: origin.resourceId,
+    });
   }
   if (
     pointer.dateISO !== origin.dateISO ||
@@ -256,62 +376,114 @@ export function computeResizeDraft(
   ) {
     const requestedEnd =
       calendarDayOffset(origin.dateISO, pointer.dateISO) * 1440 +
-      snapMinute(pointer.minuteOfDay, slotMinutes);
-    const end = normalizeCalendarMinute(
-      origin.dateISO,
-      Math.max(requestedEnd, origin.startMin + Math.max(minDurationMin, slotMinutes)),
-    );
-    return withResource(
-      {
+      snapMinute({ minute: pointer.minuteOfDay, slotMinutes });
+    const end = normalizeCalendarMinute({
+      dateISO: origin.dateISO,
+      minute: Math.max(requestedEnd, origin.startMin + Math.max(minDurationMin, slotMinutes)),
+    });
+    return withResource({
+      geometry: {
         dateISO: origin.dateISO,
         startMin: origin.startMin,
         endDateISO: end.dateISO,
         endMin: end.minute,
       },
-      origin.resourceId,
-    );
+      resourceId: origin.resourceId,
+    });
   }
-  const snappedEnd = snapMinute(pointer.minuteOfDay, slotMinutes, 'nearest');
+  const snappedEnd = snapMinute({
+    minute: pointer.minuteOfDay,
+    slotMinutes,
+    rounding: 'nearest',
+  });
   const minimumEnd = origin.startMin + Math.max(minDurationMin, slotMinutes);
-  const boundedEnd = clamp(Math.max(snappedEnd, minimumEnd), minimumEnd, bounds.endMin);
-  return withResource(
-    { dateISO: origin.dateISO, startMin: origin.startMin, endMin: boundedEnd },
-    origin.resourceId,
-  );
+  const boundedEnd = clamp({
+    value: Math.max(snappedEnd, minimumEnd),
+    lowerBound: minimumEnd,
+    upperBound: bounds.endMin,
+  });
+  return withResource({
+    geometry: { dateISO: origin.dateISO, startMin: origin.startMin, endMin: boundedEnd },
+    resourceId: origin.resourceId,
+  });
 }
 
-/**
- * SELECIONAR: intervalo num único dia (o da âncora) e, nas views de recurso, num único recurso
- * (o da âncora — seleção não atravessa colunas). Ordena âncora/cursor, faz snap para fora
- * (floor no início, ceil no fim), garante duração mínima e recorta ao grid.
+/** Named inputs for computeSelectDraft.
+ * @remarks Português: Entradas nomeadas de computeSelectDraft.
  */
-export function computeSelectDraft(
-  anchor: PointerSlot,
-  cursor: PointerSlot,
-  slotMinutes: number,
-  minDurationMin: number,
-  bounds: GridBounds,
-): DraftGeometry {
+export interface ComputeSelectDraftInput {
+  /** Selection starting slot.
+   * @remarks Português: Slot inicial da seleção.
+   */
+  anchor: PointerSlot;
+  /** Current selection pointer slot.
+   * @remarks Português: Slot atual do ponteiro de seleção.
+   */
+  cursor: PointerSlot;
+  /** Gesture snap step in minutes.
+   * @remarks Português: Passo do alinhamento do gesto em minutos.
+   */
+  slotMinutes: number;
+  /** Minimum permitted interval length in minutes.
+   * @remarks Português: Duração mínima permitida do intervalo em minutos.
+   */
+  minDurationMin: number;
+  /** Visible grid limits in minutes.
+   * @remarks Português: Limites visíveis da grade em minutos.
+   */
+  bounds: GridBounds;
+}
+
+/** Snap selection outward within the anchor day and resource, respecting minimum duration.
+ * @remarks Português: Alinha a seleção para fora no dia e recurso da âncora, respeitando a duração mínima.
+ */
+
+export function computeSelectDraft({
+  anchor,
+  cursor,
+  slotMinutes,
+  minDurationMin,
+  bounds,
+}: ComputeSelectDraftInput): DraftGeometry {
   if (anchor.allDay) {
     const start = anchor.dateISO < cursor.dateISO ? anchor.dateISO : cursor.dateISO;
     const last = anchor.dateISO > cursor.dateISO ? anchor.dateISO : cursor.dateISO;
-    return withResource(
-      {
+    return withResource({
+      geometry: {
         dateISO: start,
         startMin: 0,
         endMin: 0,
-        endDateISO: shiftCalendarDate(last, 1),
+        endDateISO: shiftCalendarDate({ dateISO: last, days: 1 }),
         allDay: true,
       },
-      anchor.resourceId,
-    );
+      resourceId: anchor.resourceId,
+    });
   }
   const lowerMinute = Math.min(anchor.minuteOfDay, cursor.minuteOfDay);
   const upperMinute = Math.max(anchor.minuteOfDay, cursor.minuteOfDay);
-  const snappedStart = snapMinute(lowerMinute, slotMinutes, 'floor');
-  const snappedEnd = snapMinute(upperMinute, slotMinutes, 'ceil');
+  const snappedStart = snapMinute({
+    minute: lowerMinute,
+    slotMinutes,
+    rounding: 'floor',
+  });
+  const snappedEnd = snapMinute({
+    minute: upperMinute,
+    slotMinutes,
+    rounding: 'ceil',
+  });
   const minimumSpan = Math.max(minDurationMin, slotMinutes);
-  const start = clamp(snappedStart, bounds.startMin, bounds.endMin - minimumSpan);
-  const end = clamp(Math.max(snappedEnd, start + minimumSpan), start + minimumSpan, bounds.endMin);
-  return withResource({ dateISO: anchor.dateISO, startMin: start, endMin: end }, anchor.resourceId);
+  const start = clamp({
+    value: snappedStart,
+    lowerBound: bounds.startMin,
+    upperBound: bounds.endMin - minimumSpan,
+  });
+  const end = clamp({
+    value: Math.max(snappedEnd, start + minimumSpan),
+    lowerBound: start + minimumSpan,
+    upperBound: bounds.endMin,
+  });
+  return withResource({
+    geometry: { dateISO: anchor.dateISO, startMin: start, endMin: end },
+    resourceId: anchor.resourceId,
+  });
 }

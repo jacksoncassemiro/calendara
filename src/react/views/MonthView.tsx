@@ -1,9 +1,9 @@
 /** @jsxImportSource react */
-/**
- * MonthView — grade de mês (day grid). Semanas em linhas, dias em células; eventos aparecem como
- * "chips" ordenados por horário. Implementa o mesmo contrato `CalendarView` (registrável/custom).
+/** Month grid with continuous multi-day event segments.
+ * @remarks Português: Grade mensal com segmentos contínuos de eventos de vários dias.
  */
 import { occurrenceKey } from '../../core/render/derive.js';
+import { DayHeaderContent } from './components/DayHeaderContent.js';
 import { createElement, lazy, Suspense, useEffect, useId, useRef, useState, type JSX } from 'react';
 import { hasAvailableTime } from '../../core/constraint/constraintEngine.js';
 import type { EventOccurrence, TemporalLike } from '../../core/index.js';
@@ -29,26 +29,47 @@ const MonthMorePopover = lazy(() =>
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
 interface MonthChip {
+  /** Stable occurrence or DOM identifier. @remarks Português: Identificador estável da ocorrência ou do DOM. */
   id: string;
+  /** Original occurrence and event identity. @remarks Português: Ocorrência original e identidade do evento. */
   occurrence: EventOccurrence;
+  /** Formatted event time; empty for all-day items. @remarks Português: Horário formatado; vazio para itens de dia inteiro. */
   timeLabel: string;
+  /** Whether the event occupies dates rather than times. @remarks Português: Indica se o evento ocupa datas em vez de horários. */
   isAllDay: boolean;
+  /** Start instant in epoch milliseconds, used for ordering. @remarks Português: Instante inicial em milissegundos desde época, usado para ordenação. */
   epochMs: number;
+  /** Inclusive start in minutes since midnight. @remarks Português: Início inclusivo em minutos desde meia-noite. */
   startMin: number;
+  /** First displayed date, YYYY-MM-DD. @remarks Português: Primeira data exibida, YYYY-MM-DD. */
   startDayISO: string;
+  /** Last displayed date, inclusive, YYYY-MM-DD. @remarks Português: Última data exibida, inclusiva, YYYY-MM-DD. */
   endDayISO: string;
 }
 
 interface MonthSegment {
+  /** Event represented by this week segment. @remarks Português: Evento representado por este segmento semanal. */
   chip: MonthChip;
+  /** Zero-based starting day index within the week. @remarks Português: Índice inicial do dia na semana, começando em zero. */
   start: number;
+  /** Number of visible dates covered. @remarks Português: Quantidade de datas visíveis cobertas. */
   span: number;
+  /** Zero-based event row. @remarks Português: Linha do evento, começando em zero. */
   lane: number;
+  /** Visible ISO dates covered by the segment. @remarks Português: Datas ISO visíveis cobertas pelo segmento. */
   dates: string[];
 }
 
-/** Pack complete week segments so a multi-day event keeps one continuous row. */
-function packWeek(days: string[], chipsByDay: Map<string, MonthChip[]>): MonthSegment[] {
+/** Pack week segments into continuous event rows. @remarks Português: Distribui segmentos semanais em linhas contínuas de eventos. */
+function packWeek({
+  days,
+  chipsByDay,
+}: {
+  /** Week dates in display order. @remarks Português: Datas da semana na ordem exibida. */
+  days: string[];
+  /** Occurrence chips indexed by visible date. @remarks Português: Cartões de ocorrências por data visível. */
+  chipsByDay: Map<string, MonthChip[]>;
+}): MonthSegment[] {
   const chips = new Map<string, MonthChip>();
   for (const day of days) for (const chip of chipsByDay.get(day) ?? []) chips.set(chip.id, chip);
   const segments = [...chips.values()]
@@ -72,6 +93,7 @@ function packWeek(days: string[], chipsByDay: Map<string, MonthChip[]>): MonthSe
   return packDateSpans(segments);
 }
 
+/** Month grid including adjacent dates. @remarks Português: Grade mensal incluindo datas adjacentes. */
 export const monthView: CalendarView = {
   name: 'month',
   label: 'Mês',
@@ -80,9 +102,11 @@ export const monthView: CalendarView = {
     const { dateUtils, options } = context;
     const firstOfMonth = date.with({ day: 1 });
     const lastOfMonth = date.with({ day: date.daysInMonth });
-    const gridStart = dateUtils.startOfWeek(firstOfMonth, options.weekStart);
-    const gridEndExclusive = dateUtils.startOfWeek(lastOfMonth, options.weekStart).add({ days: 7 });
-    const days = dateUtils.eachDayOfRange(gridStart, gridEndExclusive);
+    const gridStart = dateUtils.startOfWeek({ date: firstOfMonth, weekStart: options.weekStart });
+    const gridEndExclusive = dateUtils
+      .startOfWeek({ date: lastOfMonth, weekStart: options.weekStart })
+      .add({ days: 7 });
+    const days = dateUtils.eachDayOfRange({ start: gridStart, end: gridEndExclusive });
     return {
       days,
       startDate: gridStart,
@@ -90,17 +114,21 @@ export const monthView: CalendarView = {
     };
   },
 
-  navigate(direction, date) {
+  navigate({ direction, date }) {
     const anchor = date.with({ day: 1 });
     return direction === 'next' ? anchor.add({ months: 1 }) : anchor.subtract({ months: 1 });
   },
 
   getTitle(range, context): string {
-    // A data de referência do mês está na 3ª semana (evita o mês anterior no começo da grade).
+    // The third week identifies this month. PT: A terceira semana identifica o mês da grade.
     const middle = range.days[Math.floor(range.days.length / 2)] ?? range.startDate;
-    return formatDate(middle, context.options.locale, {
-      month: 'long',
-      year: 'numeric',
+    return formatDate({
+      date: middle,
+      locale: context.options.locale,
+      options: {
+        month: 'long',
+        year: 'numeric',
+      },
     });
   },
 
@@ -109,7 +137,10 @@ export const monthView: CalendarView = {
   },
 };
 
-function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
+function MonthGrid(props: {
+  /** Resolved view data and consumer callbacks. @remarks Português: Dados resolvidos da view e callbacks do consumidor. */
+  context: ViewRenderContext;
+}): JSX.Element {
   const compactBreakpoint = props.context.options.monthCompactBreakpoint ?? false;
   const rootRef = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
@@ -146,7 +177,12 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
       .map((day) => day.toString())
       .filter(
         (date) =>
-          !hasAvailableTime(props.context.constraints, date, visibleStartMin, visibleEndMin),
+          !hasAvailableTime({
+            constraints: props.context.constraints,
+            date,
+            startMin: visibleStartMin,
+            endMin: visibleEndMin,
+          }),
       ),
   );
   const referenceMonth = (range.days[Math.floor(range.days.length / 2)] ?? range.startDate).month;
@@ -155,10 +191,13 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
     .toPlainDate()
     .toString();
 
-  // Agrupa ocorrências por dia de exibição, ordenadas por instante de início.
   const chipsByDay = new Map<string, MonthChip[]>();
   for (const occurrence of occurrences) {
-    const start = occurrenceStart(temporal, occurrence, options.timeZone);
+    const start = occurrenceStart({
+      temporal,
+      occurrence,
+      displayTimeZone: options.timeZone,
+    });
     const endDayISO = occurrence.event.time.allDay
       ? temporal.PlainDate.from(occurrence.event.time.end.date!).subtract({ days: 1 }).toString()
       : temporal.PlainDateTime.from(occurrence.event.time.end.dateTime!)
@@ -167,7 +206,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
           .subtract({ nanoseconds: 1 })
           .toPlainDate()
           .toString();
-    for (const dayISO of occurrenceDays(occurrence, props.context)) {
+    for (const dayISO of occurrenceDays({ occurrence, context: props.context })) {
       const list = chipsByDay.get(dayISO) ?? [];
       list.push({
         id: occurrenceKey(occurrence),
@@ -177,7 +216,9 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
         startMin: start.minuteOfDay,
         startDayISO: start.dayISO,
         endDayISO,
-        timeLabel: start.isAllDay ? '' : formatHourLabel(start.minuteOfDay, options.locale),
+        timeLabel: start.isAllDay
+          ? ''
+          : formatHourLabel({ minuteOfDay: start.minuteOfDay, locale: options.locale }),
       });
       chipsByDay.set(dayISO, list);
     }
@@ -202,17 +243,21 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
     moreAnchorRef.current?.focus({ preventScroll: true });
   };
 
-  // Nomes dos dias da semana (a partir do primeiro dia da grade).
   const weekdayHeaders = range.days.slice(0, 7).map((day) => ({
     key: day.toString(),
-    label: formatDate(day, options.locale, { weekday: 'short' }),
+    label: formatDate({ date: day, locale: options.locale, options: { weekday: 'short' } }),
   }));
 
-  // Fatiar em semanas de 7.
   const weeks: PlainDate[][] = [];
   for (let index = 0; index < range.days.length; index += 7) {
     weeks.push(range.days.slice(index, index + 7));
   }
+  const weekSegments = weeks.map((week) =>
+    packWeek({ days: week.map((day) => day.toString()), chipsByDay }),
+  );
+  const monthLaneCount = Math.max(0, ...weekSegments.flat().map((segment) => segment.lane + 1));
+  const monthEventsHeight =
+    Math.min(monthLaneCount, maxEvents) * 22 + (monthLaneCount > maxEvents ? 28 : 0);
 
   return (
     <div
@@ -233,11 +278,8 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
         ))}
       </div>
 
-      {weeks.map((week) => {
-        const segments = packWeek(
-          week.map((day) => day.toString()),
-          chipsByDay,
-        );
+      {weeks.map((week, weekIndex) => {
+        const segments = weekSegments[weekIndex]!;
         const draft = props.context.draft;
         const draftEnd = draft?.endDateISO ?? draft?.dateISO;
         const draftDates = draft
@@ -260,7 +302,6 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
           ...segments.map((segment) => segment.lane + 1),
         );
         const visibleLanes = Math.min(laneCount, maxEvents);
-        const hasMore = segments.some((segment) => segment.lane >= maxEvents);
         return (
           <div key={week[0]!.toString()} className="mc-month-week" style={{ display: 'flex' }}>
             {week.map((day) => {
@@ -297,64 +338,84 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                     flex: '1 1 0',
                   }}
                 >
-                  {compact || props.context.onDateClick ? (
-                    <button
-                      type="button"
-                      className="mc-month-daynum"
-                      tabIndex={dayISO === selectedDay.toString() ? 0 : -1}
-                      onKeyDown={(event) => {
-                        const buttons = [
-                          ...(rootRef.current?.querySelectorAll<HTMLButtonElement>(
-                            'button.mc-month-daynum',
-                          ) ?? []),
-                        ];
-                        const index = buttons.indexOf(event.currentTarget);
-                        const direction =
-                          getComputedStyle(event.currentTarget).direction === 'rtl' ? -1 : 1;
-                        let next = index;
-                        if (event.key === 'ArrowLeft') next -= direction;
-                        else if (event.key === 'ArrowRight') next += direction;
-                        else if (event.key === 'ArrowUp') next -= 7;
-                        else if (event.key === 'ArrowDown') next += 7;
-                        else if (event.key === 'Home')
-                          next = event.ctrlKey ? 0 : index - (index % 7);
-                        else if (event.key === 'End')
-                          next = event.ctrlKey ? buttons.length - 1 : index - (index % 7) + 6;
-                        else return;
-                        event.preventDefault();
-                        const target = buttons[Math.max(0, Math.min(buttons.length - 1, next))];
-                        if (target) {
-                          setSelectedISO(
-                            target.closest<HTMLElement>('[data-mc-month-day]')!.dataset.mcMonthDay,
-                          );
-                          target.focus();
-                          target.scrollIntoView?.({
-                            block: 'nearest',
-                            inline: 'nearest',
-                          });
-                        }
-                      }}
-                      aria-label={`${formatDate(day, options.locale, { dateStyle: 'full' })}${compact ? `, ${chips.length} ${chips.length === 1 ? labels.event : labels.events}` : ''}${unavailableDays.has(dayISO) ? `, ${labels.unavailableRange}` : ''}`}
-                      aria-pressed={compact ? dayISO === selectedDay.toString() : undefined}
-                      aria-controls={compact ? detailId : undefined}
-                      aria-current={isToday ? 'date' : undefined}
-                      onClick={() => {
-                        setSelectedISO(dayISO);
-                        if (!compact) props.context.onDateClick?.(dayISO);
-                      }}
-                    >
-                      {formatDate(day, options.locale, { day: 'numeric' })}
-                    </button>
-                  ) : (
-                    <div className="mc-month-daynum" aria-current={isToday ? 'date' : undefined}>
-                      {formatDate(day, options.locale, { day: 'numeric' })}
-                      {unavailableDays.has(dayISO) && (
-                        <span className="mc-month-unavailable-note">
-                          : sem horários disponíveis na faixa exibida
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <DayHeaderContent
+                    context={props.context}
+                    dateISO={dayISO}
+                    viewName="month"
+                    isSelected={compact && dayISO === selectedDay.toString()}
+                    defaultContent={
+                      compact || props.context.onDateClick ? (
+                        <button
+                          type="button"
+                          className="mc-month-daynum"
+                          tabIndex={dayISO === selectedDay.toString() ? 0 : -1}
+                          onKeyDown={(event) => {
+                            const buttons = [
+                              ...(rootRef.current?.querySelectorAll<HTMLButtonElement>(
+                                'button.mc-month-daynum',
+                              ) ?? []),
+                            ];
+                            const index = buttons.indexOf(event.currentTarget);
+                            const direction =
+                              getComputedStyle(event.currentTarget).direction === 'rtl' ? -1 : 1;
+                            let next = index;
+                            if (event.key === 'ArrowLeft') next -= direction;
+                            else if (event.key === 'ArrowRight') next += direction;
+                            else if (event.key === 'ArrowUp') next -= 7;
+                            else if (event.key === 'ArrowDown') next += 7;
+                            else if (event.key === 'Home')
+                              next = event.ctrlKey ? 0 : index - (index % 7);
+                            else if (event.key === 'End')
+                              next = event.ctrlKey ? buttons.length - 1 : index - (index % 7) + 6;
+                            else return;
+                            event.preventDefault();
+                            const target = buttons[Math.max(0, Math.min(buttons.length - 1, next))];
+                            if (target) {
+                              setSelectedISO(
+                                target.closest<HTMLElement>('[data-mc-month-day]')!.dataset
+                                  .mcMonthDay,
+                              );
+                              target.focus();
+                              target.scrollIntoView?.({
+                                block: 'nearest',
+                                inline: 'nearest',
+                              });
+                            }
+                          }}
+                          aria-label={`${formatDate({ date: day, locale: options.locale, options: { dateStyle: 'full' } })}${compact ? `, ${chips.length} ${chips.length === 1 ? labels.event : labels.events}` : ''}${unavailableDays.has(dayISO) ? `, ${labels.unavailableRange}` : ''}`}
+                          aria-pressed={compact ? dayISO === selectedDay.toString() : undefined}
+                          aria-controls={compact ? detailId : undefined}
+                          aria-current={isToday ? 'date' : undefined}
+                          onClick={() => {
+                            setSelectedISO(dayISO);
+                            if (!compact) props.context.onDateClick?.(dayISO);
+                          }}
+                        >
+                          {formatDate({
+                            date: day,
+                            locale: options.locale,
+                            options: { day: 'numeric' },
+                          })}
+                        </button>
+                      ) : (
+                        <div
+                          className="mc-month-daynum"
+                          aria-current={isToday ? 'date' : undefined}
+                        >
+                          {formatDate({
+                            date: day,
+                            locale: options.locale,
+                            options: { day: 'numeric' },
+                          })}
+                          {unavailableDays.has(dayISO) && (
+                            <span className="mc-month-unavailable-note">
+                              : sem horários disponíveis na faixa exibida
+                            </span>
+                          )}
+                        </div>
+                      )
+                    }
+                  />
                   <span className="mc-month-count" aria-hidden="true">
                     {chips.length || ''}
                   </span>
@@ -363,7 +424,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                     style={{
                       position: 'relative',
                       height: Math.max(
-                        visibleLanes * 22 + (hasMore ? 28 : 0),
+                        maxEvents === Infinity ? visibleLanes * 22 : monthEventsHeight,
                         draftDates.length ? (draftLane + 1) * 22 : 0,
                       ),
                     }}
@@ -384,7 +445,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                         }}
                       >
                         <span className="mc-draft-time">
-                          {formatDraftInterval(draft, options.locale)}
+                          {formatDraftInterval({ draft, locale: options.locale })}
                         </span>
                         {' · '}
                         <span className="mc-draft-title">
@@ -478,7 +539,7 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                         style={{ position: 'absolute', top: visibleLanes * 22 }}
                         aria-expanded={expandedISO === dayISO}
                         aria-controls={detailId}
-                        aria-label={`${labels.moreEvents} ${hiddenCount} ${labels.events} ${labels.onDate} ${formatDate(day, options.locale, { dateStyle: 'full' })}`}
+                        aria-label={`${labels.moreEvents} ${hiddenCount} ${labels.events} ${labels.onDate} ${formatDate({ date: day, locale: options.locale, options: { dateStyle: 'full' } })}`}
                         onClick={(click) => {
                           if (expandedISO === dayISO) closeDetail();
                           else {
@@ -510,7 +571,8 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                           }
                         }}
                       >
-                        +{hiddenCount} {labels.more}
+                        +{hiddenCount}
+                        <span className="mc-month-more-label"> {labels.more}</span>
                       </button>
                     )}
                   </div>
@@ -539,7 +601,11 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
             }}
           >
             <h3 ref={detailHeadingRef} tabIndex={-1} aria-live="polite">
-              {formatDate(selectedDay, options.locale, { dateStyle: 'full' })}
+              {formatDate({
+                date: selectedDay,
+                locale: options.locale,
+                options: { dateStyle: 'full' },
+              })}
             </h3>
             {selectedChips.length === 0 && <p className="mc-list-empty">{labels.noEventsDay}</p>}
             {selectedChips.map((chip) => (
@@ -597,8 +663,12 @@ function MonthGrid(props: { context: ViewRenderContext }): JSX.Element {
                 id={detailId}
                 anchor={moreAnchorRef.current}
                 container={rootRef.current}
-                label={formatDate(selectedDay, options.locale, {
-                  dateStyle: 'full',
+                label={formatDate({
+                  date: selectedDay,
+                  locale: options.locale,
+                  options: {
+                    dateStyle: 'full',
+                  },
                 })}
                 onClose={closeDetail}
                 locale={options.locale}

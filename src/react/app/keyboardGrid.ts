@@ -1,9 +1,26 @@
-/** Delegated roving focus; uses the same slot validation as pointer interaction. */
-export function keyboardGrid(
-  event: KeyboardEvent,
-  root: HTMLElement,
-  activate: (date: string, start: number, end: number, resourceId?: string) => void,
-): void {
+/** Delegated keyboard focus with shared slot validation. @remarks Português: Foco por teclado com a mesma validação dos slots. */
+interface KeyboardSlotActivation {
+  /** Slot date, YYYY-MM-DD. @remarks Português: Data do slot, YYYY-MM-DD. */
+  dateISO: string;
+  /** Inclusive start in minutes since midnight. @remarks Português: Início inclusivo em minutos desde meia-noite. */
+  startMin: number;
+  /** Exclusive end in minutes since midnight. @remarks Português: Fim exclusivo em minutos desde meia-noite. */
+  endMin: number;
+  /** Associated resource, when present. @remarks Português: Recurso associado, quando presente. */
+  resourceId?: string | undefined;
+}
+
+interface KeyboardGridInput {
+  /** Native keyboard event. @remarks Português: Evento nativo do teclado. */
+  event: KeyboardEvent;
+  /** Calendar root containing focusable slots. @remarks Português: Raiz do calendário com slots focáveis. */
+  root: HTMLElement;
+  /** Activate a slot, using minutes since midnight. @remarks Português: Ativa um slot em minutos desde meia-noite. */
+  activate: (slot: KeyboardSlotActivation) => void;
+}
+
+/** Navigate or activate slots using the keyboard. @remarks Português: Navega ou ativa slots pelo teclado. */
+export function keyboardGrid({ event, root, activate }: KeyboardGridInput): void {
   const target =
     event.target instanceof HTMLElement
       ? event.target.closest<HTMLElement>('[data-mc-cell-start]')
@@ -16,7 +33,12 @@ export function keyboardGrid(
     end = Number(target.dataset.mcCellEnd);
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
-    activate(target.dataset.mcCellDate!, start, end, target.dataset.mcCellResource);
+    activate({
+      dateISO: target.dataset.mcCellDate!,
+      startMin: start,
+      endMin: end,
+      resourceId: target.dataset.mcCellResource,
+    });
     return;
   }
   let next: HTMLElement | undefined;

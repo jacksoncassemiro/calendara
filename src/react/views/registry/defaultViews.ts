@@ -3,5 +3,5 @@ import { monthView } from '../MonthView.js';
 import { listView } from '../ListView.js';
 import type { CalendarView } from '../../viewTypes.js';
 
-/** Standard convenience set used only when the consumer omits views. */
+/** Standard views to pass explicitly. PT: Atalho para passar as views padrão explicitamente. */
 export const BUILTIN_VIEWS: readonly CalendarView[] = [weekView, dayView, monthView, listView];

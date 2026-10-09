@@ -1,10 +1,9 @@
 /** @jsxImportSource react */
-/**
- * ListView (Agenda) — lista cronológica das ocorrências no range visível, agrupadas por dia.
- * Mesmo contrato `CalendarView`. Range alinhado à semana (paridade com a Week) por padrão,
- * configurável via `createListView(spanDays)`.
+/** Chronological agenda grouped by visible date.
+ * @remarks Português: Agenda cronológica agrupada por data visível.
  */
 import { occurrenceKey } from '../../core/render/derive.js';
+import { DayHeaderContent } from './components/DayHeaderContent.js';
 import { createElement, type JSX } from 'react';
 import type { EventOccurrence, TemporalLike } from '../../core/index.js';
 import { occurrenceStart } from '../../core/index.js';
@@ -17,14 +16,19 @@ import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from '..
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
 interface AgendaItem {
+  /** Stable occurrence or DOM identifier. @remarks Português: Identificador estável da ocorrência ou do DOM. */
   id: string;
+  /** Original occurrence and event identity. @remarks Português: Ocorrência original e identidade do evento. */
   occurrence: EventOccurrence;
+  /** Formatted event time; empty for all-day items. @remarks Português: Horário formatado; vazio para itens de dia inteiro. */
   timeLabel: string;
+  /** Whether the event occupies dates rather than times. @remarks Português: Indica se o evento ocupa datas em vez de horários. */
   isAllDay: boolean;
+  /** Start instant in epoch milliseconds, used for ordering. @remarks Português: Instante inicial em milissegundos desde época, usado para ordenação. */
   epochMs: number;
 }
 
-/** Agenda semanal alinhada à semana; spans customizados começam na data de referência. */
+/** Default seven-day agenda aligns to the week; other lengths start at the reference date. @remarks Português: Agenda padrão de sete dias alinha à semana; outros períodos iniciam na data de referência. */
 export function createListView(spanDays = 7, name = 'list'): CalendarView {
   if (!Number.isFinite(spanDays) || spanDays < 1) {
     throw new RangeError('spanDays must be a finite number greater than or equal to 1');
@@ -36,8 +40,13 @@ export function createListView(spanDays = 7, name = 'list'): CalendarView {
 
     getRange(date: PlainDate, context: ViewContext): ViewRange {
       const start =
-        totalDays === 7 ? context.dateUtils.startOfWeek(date, context.options.weekStart) : date;
-      const days = context.dateUtils.eachDayOfRange(start, start.add({ days: totalDays }));
+        totalDays === 7
+          ? context.dateUtils.startOfWeek({ date, weekStart: context.options.weekStart })
+          : date;
+      const days = context.dateUtils.eachDayOfRange({
+        start,
+        end: start.add({ days: totalDays }),
+      });
       return {
         days,
         startDate: start,
@@ -45,21 +54,29 @@ export function createListView(spanDays = 7, name = 'list'): CalendarView {
       };
     },
 
-    navigate(direction, date) {
+    navigate({ direction, date }) {
       return direction === 'next'
         ? date.add({ days: totalDays })
         : date.subtract({ days: totalDays });
     },
 
     getTitle(range, context): string {
-      const startText = formatDate(range.startDate, context.options.locale, {
-        day: 'numeric',
-        month: 'short',
+      const startText = formatDate({
+        date: range.startDate,
+        locale: context.options.locale,
+        options: {
+          day: 'numeric',
+          month: 'short',
+        },
       });
-      const endText = formatDate(range.endDate, context.options.locale, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
+      const endText = formatDate({
+        date: range.endDate,
+        locale: context.options.locale,
+        options: {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        },
       });
       return `${startText} – ${endText}`;
     },
@@ -70,16 +87,24 @@ export function createListView(spanDays = 7, name = 'list'): CalendarView {
   };
 }
 
+/** Standard week-aligned chronological agenda. @remarks Português: Agenda cronológica padrão alinhada à semana. */
 export const listView: CalendarView = createListView(7);
 
-function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
+function AgendaList(props: {
+  /** Resolved view data and consumer callbacks. @remarks Português: Dados resolvidos da view e callbacks do consumidor. */
+  context: ViewRenderContext;
+}): JSX.Element {
   const { temporal, options, range, occurrences } = props.context;
   const labels = getViewLabels(options.locale);
 
   const itemsByDay = new Map<string, AgendaItem[]>();
   for (const occurrence of occurrences) {
-    const start = occurrenceStart(temporal, occurrence, options.timeZone);
-    for (const dayISO of occurrenceDays(occurrence, props.context)) {
+    const start = occurrenceStart({
+      temporal,
+      occurrence,
+      displayTimeZone: options.timeZone,
+    });
+    for (const dayISO of occurrenceDays({ occurrence, context: props.context })) {
       const list = itemsByDay.get(dayISO) ?? [];
       list.push({
         id: occurrenceKey(occurrence),
@@ -88,7 +113,10 @@ function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
         epochMs: start.epochMs,
         timeLabel: start.isAllDay
           ? labels.allDay
-          : formatHourLabel(dayISO === start.dayISO ? start.minuteOfDay : 0, options.locale),
+          : formatHourLabel({
+              minuteOfDay: dayISO === start.dayISO ? start.minuteOfDay : 0,
+              locale: options.locale,
+            }),
       });
       itemsByDay.set(dayISO, list);
     }
@@ -121,11 +149,20 @@ function AgendaList(props: { context: ViewRenderContext }): JSX.Element {
             })}
           >
             <div className="mc-list-day-header">
-              {formatDate(day, options.locale, {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-              })}
+              <DayHeaderContent
+                context={props.context}
+                dateISO={dayISO}
+                viewName={props.context.viewName ?? 'list'}
+                defaultContent={formatDate({
+                  date: day,
+                  locale: options.locale,
+                  options: {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                  },
+                })}
+              />
             </div>
             {items.map((item) => (
               <div

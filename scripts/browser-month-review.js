@@ -16,7 +16,7 @@ async (page) => {
     const host = document.createElement('div');
     host.id = 'month-fixture';
     document.body.append(host);
-    const timed = (id, start, end, editable = true) => ({
+    const timed = ({ id, start, end, editable = true }) => ({
       id,
       calendarId: 'c',
       title: id,
@@ -29,11 +29,16 @@ async (page) => {
       },
     });
     const events = [
-      timed('meeting', '2026-10-07T09:17:00', '2026-10-07T10:42:00'),
-      timed('night', '2026-10-07T19:00:00', '2026-10-08T09:00:00'),
-      timed('readonly', '2026-10-07T15:00:00', '2026-10-07T16:00:00', false),
+      timed({ id: 'meeting', start: '2026-10-07T09:17:00', end: '2026-10-07T10:42:00' }),
+      timed({ id: 'night', start: '2026-10-07T19:00:00', end: '2026-10-08T09:00:00' }),
+      timed({
+        id: 'readonly',
+        start: '2026-10-07T15:00:00',
+        end: '2026-10-07T16:00:00',
+        editable: false,
+      }),
       {
-        ...timed('repeat', '2026-10-07T11:00:00', '2026-10-07T12:00:00'),
+        ...timed({ id: 'repeat', start: '2026-10-07T11:00:00', end: '2026-10-07T12:00:00' }),
         recurrence: { rule: 'FREQ=WEEKLY;COUNT=4' },
       },
       {
@@ -76,9 +81,9 @@ async (page) => {
     if (!ok) throw new Error(label);
     results.push(label);
   };
-  const chip = (date, id) =>
+  const chip = ({ date, id }) =>
     page.locator(`[data-mc-month-event^="${id}@"][data-mc-month-dates~="${date}"]`);
-  const drag = async (source, target, handle = false, sourceDate) => {
+  const drag = async ({ source, target, handle = false, sourceDate }) => {
     await source.scrollIntoViewIfNeeded();
     const a = await source.boundingBox(),
       b = await target.boundingBox();
@@ -93,16 +98,21 @@ async (page) => {
     await page.mouse.up();
   };
   const cell = (date) => page.locator(`[data-mc-month-day="${date}"]`);
-  await drag(chip('2026-10-07', 'meeting'), cell('2026-10-09'));
-  await chip('2026-10-09', 'meeting').waitFor();
+  await drag({ source: chip({ date: '2026-10-07', id: 'meeting' }), target: cell('2026-10-09') });
+  await chip({ date: '2026-10-09', id: 'meeting' }).waitFor();
   const move = await page.evaluate(() => window.monthLog.moves.at(-1));
   assert(
     move.startMin === 557 && move.endMin === 642 && move.dateISO === '2026-10-09',
     'Mês: mover preserva minutos fora do snap',
   );
-  await drag(chip('2026-10-08', 'night'), cell('2026-10-14'), false, '2026-10-08');
-  await chip('2026-10-13', 'night').waitFor();
-  await chip('2026-10-14', 'night').waitFor();
+  await drag({
+    source: chip({ date: '2026-10-08', id: 'night' }),
+    target: cell('2026-10-14'),
+    handle: false,
+    sourceDate: '2026-10-08',
+  });
+  await chip({ date: '2026-10-13', id: 'night' }).waitFor();
+  await chip({ date: '2026-10-14', id: 'night' }).waitFor();
   const overnight = await page.evaluate(() => window.monthLog.moves.at(-1));
   assert(
     overnight.dateISO === '2026-10-13' &&
@@ -111,31 +121,36 @@ async (page) => {
       overnight.endMin === 540,
     'Mês: mover pela continuação atravessa semanas e preserva evento noturno inteiro',
   );
-  await drag(chip('2026-10-07', 'conference'), cell('2026-10-13'), false, '2026-10-07');
-  await chip('2026-10-12', 'conference').waitFor();
-  await chip('2026-10-14', 'conference').waitFor();
+  await drag({
+    source: chip({ date: '2026-10-07', id: 'conference' }),
+    target: cell('2026-10-13'),
+    handle: false,
+    sourceDate: '2026-10-07',
+  });
+  await chip({ date: '2026-10-12', id: 'conference' }).waitFor();
+  await chip({ date: '2026-10-14', id: 'conference' }).waitFor();
   assert(
-    (await chip('2026-10-12', 'conference').getAttribute('data-mc-month-dates')) ===
+    (await chip({ date: '2026-10-12', id: 'conference' }).getAttribute('data-mc-month-dates')) ===
       '2026-10-12 2026-10-13 2026-10-14',
     'Mês: all-day mantém três dias e fim exclusivo',
   );
-  await drag(
-    chip('2026-10-14', 'conference').locator('[data-mc-resize="end"]'),
-    cell('2026-10-15'),
-    true,
-  );
-  await chip('2026-10-15', 'conference').waitFor();
+  await drag({
+    source: chip({ date: '2026-10-14', id: 'conference' }).locator('[data-mc-resize="end"]'),
+    target: cell('2026-10-15'),
+    handle: true,
+  });
+  await chip({ date: '2026-10-15', id: 'conference' }).waitFor();
   assert(
-    (await chip('2026-10-12', 'conference').getAttribute('data-mc-month-dates')) ===
+    (await chip({ date: '2026-10-12', id: 'conference' }).getAttribute('data-mc-month-dates')) ===
       '2026-10-12 2026-10-13 2026-10-14 2026-10-15',
     'Mês: resize expande all-day para quatro dias',
   );
-  await drag(
-    chip('2026-10-09', 'meeting').locator('[data-mc-resize="end"]'),
-    cell('2026-10-10'),
-    true,
-  );
-  await chip('2026-10-10', 'meeting').waitFor();
+  await drag({
+    source: chip({ date: '2026-10-09', id: 'meeting' }).locator('[data-mc-resize="end"]'),
+    target: cell('2026-10-10'),
+    handle: true,
+  });
+  await chip({ date: '2026-10-10', id: 'meeting' }).waitFor();
   const resize = await page.evaluate(() => window.monthLog.resizes.at(-1));
   assert(
     resize.startMin === 557 && resize.endMin === 642 && resize.endDateISO === '2026-10-10',
@@ -145,37 +160,37 @@ async (page) => {
     (await page.evaluate(() => window.monthLog.clicks)) === 0,
     'Arrastar não dispara clique/edição',
   );
-  await drag(chip('2026-10-07', 'readonly'), cell('2026-10-08'));
+  await drag({ source: chip({ date: '2026-10-07', id: 'readonly' }), target: cell('2026-10-08') });
   assert(
-    (await chip('2026-10-07', 'readonly').count()) === 1 &&
-      (await chip('2026-10-08', 'readonly').count()) === 0,
+    (await chip({ date: '2026-10-07', id: 'readonly' }).count()) === 1 &&
+      (await chip({ date: '2026-10-08', id: 'readonly' }).count()) === 0,
     'Mês: readonly impede alteração',
   );
-  await drag(chip('2026-10-14', 'repeat'), cell('2026-10-15'));
-  await chip('2026-10-15', 'repeat').waitFor();
+  await drag({ source: chip({ date: '2026-10-14', id: 'repeat' }), target: cell('2026-10-15') });
+  await chip({ date: '2026-10-15', id: 'repeat' }).waitFor();
   assert(
-    (await chip('2026-10-14', 'repeat').count()) === 0 &&
-      (await chip('2026-10-07', 'repeat').count()) === 1 &&
-      (await chip('2026-10-21', 'repeat').count()) === 1 &&
-      (await chip('2026-10-28', 'repeat').count()) === 1,
+    (await chip({ date: '2026-10-14', id: 'repeat' }).count()) === 0 &&
+      (await chip({ date: '2026-10-07', id: 'repeat' }).count()) === 1 &&
+      (await chip({ date: '2026-10-21', id: 'repeat' }).count()) === 1 &&
+      (await chip({ date: '2026-10-28', id: 'repeat' }).count()) === 1,
     'Mês: mover ocorrência cria exceção e preserva demais datas da série',
   );
   await page.evaluate(() =>
     window.monthApp.setConstraints({ blocked: [{ scope: 'date', date: '2026-10-16' }] }),
   );
-  await drag(chip('2026-10-09', 'meeting'), cell('2026-10-16'));
+  await drag({ source: chip({ date: '2026-10-09', id: 'meeting' }), target: cell('2026-10-16') });
   await page.waitForFunction(() => window.monthLog.blocked === 1);
   assert(
-    (await chip('2026-10-09', 'meeting').count()) === 1 &&
-      (await chip('2026-10-16', 'meeting').count()) === 0,
+    (await chip({ date: '2026-10-09', id: 'meeting' }).count()) === 1 &&
+      (await chip({ date: '2026-10-16', id: 'meeting' }).count()) === 0,
     'Mês: restrição bloqueia intervalo e mantém evento original',
   );
   await page.evaluate(() => window.monthApp.setConstraints({}));
   await page.evaluate(() => (window.monthLog.reject = true));
-  await drag(chip('2026-10-09', 'meeting'), cell('2026-10-16'));
-  await chip('2026-10-09', 'meeting').waitFor();
+  await drag({ source: chip({ date: '2026-10-09', id: 'meeting' }), target: cell('2026-10-16') });
+  await chip({ date: '2026-10-09', id: 'meeting' }).waitFor();
   assert(
-    (await chip('2026-10-16', 'meeting').count()) === 0,
+    (await chip({ date: '2026-10-16', id: 'meeting' }).count()) === 0,
     'Mês: callback false reverte posição',
   );
   await page.evaluate(() => (window.monthLog.reject = false));
@@ -188,8 +203,8 @@ async (page) => {
     const allDay = page.locator('[data-mc-allday-cell] [data-mc-event^="conference@"]');
     await allDay.waitFor();
     const target = page.locator('[data-mc-allday-cell][data-mc-slot-resource="b"]');
-    // Timeline must publish empty all-day destinations too.
-    await drag(allDay, target);
+    // Empty all-day rows must accept drops. / PT: Linhas vazias de dia inteiro devem aceitar eventos.
+    await drag({ source: allDay, target });
     await page
       .locator('[data-mc-allday-cell][data-mc-slot-resource="b"] [data-mc-event^="conference@"]')
       .waitFor();
@@ -198,13 +213,13 @@ async (page) => {
       transferred.resourceId === 'b' && transferred.fromResourceId === 'a',
       `${view}: all-day aparece e permite transferência de recurso`,
     );
-    // Return the resource before the next view.
-    await drag(
-      page.locator(
+
+    await drag({
+      source: page.locator(
         '[data-mc-allday-cell][data-mc-slot-resource="b"] [data-mc-event^="conference@"]',
       ),
-      page.locator('[data-mc-allday-cell][data-mc-slot-resource="a"]'),
-    );
+      target: page.locator('[data-mc-allday-cell][data-mc-slot-resource="a"]'),
+    });
   }
   await page.evaluate(() => {
     window.monthLog.clicks = 0;

@@ -2,7 +2,13 @@
  * Create a native React view body with default one-day range and navigation.
  * @remarks Português: Cria uma view React com período e navegação de um dia por padrão.
  */
-import type { CalendarView, ViewContext, ViewRange, ViewRenderContext } from './viewTypes.js';
+import type {
+  CalendarView,
+  ViewContext,
+  ViewRange,
+  ViewRenderContext,
+  ViewNavigationInput,
+} from './viewTypes.js';
 import type { TemporalLike } from '../core/index.js';
 import { createElement as createReactElement, type ReactNode } from 'react';
 
@@ -29,7 +35,7 @@ export interface ReactViewConfig {
    * @remarks Português: Define a data após navegar para anterior ou próximo; por padrão avança
    * ou recua um dia.
    */
-  navigate?: (direction: 'prev' | 'next', date: PlainDate, context: ViewContext) => PlainDate;
+  navigate?: (input: ViewNavigationInput) => PlainDate;
   /** Format the view title; default is the range start in ISO format.
    * @remarks Português: Formata o título; por padrão usa a data inicial do período em ISO.
    */
@@ -37,11 +43,10 @@ export interface ReactViewConfig {
 }
 
 /** Create a CalendarView rendered as a native React component.
- * @remarks Português: Cria uma view cujo corpo recebe o contexto e mantém o ciclo de vida
- * React. Inclua o resultado em views; mantenha a definição e a identidade de Body estáveis.
- * @param config - View identity and optional date logic.
- * @param Body - React component receiving the resolved rendering context.
- * @returns A view definition ready for calendar registration.
+ * @remarks Português: Cria uma view React; registre em views e mantenha Body estável.
+ * @param config - View identity and date logic. PT: Identidade e lógica de datas da view.
+ * @param Body - React component receiving the view context. PT: Componente React que recebe o contexto da view.
+ * @returns View ready for registration. PT: View pronta para registro.
  */
 export function createReactView(
   config: ReactViewConfig,
@@ -52,7 +57,7 @@ export function createReactView(
     ((date: PlainDate): ViewRange => ({ days: [date], startDate: date, endDate: date }));
   const navigate =
     config.navigate ??
-    ((direction: 'prev' | 'next', date: PlainDate): PlainDate =>
+    (({ direction, date }: ViewNavigationInput): PlainDate =>
       direction === 'next' ? date.add({ days: 1 }) : date.subtract({ days: 1 }));
   const getTitle = config.getTitle ?? ((range: ViewRange): string => range.startDate.toString());
 

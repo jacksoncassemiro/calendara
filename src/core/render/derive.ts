@@ -1,8 +1,3 @@
-/**
- * Derivações puras do render: expandir recorrência no range visível, projetar cada ocorrência
- * em minutos-do-dia (na timezone de exibição) e derivar a camada de fundo (horário comercial +
- * bloqueios) a partir do ConstraintSet. Nada de DOM/Preact aqui.
- */
 import type { TemporalLike } from '../date/temporal.js';
 import type { CalendarEvent, EventOccurrence } from '../types/event.js';
 import type { EventDateTime } from '../types/datetime.js';
@@ -14,45 +9,108 @@ import type { GeoInput } from '../geometry/geometry.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
-/** Minutos num dia completo (24h) — usado como fim padrão quando um evento cruza a meia-noite. */
 const MINUTES_PER_DAY = 24 * 60;
 
-/** Segmento vertical em minutos-do-dia. */
+/** Half-open interval in minutes relative to the display day.
+ * @remarks Português: Intervalo de fim exclusivo em minutos relativos ao dia exibido.
+ */
 export interface Segment {
+  /** Inclusive start in minutes relative to the day.
+   * @remarks Português: Início inclusivo em minutos relativos ao dia.
+   */
   startMin: number;
+  /** Exclusive end in minutes relative to the day.
+   * @remarks Português: Fim exclusivo em minutos relativos ao dia.
+   */
   endMin: number;
 }
 
-/** Ocorrência timed já projetada em minutos-do-dia de exibição. */
+/** Occurrence projected into the display day for event layout.
+ * @remarks Português: Ocorrência projetada no dia exibido para o layout de eventos.
+ */
 export interface TimedPlacement extends GeoInput {
+  /** Expanded occurrence retaining its original identity.
+   * @remarks Português: Ocorrência expandida com identidade original preservada.
+   */
   occurrence: EventOccurrence;
 }
 
-/** Tudo que uma coluna de dia precisa desenhar. */
+/** Events and availability background for one display day.
+ * @remarks Português: Eventos e fundo de disponibilidade de um dia exibido.
+ */
 export interface DayData {
+  /** Temporal calendar date represented by this column.
+   * @remarks Português: Data Temporal do calendário representada nesta coluna.
+   */
   date: PlainDate;
+  /** Calendar date in YYYY-MM-DD format.
+   * @remarks Português: Data do calendário em YYYY-MM-DD.
+   */
   dateISO: string;
+  /** Timed occurrences clipped and projected into this display day.
+   * @remarks Português: Ocorrências com horário recortadas e projetadas neste dia exibido.
+   */
   timed: TimedPlacement[];
+  /** All-day occurrences overlapping this date.
+   * @remarks Português: Ocorrências de dia inteiro que cruzam esta data.
+   */
   allDay: EventOccurrence[];
-  /** Fora do horário comercial (sombreado). */
+
+  /** Unavailable background intervals outside permitted hours and ranges.
+   * @remarks Português: Faixas de fundo indisponíveis fora dos horários e períodos permitidos.
+   */
   nonBusiness: Segment[];
-  /** Bloqueios (dia inteiro ou faixa). */
+
+  /** Explicit blocked intervals clipped to the visible grid.
+   * @remarks Português: Intervalos explicitamente bloqueados recortados à grade visível.
+   */
   blocked: Segment[];
 }
 
-/** Chave estável de uma ocorrência (`${masterId}@${originalStart}`). Fonte única, reusada por render/views. */
+/** Stable occurrence key combining masterId and unchanged originalStart.
+ * @remarks Português: Chave estável da ocorrência que combina masterId e originalStart preservado.
+ */
 export function occurrenceKey(occurrence: EventOccurrence): string {
   return `${occurrence.masterId}@${occurrence.originalStart}`;
 }
 
-/** Expande todos os eventos no range [startISO, endISO] (datas inclusivas). Memoizável por chamador. */
-export function expandRange(
-  temporal: TemporalLike,
-  events: readonly CalendarEvent[],
-  startISO: string,
-  endISO: string,
-  displayTimeZone?: string,
-): EventOccurrence[] {
+/** Named inputs for expandRange.
+ * @remarks Português: Entradas nomeadas de expandRange.
+ */
+export interface ExpandRangeInput {
+  /** Injected date/time implementation.
+   * @remarks Português: Implementação de datas e horários injetada.
+   */
+  temporal: TemporalLike;
+  /** Canonical events to expand.
+   * @remarks Português: Eventos canônicos a expandir.
+   */
+  events: readonly CalendarEvent[];
+  /** Inclusive first display date.
+   * @remarks Português: Primeira data exibida, inclusiva.
+   */
+  startISO: string;
+  /** Inclusive last display date.
+   * @remarks Português: Última data exibida, inclusiva.
+   */
+  endISO: string;
+  /** IANA timezone used to project event intervals.
+   * @remarks Português: Fuso IANA usado para projetar intervalos de eventos.
+   */
+  displayTimeZone?: string | undefined;
+}
+
+/** Expand events overlapping inclusive ISO dates, retaining multiday continuations.
+ * @remarks Português: Expande eventos que cruzam datas ISO inclusivas, preservando continuações entre dias.
+ */
+
+export function expandRange({
+  temporal,
+  events,
+  startISO,
+  endISO,
+  displayTimeZone,
+}: ExpandRangeInput): EventOccurrence[] {
   const results: EventOccurrence[] = [];
   const rangeStartDate = temporal.PlainDate.from(startISO);
   const rangeEndDate = temporal.PlainDate.from(endISO);
@@ -67,8 +125,6 @@ export function expandRange(
     }
   >();
   for (const event of events) {
-    // Include starts before the visible range when their duration overlaps it. Timed
-    // events can also shift to the preceding/following date in the display timezone.
     const startDate = temporal.PlainDate.from(
       (event.time.start.date ?? event.time.start.dateTime!).slice(0, 10),
     );
@@ -83,7 +139,11 @@ export function expandRange(
       lookbackWindows.set(lookbackDays, windowStart);
     }
     const windowEnd = event.time.allDay ? endISO : timedWindowEnd;
-    for (const occurrence of expandEvent(temporal, event, { start: windowStart, end: windowEnd })) {
+    for (const occurrence of expandEvent({
+      temporal,
+      event,
+      window: { start: windowStart, end: windowEnd },
+    })) {
       const time = occurrence.event.time;
       if (time.allDay) {
         const overlapsRange = time.start.date! < exclusiveRangeEnd && time.end.date! > startISO;
@@ -98,8 +158,16 @@ export function expandRange(
           };
           zonedRanges.set(timeZone, zonedRange);
         }
-        const start = toDisplayZoned(temporal, time.start, timeZone);
-        const end = toDisplayZoned(temporal, time.end, timeZone);
+        const start = toDisplayZoned({
+          temporal,
+          eventDateTime: time.start,
+          displayTimeZone: timeZone,
+        });
+        const end = toDisplayZoned({
+          temporal,
+          eventDateTime: time.end,
+          displayTimeZone: timeZone,
+        });
         const overlapsRange =
           temporal.ZonedDateTime.compare(start, zonedRange.end) < 0 &&
           temporal.ZonedDateTime.compare(end, zonedRange.start) > 0;
@@ -110,23 +178,51 @@ export function expandRange(
   return results;
 }
 
-/** Início de uma ocorrência projetado na timezone de exibição (para agrupar/ordenar). */
+/** Chronological start projected into the display timezone.
+ * @remarks Português: Início cronológico projetado no fuso de exibição.
+ */
 export interface OccurrenceStart {
-  /** Dia 'YYYY-MM-DD' de exibição em que a ocorrência começa. */
+  /** Display-zone start date in YYYY-MM-DD format.
+   * @remarks Português: Data de início no fuso exibido em YYYY-MM-DD.
+   */
   dayISO: string;
-  /** Instante de início (epoch ms) — chave de ordenação cronológica. */
+
+  /** Start instant in epoch milliseconds for chronological ordering.
+   * @remarks Português: Instante inicial em milissegundos desde epoch para ordenação cronológica.
+   */
   epochMs: number;
-  /** Minuto-do-dia do início (0 em all-day). */
+
+  /** Pointer or start position in minutes since midnight.
+   * @remarks Português: Posição do ponteiro ou início em minutos desde meia-noite.
+   */
   minuteOfDay: number;
+  /** Whether this start belongs to an all-day occurrence.
+   * @remarks Português: Indica se o início pertence a uma ocorrência de dia inteiro.
+   */
   isAllDay: boolean;
 }
 
-/** Projeta o início de uma ocorrência na timezone de exibição. Usado por Month/List. */
-export function occurrenceStart(
-  temporal: TemporalLike,
-  occurrence: EventOccurrence,
-  displayTimeZone: string,
-): OccurrenceStart {
+/** Project occurrence start into the display timezone for grouping and sorting.
+ * @remarks Português: Projeta o início da ocorrência no fuso exibido para agrupar e ordenar.
+ */
+export interface OccurrenceStartInput {
+  /** Injected date/time implementation. / PT: Implementação de datas e horários injetada. */
+  temporal: TemporalLike;
+  /** Occurrence whose start is projected. / PT: Ocorrência cujo início será projetado. */
+  occurrence: EventOccurrence;
+  /** Zone used to display the instant. / PT: Fuso usado para exibir o instante. */
+  displayTimeZone: string;
+}
+
+/** Project the occurrence start into the display timezone.
+ * @remarks Português: Projeta o início da ocorrência no fuso de exibição.
+ */
+
+export function occurrenceStart({
+  temporal,
+  occurrence,
+  displayTimeZone,
+}: OccurrenceStartInput): OccurrenceStart {
   const time = occurrence.event.time;
   if (time.allDay) {
     const dayISO = (time.start.date ?? '').slice(0, 10);
@@ -138,7 +234,11 @@ export function occurrenceStart(
       isAllDay: true,
     };
   }
-  const startZoned = toDisplayZoned(temporal, time.start, displayTimeZone);
+  const startZoned = toDisplayZoned({
+    temporal,
+    eventDateTime: time.start,
+    displayTimeZone,
+  });
   return {
     dayISO: startZoned.toPlainDate().toString(),
     epochMs: Number(startZoned.epochMilliseconds),
@@ -147,25 +247,56 @@ export function occurrenceStart(
   };
 }
 
-/** Converte um extremo timed para ZonedDateTime na timezone de exibição. */
-function toDisplayZoned(
-  temporal: TemporalLike,
-  eventDateTime: EventDateTime,
-  displayTimeZone: string,
-): InstanceType<TemporalLike['ZonedDateTime']> {
+function toDisplayZoned({
+  temporal,
+  eventDateTime,
+  displayTimeZone,
+}: {
+  /** Injected date/time implementation. / PT: Implementação de datas e horários injetada. */
+  temporal: TemporalLike;
+  /** Timed endpoint and its original zone. / PT: Limite temporal e seu fuso original. */
+  eventDateTime: EventDateTime;
+  /** Zone used to display the instant. / PT: Fuso usado para exibir o instante. */
+  displayTimeZone: string;
+}): InstanceType<TemporalLike['ZonedDateTime']> {
   const sourceTimeZone = eventDateTime.timeZone ?? displayTimeZone;
   const plainDateTime = temporal.PlainDateTime.from(eventDateTime.dateTime!);
   const zoned = plainDateTime.toZonedDateTime(sourceTimeZone);
   return sourceTimeZone === displayTimeZone ? zoned : zoned.withTimeZone(displayTimeZone);
 }
 
-/** Full intervals relative to a day; negative/>1440 minutes preserve adjacent-day buffers. */
-export function resourceBusyIntervals(
-  temporal: TemporalLike,
-  day: PlainDate,
-  occurrences: readonly EventOccurrence[],
-  displayTimeZone: string,
-): Segment[] {
+/** Named inputs for resourceBusyIntervals.
+ * @remarks Português: Entradas nomeadas de resourceBusyIntervals.
+ */
+export interface ResourceBusyIntervalsInput {
+  /** Injected date/time implementation.
+   * @remarks Português: Implementação de datas e horários injetada.
+   */
+  temporal: TemporalLike;
+  /** Display date receiving the projected intervals.
+   * @remarks Português: Data exibida que recebe os intervalos projetados.
+   */
+  day: PlainDate;
+  /** Expanded event occurrences.
+   * @remarks Português: Ocorrências expandidas dos eventos.
+   */
+  occurrences: readonly EventOccurrence[];
+  /** IANA timezone used to project event intervals.
+   * @remarks Português: Fuso IANA usado para projetar intervalos de eventos.
+   */
+  displayTimeZone: string;
+}
+
+/** Project full intervals relative to a day, preserving adjacent-day preparation buffers.
+ * @remarks Português: Projeta intervalos completos relativos ao dia, preservando buffers de dias adjacentes.
+ */
+
+export function resourceBusyIntervals({
+  temporal,
+  day,
+  occurrences,
+  displayTimeZone,
+}: ResourceBusyIntervalsInput): Segment[] {
   return occurrences.map((occurrence) => {
     const time = occurrence.event.time;
     if (time.allDay)
@@ -173,8 +304,16 @@ export function resourceBusyIntervals(
         startMin: temporal.PlainDate.from(time.start.date!).since(day).days * MINUTES_PER_DAY,
         endMin: temporal.PlainDate.from(time.end.date!).since(day).days * MINUTES_PER_DAY,
       };
-    const start = toDisplayZoned(temporal, time.start, displayTimeZone);
-    const end = toDisplayZoned(temporal, time.end, displayTimeZone);
+    const start = toDisplayZoned({
+      temporal,
+      eventDateTime: time.start,
+      displayTimeZone,
+    });
+    const end = toDisplayZoned({
+      temporal,
+      eventDateTime: time.end,
+      displayTimeZone,
+    });
     return {
       startMin:
         start.toPlainDate().since(day).days * MINUTES_PER_DAY + start.hour * 60 + start.minute,
@@ -183,18 +322,48 @@ export function resourceBusyIntervals(
   });
 }
 
-/**
- * Distribui ocorrências pelos dias visíveis, projetando os timed em minutos-do-dia de exibição.
- * Distribui continuações em cada dia; end exclusivo não cria um segmento vazio à meia-noite.
+/** Named inputs for buildDays.
+ * @remarks Português: Entradas nomeadas de buildDays.
  */
-export function buildDays(
-  temporal: TemporalLike,
-  days: readonly PlainDate[],
-  occurrences: readonly EventOccurrence[],
-  constraints: ConstraintSet,
-  grid: { startHour: number; endHour: number },
-  displayTimeZone: string,
-): DayData[] {
+export interface BuildDaysInput {
+  /** Injected date/time implementation.
+   * @remarks Português: Implementação de datas e horários injetada.
+   */
+  temporal: TemporalLike;
+  /** Ordered display dates to populate.
+   * @remarks Português: Datas exibidas e ordenadas a preencher.
+   */
+  days: readonly PlainDate[];
+  /** Expanded event occurrences.
+   * @remarks Português: Ocorrências expandidas dos eventos.
+   */
+  occurrences: readonly EventOccurrence[];
+  /** Availability rules to evaluate.
+   * @remarks Português: Regras de disponibilidade a avaliar.
+   */
+  constraints: ConstraintSet;
+  /** Visible hour window.
+   * @remarks Português: Janela de horas visíveis.
+   */
+  grid: { startHour: number; endHour: number };
+  /** IANA timezone used to project event intervals.
+   * @remarks Português: Fuso IANA usado para projetar intervalos de eventos.
+   */
+  displayTimeZone: string;
+}
+
+/** Distribute events over display days; exclusive midnight ends do not create empty continuations.
+ * @remarks Português: Distribui eventos nos dias exibidos; fins exclusivos à meia-noite não criam continuações vazias.
+ */
+
+export function buildDays({
+  temporal,
+  days,
+  occurrences,
+  constraints,
+  grid,
+  displayTimeZone,
+}: BuildDaysInput): DayData[] {
   const gridStartMin = grid.startHour * 60;
   const gridEndMin = grid.endHour * 60;
 
@@ -206,8 +375,18 @@ export function buildDays(
       dateISO: dayIso,
       timed: [],
       allDay: [],
-      nonBusiness: deriveNonBusiness(constraints, dayIso, gridStartMin, gridEndMin),
-      blocked: deriveBlocked(constraints, dayIso, gridStartMin, gridEndMin),
+      nonBusiness: deriveNonBusiness({
+        constraints,
+        dateISO: dayIso,
+        gridStartMin,
+        gridEndMin,
+      }),
+      blocked: deriveBlocked({
+        constraints,
+        dateISO: dayIso,
+        gridStartMin,
+        gridEndMin,
+      }),
     });
   }
 
@@ -222,8 +401,16 @@ export function buildDays(
       }
       continue;
     }
-    const startZoned = toDisplayZoned(temporal, time.start, displayTimeZone);
-    const endZoned = toDisplayZoned(temporal, time.end, displayTimeZone);
+    const startZoned = toDisplayZoned({
+      temporal,
+      eventDateTime: time.start,
+      displayTimeZone,
+    });
+    const endZoned = toDisplayZoned({
+      temporal,
+      eventDateTime: time.end,
+      displayTimeZone,
+    });
     const startISO = startZoned.toPlainDate().toString();
     const endISO = endZoned.toPlainDate().toString();
     for (const column of dataByDay.values()) {
@@ -241,16 +428,37 @@ export function buildDays(
   return days.map((day) => dataByDay.get(day.toString())!);
 }
 
-/** Sombreado "fora do expediente" = grid − janelas de horário comercial do dia. */
-function deriveNonBusiness(
-  constraints: ConstraintSet,
-  dateISO: string,
-  gridStartMin: number,
-  gridEndMin: number,
-): Segment[] {
+/** Named inputs for deriveNonBusiness.
+ * @remarks Português: Entradas nomeadas de deriveNonBusiness.
+ */
+interface DeriveNonBusinessInput {
+  /** Availability rules to evaluate.
+   * @remarks Português: Regras de disponibilidade a avaliar.
+   */
+  constraints: ConstraintSet;
+  /** Evaluated ISO date in YYYY-MM-DD.
+   * @remarks Português: Data ISO avaliada em YYYY-MM-DD.
+   */
+  dateISO: string;
+  /** Inclusive grid start in minutes.
+   * @remarks Português: Início inclusivo da grade em minutos.
+   */
+  gridStartMin: number;
+  /** Exclusive grid end in minutes.
+   * @remarks Português: Fim exclusivo da grade em minutos.
+   */
+  gridEndMin: number;
+}
+
+function deriveNonBusiness({
+  constraints,
+  dateISO,
+  gridStartMin,
+  gridEndMin,
+}: DeriveNonBusinessInput): Segment[] {
   const businessHours = constraints.businessHours ?? [];
   const hasBusinessRule = businessHours.length > 0;
-  if (!hasBusinessRule) return []; // sem regra = sempre aberto (nada sombreado)
+  if (!hasBusinessRule) return [];
   const dayOfWeek = jsDayOfWeek(dateISO);
   const openSegments: Segment[] = [];
   for (const rule of businessHours) {
@@ -264,16 +472,41 @@ function deriveNonBusiness(
     const hasOpenWindow = end > start;
     if (hasOpenWindow) openSegments.push({ startMin: start, endMin: end });
   }
-  return complement(mergeSegments(openSegments), gridStartMin, gridEndMin);
+  return complement({
+    segments: mergeSegments(openSegments),
+    lowerBound: gridStartMin,
+    upperBound: gridEndMin,
+  });
 }
 
-/** Bloqueios do dia (precedência total): dia inteiro → grid; faixa → intervalo recortado. */
-function deriveBlocked(
-  constraints: ConstraintSet,
-  dateISO: string,
-  gridStartMin: number,
-  gridEndMin: number,
-): Segment[] {
+/** Named inputs for deriveBlocked.
+ * @remarks Português: Entradas nomeadas de deriveBlocked.
+ */
+interface DeriveBlockedInput {
+  /** Availability rules to evaluate.
+   * @remarks Português: Regras de disponibilidade a avaliar.
+   */
+  constraints: ConstraintSet;
+  /** Evaluated ISO date in YYYY-MM-DD.
+   * @remarks Português: Data ISO avaliada em YYYY-MM-DD.
+   */
+  dateISO: string;
+  /** Inclusive grid start in minutes.
+   * @remarks Português: Início inclusivo da grade em minutos.
+   */
+  gridStartMin: number;
+  /** Exclusive grid end in minutes.
+   * @remarks Português: Fim exclusivo da grade em minutos.
+   */
+  gridEndMin: number;
+}
+
+function deriveBlocked({
+  constraints,
+  dateISO,
+  gridStartMin,
+  gridEndMin,
+}: DeriveBlockedInput): Segment[] {
   const segments: Segment[] = [];
   for (const blocking of constraints.blocked ?? []) {
     const appliesToThisDay = blocking.date === dateISO;
@@ -294,7 +527,6 @@ function deriveBlocked(
   return mergeSegments(segments);
 }
 
-/** Une segmentos sobrepostos/adjacentes. */
 function mergeSegments(segments: Segment[]): Segment[] {
   if (segments.length <= 1) return segments.slice();
   const sorted = [...segments].sort((first, second) => first.startMin - second.startMin);
@@ -311,8 +543,18 @@ function mergeSegments(segments: Segment[]): Segment[] {
   return merged;
 }
 
-/** Complemento de `segments` (já mesclados) dentro de [lowerBound, upperBound). */
-function complement(segments: Segment[], lowerBound: number, upperBound: number): Segment[] {
+function complement({
+  segments,
+  lowerBound,
+  upperBound,
+}: {
+  /** Sorted nonoverlapping minute intervals. / PT: Intervalos em minutos ordenados e sem sobreposição. */
+  segments: Segment[];
+  /** Inclusive lower bound in minutes. / PT: Limite inferior inclusivo em minutos. */
+  lowerBound: number;
+  /** Exclusive upper bound in minutes. / PT: Limite superior exclusivo em minutos. */
+  upperBound: number;
+}): Segment[] {
   const gaps: Segment[] = [];
   let cursor = lowerBound;
   for (const segment of segments) {

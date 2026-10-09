@@ -141,7 +141,7 @@ async (page) => {
   });
   const dropZone = page.locator('[data-demo-drop-zone]');
   const root = page.locator('[data-mc-root]');
-  const drag = async (sourceLocator, destinationLocator, expectPreview) => {
+  const drag = async ({ sourceLocator, destinationLocator, expectPreview }) => {
     await destinationLocator.scrollIntoViewIfNeeded();
     const sourceBounds = await sourceLocator.boundingBox();
     const targetBounds = await destinationLocator.boundingBox();
@@ -162,7 +162,7 @@ async (page) => {
   };
   const emptySlot = root.locator('[data-mc-cell-start="840"]').first();
   await page.getByLabel('Reject next save', { exact: true }).check();
-  await drag(source, emptySlot, true);
+  await drag({ sourceLocator: source, destinationLocator: emptySlot, expectPreview: true });
   await page
     .getByRole('status')
     .filter({ hasText: 'external appointment was not inserted' })
@@ -173,7 +173,7 @@ async (page) => {
     'Rejected external insertion preserves calendar state',
   );
 
-  await drag(source, emptySlot, true);
+  await drag({ sourceLocator: source, destinationLocator: emptySlot, expectPreview: true });
   const inserted = root
     .locator('[data-mc-event]')
     .filter({ hasText: 'External appointment' })
@@ -181,7 +181,7 @@ async (page) => {
   await inserted.waitFor();
   await page.getByLabel('Reject next save', { exact: true }).check();
   await inserted.scrollIntoViewIfNeeded();
-  await drag(inserted, dropZone, false);
+  await drag({ sourceLocator: inserted, destinationLocator: dropZone, expectPreview: false });
   await page.getByRole('status').filter({ hasText: 'event remains in the calendar' }).waitFor();
   check(
     (await root.locator('[data-mc-event]').filter({ hasText: 'External appointment' }).count()) ===
@@ -189,14 +189,18 @@ async (page) => {
     'Rejected outgoing transfer preserves the appointment',
   );
   await inserted.scrollIntoViewIfNeeded();
-  await drag(inserted, dropZone, false);
+  await drag({ sourceLocator: inserted, destinationLocator: dropZone, expectPreview: false });
   await dropZone.locator('.demo-outside-event').waitFor();
   check(
     (await root.locator('[data-mc-event]').filter({ hasText: 'External appointment' }).count()) ===
       0,
     'Accepted outgoing transfer removes the controlled event',
   );
-  await drag(dropZone.locator('.demo-outside-event'), emptySlot, true);
+  await drag({
+    sourceLocator: dropZone.locator('.demo-outside-event'),
+    destinationLocator: emptySlot,
+    expectPreview: true,
+  });
   await inserted.waitFor();
   check(
     (await dropZone.locator('.demo-outside-event').count()) === 0,

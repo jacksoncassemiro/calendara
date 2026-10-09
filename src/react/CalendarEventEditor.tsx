@@ -40,7 +40,19 @@ const MONTHS = [
 type RecurrenceEnd = 'never' | 'count' | 'until';
 type RecurrenceField = 'frequency' | 'interval' | 'end' | 'weekdays' | 'monthDay' | 'month';
 
-function parsePositiveInteger(value: string, label: string, english: boolean): number {
+/** Parse a positive integer or report the field error. @remarks Português: Converte inteiro positivo ou informa erro do campo. */
+function parsePositiveInteger({
+  value,
+  label,
+  english,
+}: {
+  /** Raw form value. @remarks Português: Valor bruto do formulário. */
+  value: string;
+  /** Localized field name. @remarks Português: Nome traduzido do campo. */
+  label: string;
+  /** Use English error text. @remarks Português: Usa mensagem de erro em inglês. */
+  english: boolean;
+}): number {
   const parsedInteger = Number(value);
   if (!value.trim() || !Number.isSafeInteger(parsedInteger) || parsedInteger <= 0) {
     throw new Error(
@@ -50,34 +62,47 @@ function parsePositiveInteger(value: string, label: string, english: boolean): n
   return parsedInteger;
 }
 
+/** Which repetitions an edit affects. @remarks Português: Quais repetições a edição afeta. */
 export type CalendarEditScope = 'occurrence' | 'following' | 'series';
+/** Identity and recurrence scope passed to editor callbacks. @remarks Português: Identidade e escopo de recorrência enviados aos callbacks. */
 export interface CalendarEditorContext {
+  /** Recurrence edit scope. @remarks Português: Escopo da edição de recorrência. */
   scope: CalendarEditScope;
+  /** Original occurrence when editing a repetition. @remarks Português: Ocorrência original ao editar uma repetição. */
   occurrence?: EventOccurrence;
 }
+/** Optional editor setup and persistence callbacks. @remarks Português: Configuração do editor opcional e callbacks de persistência. */
 export interface CalendarEventEditorProps {
+  /** Initial draft; remount when switching events. @remarks Português: Rascunho inicial; remonte ao trocar de evento. */
   event: CalendarEvent;
+  /** Original occurrence for identity and edit scope. @remarks Português: Ocorrência original para identidade e escopo. */
   occurrence?: EventOccurrence;
+  /** Resources offered by the form. @remarks Português: Recursos disponíveis no formulário. */
   resources?: readonly CalendarResource[];
+  /** Display time zone; defaults to the event zone, then UTC. @remarks Português: Fuso de exibição; padrão é o do evento, depois UTC. */
   timeZone?: string;
   /** Editor language: English for en locales, Portuguese otherwise; default pt-BR.
    * @remarks Português: Idioma do editor: inglês em locales en; português nos demais. Padrão pt-BR.
    */
   locale?: string;
+  /** Inject Temporal; otherwise resolved automatically. @remarks Português: Injeta Temporal; ausente resolve automaticamente. */
   temporal?: TemporalLike;
-  /** Return an error message to reject the draft before persistence (constraints/capacity). */
+  /** Return an error before saving. @remarks Português: Retorna mensagem de erro antes de salvar. */
   validate?: (
     event: CalendarEvent,
     context: CalendarEditorContext,
   ) => string | undefined | Promise<string | undefined>;
+  /** Persist the draft; false/rejection keeps the form open. @remarks Português: Persiste rascunho; false/rejeição mantém formulário aberto. */
   onSave: (
     event: CalendarEvent,
     context: CalendarEditorContext,
   ) => void | boolean | Promise<void | boolean>;
+  /** Delete according to edit scope; false/rejection keeps it open. @remarks Português: Exclui conforme escopo; false/rejeição mantém aberto. */
   onDelete?: (
     event: CalendarEvent,
     context: CalendarEditorContext,
   ) => void | boolean | Promise<void | boolean>;
+  /** Close without saving. @remarks Português: Fecha sem salvar. */
   onCancel: () => void;
 }
 
@@ -87,7 +112,7 @@ function previousDate(iso: string): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** Optional accessible form. Mount with key=occurrence key when switching the edited event. */
+/** Optional event form; remount with the occurrence key when switching events. @remarks Português: Formulário opcional; remonte usando a chave da ocorrência ao trocar de evento. */
 export function CalendarEventEditor(props: CalendarEventEditorProps) {
   const { event } = props;
   const english = props.locale?.startsWith('en') ?? false;
@@ -143,14 +168,32 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
       .then((temporal) => {
         if (!active) return;
         const calendarTimeZone = props.timeZone ?? event.time.start.timeZone ?? 'UTC';
-        const projectToCalendarTimeZone = (dateTime: string, sourceZone: string | undefined) =>
+        const projectToCalendarTimeZone = ({
+          dateTime,
+          sourceZone,
+        }: {
+          /** Event local date-time. @remarks Português: Data e horário local do evento. */
+          dateTime: string;
+          /** Source zone; omitted uses the calendar zone. @remarks Português: Fuso de origem; ausente usa o fuso do calendário. */
+          sourceZone: string | undefined;
+        }) =>
           temporal.PlainDateTime.from(dateTime)
             .toZonedDateTime(sourceZone ?? calendarTimeZone)
             .withTimeZone(calendarTimeZone)
             .toPlainDateTime()
             .toString({ smallestUnit: 'second' });
-        setStart(projectToCalendarTimeZone(event.time.start.dateTime!, event.time.start.timeZone));
-        setEnd(projectToCalendarTimeZone(event.time.end.dateTime!, event.time.end.timeZone));
+        setStart(
+          projectToCalendarTimeZone({
+            dateTime: event.time.start.dateTime!,
+            sourceZone: event.time.start.timeZone,
+          }),
+        );
+        setEnd(
+          projectToCalendarTimeZone({
+            dateTime: event.time.end.dateTime!,
+            sourceZone: event.time.end.timeZone,
+          }),
+        );
       })
       .catch(() => {
         if (active)
@@ -233,20 +276,20 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
             !parsedRule || modifiedRuleFields.has(field);
           const rule: RRuleModel = { ...parsedRule, freq: frequency };
           if (shouldUpdateRuleField('interval'))
-            rule.interval = parsePositiveInteger(
-              repeatInterval,
-              t('O intervalo', 'Interval'),
+            rule.interval = parsePositiveInteger({
+              value: repeatInterval,
+              label: t('O intervalo', 'Interval'),
               english,
-            );
+            });
           if (shouldUpdateRuleField('end')) {
             delete rule.count;
             delete rule.until;
             if (repeatEnd === 'count')
-              rule.count = parsePositiveInteger(
-                repeatCount,
-                t('A quantidade de ocorrências', 'Occurrence count'),
+              rule.count = parsePositiveInteger({
+                value: repeatCount,
+                label: t('A quantidade de ocorrências', 'Occurrence count'),
                 english,
-              );
+              });
             if (repeatEnd === 'until') {
               const endDate = temporal.PlainDate.from(repeatUntil);
               if (
@@ -285,8 +328,14 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
             rule.byMonthDay = [day];
           }
           if (frequency === 'YEARLY' && shouldUpdateRuleField('month'))
-            rule.byMonth = [parsePositiveInteger(repeatMonth, t('O mês', 'Month'), english)];
-          // Validate the complete rule while retaining every untouched advanced clause.
+            rule.byMonth = [
+              parsePositiveInteger({
+                value: repeatMonth,
+                label: t('O mês', 'Month'),
+                english,
+              }),
+            ];
+          // Retain untouched advanced recurrence clauses. PT: Preserva cláusulas avançadas de recorrência não editadas.
           parseRRule(serializeRRule(rule));
           updated.recurrence = { ...event.recurrence, rule };
         } else delete updated.recurrence;

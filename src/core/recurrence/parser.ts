@@ -1,13 +1,9 @@
-/**
- * Parser/serializer RRULE — string RFC 5545 ↔ RRuleModel canônico.
- * Suporta o modelo `byDay` com ordinal por entrada (2FR, 4FR, -1MO).
- */
 import { WEEKDAY_CODES } from '../date/dateUtils.js';
 import type { ByDayEntry, Frequency, RRuleModel, WeekdayCode } from '../types/index.js';
 
 const FREQUENCIES: readonly Frequency[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'];
 const WEEKDAY_CODE_SET = new Set<string>(WEEKDAY_CODES);
-/** Defaults do RFC 5545 — omitidos na serialização quando o valor é o padrão. */
+
 const DEFAULT_INTERVAL = 1;
 const DEFAULT_WEEK_START = 'MO';
 
@@ -20,7 +16,9 @@ function integer(value: string): number {
   return result;
 }
 
-/** Reject malformed or unsupported rules instead of silently changing their meaning. */
+/** Reject malformed or unsupported recurrence fields.
+ * @remarks Português: Rejeita campos de recorrência inválidos ou não suportados.
+ */
 export function validateRRuleModel(model: RRuleModel): void {
   if (!FREQUENCIES.includes(model.freq)) throw new RangeError('[calendara] FREQ não suportada');
   for (const value of [model.interval, model.count]) {
@@ -82,7 +80,6 @@ function parseByDay(value: string): ByDayEntry[] {
   return entries;
 }
 
-/** UNTIL do RFC pode ser 'YYYYMMDD' ou 'YYYYMMDDTHHMMSSZ'. Normaliza para ISO. */
 function parseUntil(value: string): string {
   if (!/^\d{8}(?:T\d{6}Z?)?$/.test(value)) throw new RangeError('[calendara] UNTIL inválido');
   const date = `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
@@ -91,14 +88,12 @@ function parseUntil(value: string): string {
   return `${date}T${time}${value.endsWith('Z') ? 'Z' : ''}`;
 }
 
-/**
- * Faz parse de uma string RRULE (com ou sem prefixo `RRULE:`) em RRuleModel.
- * Ignora linhas DTSTART/EXDATE/RDATE — essas vivem em `Recurrence`, não na regra.
+/** Parse an RRULE with an optional prefix; date additions and exclusions belong to Recurrence.
+ * @remarks Português: Lê RRULE com prefixo opcional; inclusões e exclusões de datas pertencem a Recurrence.
  */
 export function parseRRule(input: string): RRuleModel {
   if (input.length > 4096) throw new RangeError('[calendara] RRULE excede 4096 caracteres');
   let body = input.trim();
-  // aceita bloco multi-linha; pega só a linha RRULE (ou a própria string se já for a regra)
   for (const line of body.split(/\r?\n/)) {
     const trimmedLine = line.trim();
     if (/^RRULE:/i.test(trimmedLine)) {
@@ -176,7 +171,9 @@ function serializeUntil(iso: string): string {
   return `${date}T${time}${iso.endsWith('Z') ? 'Z' : ''}`;
 }
 
-/** Serializa um RRuleModel de volta para a string RFC 5545 (sem o prefixo `RRULE:`). */
+/** Serialize supported rule fields without the RRULE prefix.
+ * @remarks Português: Serializa os campos suportados sem o prefixo RRULE.
+ */
 export function serializeRRule(model: RRuleModel): string {
   const parts: string[] = [`FREQ=${model.freq}`];
   const hasCustomInterval = model.interval !== undefined && model.interval !== DEFAULT_INTERVAL;

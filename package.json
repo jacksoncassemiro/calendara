@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "docs:model": "node scripts/build-docs-model.mjs",
+    "audit:contracts": "node scripts/audit-code-contracts.mjs --check",
     "typecheck": "yarn docs:model && node scripts/typecheck.mjs",
     "dev": "yarn docs:model && vite --host 127.0.0.1 --open /",
     "test:package": "node scripts/package-smoke.mjs",
@@ -21,7 +22,7 @@
     "export:clean": "node scripts/export-clean-repository.mjs",
     "format": "prettier --write src tests scripts examples *.ts *.json *.html styles.css",
     "format:check": "prettier --check src tests scripts examples *.ts *.json *.html styles.css",
-    "verify": "yarn typecheck && yarn test && yarn build && yarn test:package && yarn build:demo"
+    "verify": "yarn audit:contracts && yarn typecheck && yarn test && yarn build && yarn test:package && yarn build:demo"
   },
   "devDependencies": {
     "@playwright/cli": "0.1.22",

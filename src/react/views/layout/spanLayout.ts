@@ -1,4 +1,4 @@
-/** Keep a date span in one lane, allowing disjoint spans to reuse that lane. */
+/** Pack date spans into reusable lanes. @remarks Português: Distribui faixas de datas em colunas reutilizáveis. */
 export function packDateSpans<
   T extends {
     start: number;

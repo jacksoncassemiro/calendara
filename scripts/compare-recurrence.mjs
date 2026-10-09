@@ -9,8 +9,7 @@ import { parseRRule, serializeRRule, expandRuleAll } from '../dist/esm/core/inde
 import { expandTemporalRule } from '../dist/esm/core/recurrence/engine.js';
 import { iterateCivilDates } from '../dist/esm/core/recurrence/civilIterator.js';
 
-// Differential combinations exercise interval phase, negative days, mixed
-// ordinals, positional selection and windows before/after DTSTART.
+// Compare boundaries and combined recurrence filters. / PT: Compara limites e filtros combinados de recorrência.
 let checks = 0;
 for (const freq of ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'])
   for (const interval of [1, 2, 3])
@@ -31,12 +30,23 @@ for (const freq of ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'])
               windowEnd: Temporal.PlainDate.from('2026-12-31'),
             };
             const reference = [
-              ...expandTemporalRule(Temporal, model, start, new Set(), options),
+              ...expandTemporalRule({
+                temporal: Temporal,
+                model,
+                dtstart: start,
+                exDates: new Set(),
+                options,
+              }),
             ].map((x) => x.toString());
             assert.deepEqual(
-              expandRuleAll(Temporal, model, start, new Set(), 10000, options).map((x) =>
-                x.toString(),
-              ),
+              expandRuleAll({
+                temporal: Temporal,
+                model,
+                dtstart: start,
+                exDates: new Set(),
+                maxResults: 10000,
+                options,
+              }).map((x) => x.toString()),
               reference,
               serializeRRule(model),
             );
@@ -78,10 +88,27 @@ for (const [name, start, rule, from, to] of cases) {
   });
   const methods = {
     temporalReference: () =>
-      [...expandTemporalRule(Temporal, model, dt, new Set(), options)].map((x) => x.toString()),
-    civil: () => [...iterateCivilDates(model, start, { start: from, end: to })],
+      [
+        ...expandTemporalRule({
+          temporal: Temporal,
+          model,
+          dtstart: dt,
+          exDates: new Set(),
+          options,
+        }),
+      ].map((x) => x.toString()),
+    civil: () => [
+      ...iterateCivilDates({ model, startDateISO: start, window: { start: from, end: to } }),
+    ],
     production: () =>
-      expandRuleAll(Temporal, model, dt, new Set(), 10000, options).map((x) => x.toString()),
+      expandRuleAll({
+        temporal: Temporal,
+        model,
+        dtstart: dt,
+        exDates: new Set(),
+        maxResults: 10000,
+        options,
+      }).map((x) => x.toString()),
     rrule: () =>
       rr
         .between(new Date(`${from}T00:00:00Z`), new Date(`${to}T00:00:00Z`), true)

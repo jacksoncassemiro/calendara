@@ -100,7 +100,7 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
     `render/derive.ts` (reusado por calendarApp/timeGridModel). `toMinutes` (hh:mm→min) duplicado em
     constraintEngine+derive → novo `date/time.ts` (`hhmmToMinutes`). `toPx`/`GUTTER_PX` e `segmentStyle` (que no
     resourceViews se chamava `bandStyle`, idêntico) duplicados em TimeGrid+resourceViews → novo **`views/utils.ts`**
-    (responde à pergunta do experimento inicial: sim, os helpers de apresentação das views foram isolados num util da própria
+    (os helpers de apresentação das views foram isolados num util da própria
     pasta `views/`). Também unifiquei o magic number de altura mínima: resourceViews agora usa `options.minEventMinutes`.
   - Verificação: `tsc` estrito **+ noUnusedLocals/Parameters = 0** nos dois pacotes; 56 testes node verdes no run.
 - **Estilização (item "CSS compilado isolado" da Fase 6).** `packages/styles` deixou de ser stub: `index.css` agora
@@ -187,7 +187,7 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
     `computeMoveDraft` (preserva duração + ponto de agarre), `computeResizeDraft` (mantém início, duração
     mínima), `computeSelectDraft` (ordena/snap para fora). **Não confundir** com `geometry/geometry.ts`
     (GeometryEngine de RENDER, que empacota eventos existentes) — renomeei de `geometry.ts` p/ evitar dois
-    arquivos homônimos (pedido do experimento inicial).
+    arquivos homônimos.
   - `occupancy.ts` — **validação DURA de lotação/buffer** (`validateOccupancy`): buffer ESTENDE o intervalo
     ocupado, então uma varredura de concorrência pega lotação (`over-capacity`) e buffer (`buffer-conflict`)
     de uma vez. Genérico, zero regra de negócio (ADR-006). Resolve a pendência da Fase 3B.
@@ -238,7 +238,7 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 - **Próximo:** Fase 4 (drag & drop + resize + seleção) — ver "Próximo passo concreto".
 
 ### Sessão 5 — 2026-07-22 — Passe de nomenclatura + Fase 3 (Month/NDays/List) ✅
-- **Nomenclatura (pedido do experimento inicial):** passe de clareza em TODO o `packages/core` — eliminados identificadores
+- **Nomenclatura:** passe de clareza em TODO o `packages/core` — eliminados identificadores
   de 1 caractere em params/locais/constants/generics. `T`→`temporal` (incl. campo público `DateUtils.temporal`
   e `ViewContext.temporal`), `du`→`dateUtils`, `ps/pe/nps`→`periodStart/End/nextPeriodStart`, `cand`→`candidates`,
   generics `<S>`→`<State>` / `<R>`→`<Result>`, etc. Corrigido casing de imports antigos nos testes
@@ -259,7 +259,7 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 - **Próximo:** Fase 3B (Recursos/Agenda Desvinculada) — ver "Próximo passo concreto".
 
 ### Sessão 4 — 2026-07-22 — Fase 2: render headless + views Week/Day ✅
-- **Renomeação** (a pedido do experimento inicial): arquivos com inicial minúscula por padrão (`DateUtils.ts`→`dateUtils.ts`,
+- **Renomeação**: arquivos com inicial minúscula por padrão (`DateUtils.ts`→`dateUtils.ts`,
   `ConstraintEngine.ts`→`constraintEngine.ts`); imports já consistentes. Esclarecido o **porquê dos imports `.js`**
   em arquivos `.ts`: o TS não reescreve especificadores; escreve-se a extensão do output (`.js`) — à prova de
   NodeNext/ESM. Aqui `moduleResolution: Bundler` deixaria omitir, mas mantivemos `.js` por consistência/futuro.
@@ -324,7 +324,7 @@ experiments/recurrence-validation/ ← harness executável (node harness.mjs)
 - **Agenda Desvinculada (recursos)** elevada a requisito de 1ª classe: criado `reference/agenda-desvinculada.md`;
   adicionada **Fase 3B** no plano; `CalendarResource` + `event.resourceIds` no modelo; núcleo resource-aware na Fase 1.
 - Esclarecido que **views customizadas** não são travadas (contrato `ICalendarView` aberto).
-- **Refinamento (a pedido do experimento inicial):** recursos adotam o conceito **genérico `Resource`** (padrão de
+- **Refinamento:** recursos adotam o conceito **genérico `Resource`** (padrão de
   calendário), **sem semântica de domínio**. Removido qualquer resquício de "profissional" como campo/flag:
   vira `type` string opaca + `metadata`. Adicionado **ADR-006** e seção de fronteira lib×app em
   `agenda-desvinculada.md`. Objetivo: não acoplar regra de negócio à biblioteca.

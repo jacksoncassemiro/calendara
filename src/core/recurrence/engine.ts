@@ -1,4 +1,3 @@
-/** Date-only recurrence expansion; timezone-aware event starts use recurrenceSet. */
 import { createDateUtils, weekdayCodeToDayOfWeek, type DateUtils } from '../date/dateUtils.js';
 import type { TemporalLike } from '../date/temporal.js';
 import type { ByDayEntry, RRuleModel } from '../types/index.js';
@@ -7,14 +6,28 @@ import { iterateCivilDates } from './civilIterator.js';
 
 type PlainDate = InstanceType<TemporalLike['PlainDate']>;
 
+/** Inclusive date limits and safety budgets for recurrence expansion.
+ * @remarks Português: Limites inclusivos de data e limites de segurança da expansão recorrente.
+ */
 export interface ExpandOptions {
-  /** Não emitir ocorrências antes desta data (inclusiva). */
+  /** Inclusive first date to emit.
+   * @remarks Português: Primeira data inclusiva a emitir.
+   */
   windowStart?: PlainDate;
-  /** Parar quando a ocorrência passar desta data (inclusiva). Necessário p/ regras infinitas. */
+
+  /** Inclusive last date to emit; bounds infinite rules.
+   * @remarks Português: Última data inclusiva a emitir; limita regras infinitas.
+   */
   windowEnd?: PlainDate;
-  /** Guarda anti-loop: máximo de períodos vazios consecutivos antes de abortar. */
+
+  /** Maximum consecutive empty periods; default 2000.
+   * @remarks Português: Máximo de períodos vazios consecutivos; padrão 2000.
+   */
   maxEmptyPeriods?: number;
-  /** Work budget; exhaustion throws instead of silently returning an incomplete series. */
+
+  /** Maximum visited periods; default 50000, exhaustion throws.
+   * @remarks Português: Máximo de períodos visitados; padrão 50000, exceder lança erro.
+   */
   maxPeriods?: number;
 }
 
@@ -24,42 +37,106 @@ function resolveByDay(model: RRuleModel): ByDayEntry[] {
   return model.byDay ?? [];
 }
 
-/**
- * Gera as datas (PlainDate) de uma regra a partir de `dtstart`.
- * `exDates` aqui são datas ('YYYY-MM-DD') a suprimir por igualdade de dia.
+/** Named inputs for expandRule.
+ * @remarks Português: Entradas nomeadas de expandRule.
  */
-export function* expandRule(
-  temporal: TemporalLike,
-  model: RRuleModel,
-  dtstart: PlainDate,
-  exDates: ReadonlySet<string> = new Set(),
-  options: ExpandOptions = {},
-): Generator<PlainDate> {
-  // Expanded years/non-Gregorian inputs retain the established Temporal path.
+export interface ExpandRuleInput {
+  /** Injected date/time implementation.
+   * @remarks Português: Implementação de datas e horários injetada.
+   */
+  temporal: TemporalLike;
+  /** Validated structured recurrence filters.
+   * @remarks Português: Filtros estruturados da recorrência validada.
+   */
+  model: RRuleModel;
+  /** Original series anchor date.
+   * @remarks Português: Data original da âncora da série.
+   */
+  dtstart: PlainDate;
+  /** Excluded ISO dates; default empty.
+   * @remarks Português: Datas ISO excluídas; padrão vazio.
+   */
+  exDates?: ReadonlySet<string> | undefined;
+  /** Expansion window and safety budgets.
+   * @remarks Português: Janela de expansão e limites de segurança.
+   */
+  options?: ExpandOptions | undefined;
+}
+
+/** Expand rule dates from DTSTART; date-only exclusions still count toward COUNT.
+ * @remarks Português: Expande datas desde DTSTART; exclusões por data continuam contando para COUNT.
+ */
+
+export function* expandRule({
+  temporal,
+  model,
+  dtstart,
+  exDates = new Set(),
+  options = {},
+}: ExpandRuleInput): Generator<PlainDate> {
   const dates = [dtstart, options.windowStart, options.windowEnd].filter(Boolean) as PlainDate[];
   if (dates.some((date) => !/^\d{4}-/.test(date.toString()) || date.calendarId !== 'iso8601')) {
     if (model.byYearDay?.length)
       throw new RangeError('BYYEARDAY requires four-digit ISO Gregorian dates');
-    yield* expandTemporalRule(temporal, model, dtstart, exDates, options);
+    yield* expandTemporalRule({
+      temporal,
+      model,
+      dtstart,
+      exDates,
+      options,
+    });
     return;
   }
-  for (const iso of iterateCivilDates(model, dtstart.toString(), {
-    start: options.windowStart?.toString(),
-    end: options.windowEnd?.toString(),
-    maxPeriods: options.maxPeriods,
-    maxEmptyPeriods: options.maxEmptyPeriods,
+  for (const iso of iterateCivilDates({
+    model,
+    startDateISO: dtstart.toString(),
+    window: {
+      start: options.windowStart?.toString(),
+      end: options.windowEnd?.toString(),
+      maxPeriods: options.maxPeriods,
+      maxEmptyPeriods: options.maxEmptyPeriods,
+    },
   }))
     if (!exDates.has(iso)) yield temporal.PlainDate.from(iso);
 }
 
-/** Reference backend retained for differential verification and exceptional date ranges. */
-export function* expandTemporalRule(
-  temporal: TemporalLike,
-  model: RRuleModel,
-  dtstart: PlainDate,
-  exDates: ReadonlySet<string> = new Set(),
-  options: ExpandOptions = {},
-): Generator<PlainDate> {
+/** Named inputs for expandTemporalRule.
+ * @remarks Português: Entradas nomeadas de expandTemporalRule.
+ */
+export interface ExpandTemporalRuleInput {
+  /** Injected date/time implementation.
+   * @remarks Português: Implementação de datas e horários injetada.
+   */
+  temporal: TemporalLike;
+  /** Validated structured recurrence filters.
+   * @remarks Português: Filtros estruturados da recorrência validada.
+   */
+  model: RRuleModel;
+  /** Original series anchor date.
+   * @remarks Português: Data original da âncora da série.
+   */
+  dtstart: PlainDate;
+  /** Excluded ISO dates; default empty.
+   * @remarks Português: Datas ISO excluídas; padrão vazio.
+   */
+  exDates?: ReadonlySet<string> | undefined;
+  /** Expansion window and safety budgets.
+   * @remarks Português: Janela de expansão e limites de segurança.
+   */
+  options?: ExpandOptions | undefined;
+}
+
+/** Temporal reference iterator for exceptional calendars and differential validation.
+ * @remarks Português: Iterador Temporal de referência para calendários excepcionais e validação diferencial.
+ */
+
+export function* expandTemporalRule({
+  temporal,
+  model,
+  dtstart,
+  exDates = new Set(),
+  options = {},
+}: ExpandTemporalRuleInput): Generator<PlainDate> {
   validateRRuleModel(model);
   const maxPeriods = options.maxPeriods ?? 50000;
   if (!Number.isSafeInteger(maxPeriods) || maxPeriods <= 0)
@@ -77,8 +154,6 @@ export function* expandTemporalRule(
   const hasOrdinals = byDay.some((entry) => entry.ordinal !== undefined);
   const weekdayNumbers = byDay.map((entry) => weekdayCodeToDayOfWeek(entry.weekday));
   const bySetPos = model.bySetPos ?? [];
-  // Even leap February cannot contain day 30. Prove these empty intersections
-  // before scanning thousands of years of periods on the UI thread.
   if (model.byMonth?.length && model.byMonthDay?.length) {
     const longestMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     const possible = model.byMonth.some((month) =>
@@ -87,7 +162,6 @@ export function* expandTemporalRule(
     if (!possible) return;
   }
 
-  // Regras implícitas do RFC (quando nenhum BYxxx do nível é dado).
   let byMonth = model.byMonth ?? [];
   let byMonthDay = model.byMonthDay ?? [];
   let effectiveWeekdays = weekdayNumbers;
@@ -105,15 +179,13 @@ export function* expandTemporalRule(
     effectiveWeekdays = [dtstart.dayOfWeek];
   }
 
-  // Início do período.
   let periodStart: PlainDate;
   if (frequency === 'MONTHLY') periodStart = dtstart.with({ day: 1 });
   else if (frequency === 'YEARLY') periodStart = dtstart.with({ month: 1, day: 1 });
-  else if (frequency === 'WEEKLY') periodStart = dateUtils.startOfWeek(dtstart, weekStart);
+  else if (frequency === 'WEEKLY')
+    periodStart = dateUtils.startOfWeek({ date: dtstart, weekStart });
   else periodStart = dtstart;
 
-  // Without COUNT, earlier periods cannot affect membership or BYSETPOS in the
-  // current period. Jump whole frequency periods, preserving the DTSTART phase.
   const canSeekWindow =
     count === null &&
     options.windowStart !== undefined &&
@@ -195,7 +267,7 @@ export function* expandTemporalRule(
         });
       }
       const checksMonthDay = byMonthDay.length > 0;
-      const negativeDay = cursor.day - cursor.daysInMonth - 1; // -1 = último dia do mês
+      const negativeDay = cursor.day - cursor.daysInMonth - 1; // -1 denotes the last day. / PT: -1 indica o último dia.
       const monthDayAllowed =
         !checksMonthDay || byMonthDay.includes(cursor.day) || byMonthDay.includes(negativeDay);
       const matchesRule = monthAllowed && weekdayAllowed && monthDayAllowed;
@@ -203,7 +275,6 @@ export function* expandTemporalRule(
       cursor = cursor.add({ days: 1 });
     }
 
-    // dedup + sort
     const seenKeys = new Set<string>();
     candidates = candidates
       .filter((candidate) => {
@@ -214,7 +285,6 @@ export function* expandTemporalRule(
       })
       .sort((left, right) => temporal.PlainDate.compare(left, right));
 
-    // BYSETPOS (lista) sobre o conjunto do período
     if (bySetPos.length) {
       const picked: PlainDate[] = [];
       for (const position of bySetPos) {
@@ -264,17 +334,56 @@ export function* expandTemporalRule(
   }
 }
 
-/** Coleta helper com teto de segurança. */
-export function expandRuleAll(
-  temporal: TemporalLike,
-  model: RRuleModel,
-  dtstart: PlainDate,
-  exDates: ReadonlySet<string> = new Set(),
+/** Named inputs for expandRuleAll.
+ * @remarks Português: Entradas nomeadas de expandRuleAll.
+ */
+export interface ExpandRuleAllInput {
+  /** Injected date/time implementation.
+   * @remarks Português: Implementação de datas e horários injetada.
+   */
+  temporal: TemporalLike;
+  /** Validated structured recurrence filters.
+   * @remarks Português: Filtros estruturados da recorrência validada.
+   */
+  model: RRuleModel;
+  /** Original series anchor date.
+   * @remarks Português: Data original da âncora da série.
+   */
+  dtstart: PlainDate;
+  /** Excluded ISO dates; default empty.
+   * @remarks Português: Datas ISO excluídas; padrão vazio.
+   */
+  exDates?: ReadonlySet<string> | undefined;
+  /** Maximum collected dates; default 1000.
+   * @remarks Português: Máximo de datas coletadas; padrão 1000.
+   */
+  maxResults?: number | undefined;
+  /** Expansion window and safety budgets.
+   * @remarks Português: Janela de expansão e limites de segurança.
+   */
+  options?: ExpandOptions | undefined;
+}
+
+/** Collect rule dates with a bounded result limit.
+ * @remarks Português: Coleta datas da regra com limite de resultados.
+ */
+
+export function expandRuleAll({
+  temporal,
+  model,
+  dtstart,
+  exDates = new Set(),
   maxResults = 1000,
-  options: ExpandOptions = {},
-): PlainDate[] {
+  options = {},
+}: ExpandRuleAllInput): PlainDate[] {
   const results: PlainDate[] = [];
-  for (const date of expandRule(temporal, model, dtstart, exDates, options)) {
+  for (const date of expandRule({
+    temporal,
+    model,
+    dtstart,
+    exDates,
+    options,
+  })) {
     results.push(date);
     if (results.length >= maxResults) break;
   }

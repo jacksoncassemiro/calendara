@@ -150,6 +150,29 @@ Supported public rule fields: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTI
 
 ## Theme
 
+### API-driven day status and headers
+
+Use consumer state to map date/resource IDs to statuses. `getDayStyle` applies colors to the day header and body; `renderDayHeader` receives `dateISO`, `viewName`, optional `resourceId`, `isToday`, optional `isSelected`, and `defaultContent`. Preserve `defaultContent` when adding a caption or icon to retain the standard date controls. Keep hooks inside a returned component.
+
+```tsx
+<Calendar views={[weekView]} events={events}
+  getDayStyle={({ dateISO }) => statuses[dateISO] ? {
+    backgroundColor: `var(--status-${statuses[dateISO]}-bg)`,
+    color: `var(--status-${statuses[dateISO]}-fg)`,
+    '--mc-color-muted': `var(--status-${statuses[dateISO]}-fg)`,
+    '--mc-color-btn-active-bg': `var(--status-${statuses[dateISO]}-fg)`,
+  } : undefined}
+  renderDayHeader={({ dateISO, defaultContent }) => <>
+    {defaultContent}
+    {statuses[dateISO] && <small>{statusLabels[statuses[dateISO]]}</small>}
+  </>}
+/>
+```
+
+Update `statuses` from an API response using application state; the library neither fetches nor classifies these values. Define light/dark foreground and background tokens with readable contrast. A “full” or “unavailable” decoration is visual: use `constraints` or resource capacity for actual scheduling restrictions. The [focused example](../../examples/features.html?demo=day-style) simulates an asynchronous response.
+
+Touch swipes preserve native scrolling; hold approximately 450 ms before dragging an event or selecting an interval. Overflowing time grids/resource timelines provide a synchronized top horizontal scrollbar. Month cards remain the default on narrow containers; optional indicators use `monthCompactBreakpoint`, measured from the calendar container.
+
 Import the library CSS; the playground CSS is separate. Override tokens after import:
 
 ```css
@@ -162,6 +185,24 @@ Import the library CSS; the playground CSS is separate. Override tokens after im
 ```
 
 `event.color` sets the event accent, not availability. `getDayStyle` decorates a day without blocking it; use constraints for restrictions. Avoid geometric overrides in card/day decorations. `options` replaces declarative values over defaults; removing a field restores its default. Imperative `setOptions` applies a patch.
+
+## Named utility inputs
+
+Core utilities support named inputs when several values form one operation:
+
+```ts
+import { expandRange } from '@jacksoncassemiro/calendara/core';
+
+const occurrences = expandRange({
+  temporal,
+  events,
+  startISO: '2026-10-01',
+  endISO: '2026-10-31',
+  displayTimeZone: 'America/Sao_Paulo',
+});
+```
+
+Use the named-input form for these operations; positional overloads are removed. Unary conversions and binary comparisons keep their usual signatures. Custom views navigate with `navigate({ direction, date, context })`.
 
 ## Features and limits
 

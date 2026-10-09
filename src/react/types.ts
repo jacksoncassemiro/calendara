@@ -63,7 +63,12 @@ export interface CalendarHandle {
   /** List the configured view names and labels.
    * @remarks Português: Lista somente as views registradas nesta instância.
    */
-  listViews(): { name: string; label: string }[];
+  listViews(): {
+    /** Registered view identifier. @remarks Português: Identificador da view registrada. */
+    name: string;
+    /** Display text. @remarks Português: Texto exibido. */
+    label: string;
+  }[];
   /** Check global constraints for a slot.
    * @remarks Português: Verifica regras gerais; capacidade e buffers usam
    * evaluatePlacement/evaluateEvent.
@@ -160,6 +165,10 @@ export interface CalendarProps {
    * @remarks Português: Estiliza o dia; para bloquear horários, use constraints.
    */
   getDayStyle?: DayStyleCallback;
+  /** Custom date/resource headings; wrap defaultContent to preserve navigation.
+   * @remarks Português: Personaliza títulos; envolva defaultContent para preservar navegação.
+   */
+  renderDayHeader?: DayHeaderRenderSlot;
   /** Handle month overflow; false replaces the built-in opening.
    * @remarks Português: Recebe data/ocorrências; false substitui a abertura padrão.
    */
@@ -254,5 +263,6 @@ import type {
   MonthMoreInfo,
   MonthMoreRenderSlot,
   DayStyleCallback,
+  DayHeaderRenderSlot,
 } from './viewTypes.js';
 import type { RangeChange, EventSource } from './app/calendarApp.js';

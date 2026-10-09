@@ -32,7 +32,21 @@ const origin: PlacementInfo = {
   },
 };
 
-function pointer(target: EventTarget, type: string, clientX: number, clientY: number): void {
+function pointer({
+  target,
+  type,
+  clientX,
+  clientY,
+}: {
+  /** Dispatch target. / PT: Alvo do disparo. */
+  target: EventTarget;
+  /** Pointer event name. / PT: Nome do evento de ponteiro. */
+  type: string;
+  /** Horizontal client coordinate in pixels. / PT: Coordenada horizontal do cliente em pixels. */
+  clientX: number;
+  /** Vertical client coordinate in pixels. / PT: Coordenada vertical do cliente em pixels. */
+  clientY: number;
+}): void {
   target.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX, clientY }));
 }
 
@@ -41,10 +55,10 @@ afterEach(() => {
   cleanups.splice(0).forEach((cleanup) => cleanup());
 });
 
-function fixture(
-  overrides: Partial<InteractionCallbacks> = {},
-  evaluate: InteractionDeps['evaluate'] = () => ({ valid: true, reason: 'ok' }),
-) {
+function fixture({
+  overrides = {},
+  evaluate = () => ({ valid: true, reason: 'ok' }),
+}: { overrides?: Partial<InteractionCallbacks>; evaluate?: InteractionDeps['evaluate'] } = {}) {
   const root = document.createElement('div');
   root.innerHTML = `<div data-mc-day="${DATE}"><div data-mc-event="${origin.eventId}" data-mc-start-min="540" data-mc-end-min="600" data-mc-editable="true"></div></div>`;
   document.body.append(root);
@@ -90,46 +104,46 @@ function fixture(
 describe('external pointer drag lifecycle', () => {
   it('exports a list card without inventing a timed destination or deleting its event', () => {
     const outside = vi.fn();
-    const { surface, eventNode, callbacks } = fixture({ dropOutside: outside });
+    const { surface, eventNode, callbacks } = fixture({ overrides: { dropOutside: outside } });
     surface.removeAttribute('data-mc-day');
     surface.setAttribute('data-mc-list-day', DATE);
     eventNode.setAttribute('data-mc-event-date', DATE);
     eventNode.setAttribute('data-mc-drag-source', '');
     (eventNode as HTMLElement).getBoundingClientRect = () => surface.getBoundingClientRect();
 
-    pointer(eventNode, 'pointerdown', 50, 100);
-    pointer(document, 'pointerup', 50, 100);
+    pointer({ target: eventNode, type: 'pointerdown', clientX: 50, clientY: 100 });
+    pointer({ target: document, type: 'pointerup', clientX: 50, clientY: 100 });
     expect(callbacks.clickEvent).toHaveBeenCalledOnce();
 
-    pointer(eventNode, 'pointerdown', 50, 100);
-    pointer(document, 'pointermove', 100, 180);
-    pointer(document, 'pointerup', 100, 180);
+    pointer({ target: eventNode, type: 'pointerdown', clientX: 50, clientY: 100 });
+    pointer({ target: document, type: 'pointermove', clientX: 100, clientY: 180 });
+    pointer({ target: document, type: 'pointerup', clientX: 100, clientY: 180 });
     expect(callbacks.commitMove).not.toHaveBeenCalled();
     expect(outside).not.toHaveBeenCalled();
     expect(callbacks.clickEvent).toHaveBeenCalledOnce();
 
-    pointer(eventNode, 'pointerdown', 50, 100);
-    pointer(document, 'pointermove', 300, 180);
-    pointer(document, 'pointerup', 300, 180);
+    pointer({ target: eventNode, type: 'pointerdown', clientX: 50, clientY: 100 });
+    pointer({ target: document, type: 'pointermove', clientX: 300, clientY: 180 });
+    pointer({ target: document, type: 'pointerup', clientX: 300, clientY: 180 });
     expect(outside).toHaveBeenCalledOnce();
     expect(outside.mock.calls[0][0].occurrence).toEqual(origin.occurrence);
     expect(callbacks.commitMove).not.toHaveBeenCalled();
 
-    pointer(eventNode, 'pointerdown', 50, 100);
-    pointer(document, 'pointermove', 300, 180);
+    pointer({ target: eventNode, type: 'pointerdown', clientX: 50, clientY: 100 });
+    pointer({ target: document, type: 'pointermove', clientX: 300, clientY: 180 });
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    pointer(document, 'pointerup', 300, 180);
+    pointer({ target: document, type: 'pointerup', clientX: 300, clientY: 180 });
     expect(outside).toHaveBeenCalledOnce();
 
     eventNode.setAttribute('data-mc-editable', 'false');
-    pointer(eventNode, 'pointerdown', 50, 100);
-    pointer(document, 'pointermove', 300, 180);
-    pointer(document, 'pointerup', 300, 180);
+    pointer({ target: eventNode, type: 'pointerdown', clientX: 50, clientY: 100 });
+    pointer({ target: document, type: 'pointermove', clientX: 300, clientY: 180 });
+    pointer({ target: document, type: 'pointerup', clientX: 300, clientY: 180 });
     expect(outside).toHaveBeenCalledOnce();
   });
   it('previews and commits at the first incoming pointer position without requiring another move', () => {
     const receive = vi.fn();
-    const { engine, callbacks } = fixture({ commitExternal: receive });
+    const { engine, callbacks } = fixture({ overrides: { commitExternal: receive } });
     engine.startExternalDrag(
       origin,
       new MouseEvent('pointermove', { button: 0, clientX: 100, clientY: 180 }) as PointerEvent,
@@ -137,7 +151,7 @@ describe('external pointer drag lifecycle', () => {
     expect(callbacks.onDraftChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ startMin: 660, title: 'Paciente pendente' }),
     );
-    pointer(document, 'pointerup', 100, 180);
+    pointer({ target: document, type: 'pointerup', clientX: 100, clientY: 180 });
     expect(receive).toHaveBeenCalledOnce();
     expect(receive).toHaveBeenCalledWith(
       expect.objectContaining({ startDateTime: `${DATE}T11:00:00` }),
@@ -145,9 +159,9 @@ describe('external pointer drag lifecycle', () => {
   });
   it('previews the external title/time and commits once through receive, not ordinary move', () => {
     const receive = vi.fn();
-    const { engine, callbacks } = fixture({ commitExternal: receive });
+    const { engine, callbacks } = fixture({ overrides: { commitExternal: receive } });
     engine.startExternalDrag(origin, new MouseEvent('pointerdown', { button: 0 }) as PointerEvent);
-    pointer(document, 'pointermove', 100, 180);
+    pointer({ target: document, type: 'pointermove', clientX: 100, clientY: 180 });
     expect(callbacks.onDraftChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         startMin: 660,
@@ -158,7 +172,7 @@ describe('external pointer drag lifecycle', () => {
       }),
     );
     expect(receive).not.toHaveBeenCalled();
-    pointer(document, 'pointerup', 100, 180);
+    pointer({ target: document, type: 'pointerup', clientX: 100, clientY: 180 });
     expect(receive).toHaveBeenCalledWith(
       expect.objectContaining({
         startDateTime: `${DATE}T11:00:00`,
@@ -167,24 +181,27 @@ describe('external pointer drag lifecycle', () => {
     );
     expect(callbacks.commitMove).not.toHaveBeenCalled();
     expect(callbacks.onDraftChange).toHaveBeenLastCalledWith(null);
-    pointer(document, 'pointerup', 100, 180);
+    pointer({ target: document, type: 'pointerup', clientX: 100, clientY: 180 });
     expect(receive).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a blocked incoming drop and cancels one released outside after entering', () => {
     const receive = vi.fn();
-    const { engine, callbacks } = fixture({ commitExternal: receive }, () => ({
-      valid: false,
-      reason: 'blocked',
-    }));
+    const { engine, callbacks } = fixture({
+      overrides: { commitExternal: receive },
+      evaluate: () => ({
+        valid: false,
+        reason: 'blocked',
+      }),
+    });
     engine.startExternalDrag(origin, new MouseEvent('pointerdown', { button: 0 }) as PointerEvent);
-    pointer(document, 'pointermove', 100, 180);
-    pointer(document, 'pointerup', 100, 180);
+    pointer({ target: document, type: 'pointermove', clientX: 100, clientY: 180 });
+    pointer({ target: document, type: 'pointerup', clientX: 100, clientY: 180 });
     expect(callbacks.blocked).toHaveBeenCalledWith(expect.objectContaining({ reason: 'blocked' }));
     expect(receive).not.toHaveBeenCalled();
     engine.startExternalDrag(origin, new MouseEvent('pointerdown', { button: 0 }) as PointerEvent);
-    pointer(document, 'pointermove', 100, 180);
-    pointer(document, 'pointerup', 250, 180);
+    pointer({ target: document, type: 'pointermove', clientX: 100, clientY: 180 });
+    pointer({ target: document, type: 'pointerup', clientX: 250, clientY: 180 });
     expect(callbacks.blocked).toHaveBeenCalledTimes(1);
     expect(receive).not.toHaveBeenCalled();
     expect(callbacks.clickEvent).not.toHaveBeenCalled();
@@ -204,16 +221,16 @@ describe('external pointer drag lifecycle', () => {
       else Reflect.deleteProperty(document, 'elementFromPoint');
       externalDestination.remove();
     });
-    const enabled = fixture({ dropOutside: remove });
-    pointer(enabled.eventNode, 'pointerdown', 100, 60);
-    pointer(document, 'pointermove', 250, 180);
+    const enabled = fixture({ overrides: { dropOutside: remove } });
+    pointer({ target: enabled.eventNode, type: 'pointerdown', clientX: 100, clientY: 60 });
+    pointer({ target: document, type: 'pointermove', clientX: 250, clientY: 180 });
     expect(document.querySelector('.mc-outside-preview')?.textContent).toBe(
       origin.occurrence.event.title,
     );
-    pointer(document, 'pointermove', 100, 180);
+    pointer({ target: document, type: 'pointermove', clientX: 100, clientY: 180 });
     expect(document.querySelector('.mc-outside-preview')).toBeNull();
-    pointer(document, 'pointermove', 250, 180);
-    pointer(document, 'pointerup', 250, 180);
+    pointer({ target: document, type: 'pointermove', clientX: 250, clientY: 180 });
+    pointer({ target: document, type: 'pointerup', clientX: 250, clientY: 180 });
     expect(document.querySelector('.mc-outside-preview')).toBeNull();
     expect(remove).toHaveBeenCalledWith(expect.objectContaining({ eventId: origin.eventId }), {
       clientX: 250,
@@ -223,33 +240,33 @@ describe('external pointer drag lifecycle', () => {
     expect(enabled.callbacks.commitMove).not.toHaveBeenCalled();
     enabled.engine.detach();
     const ordinary = fixture();
-    pointer(ordinary.eventNode, 'pointerdown', 100, 60);
-    pointer(document, 'pointermove', 250, 180);
-    pointer(document, 'pointerup', 250, 180);
+    pointer({ target: ordinary.eventNode, type: 'pointerdown', clientX: 100, clientY: 60 });
+    pointer({ target: document, type: 'pointermove', clientX: 250, clientY: 180 });
+    pointer({ target: document, type: 'pointerup', clientX: 250, clientY: 180 });
     expect(ordinary.callbacks.commitMove).toHaveBeenCalledTimes(1);
   });
 
   it('cancels on Escape, rejects read-only origins and cleans a detached active gesture', () => {
     const receive = vi.fn();
-    const { engine, callbacks } = fixture({ commitExternal: receive });
+    const { engine, callbacks } = fixture({ overrides: { commitExternal: receive } });
     const begin = (placement = origin) =>
       engine.startExternalDrag(
         placement,
         new MouseEvent('pointerdown', { button: 0 }) as PointerEvent,
       );
     begin({ ...origin, editable: false });
-    pointer(document, 'pointermove', 100, 180);
+    pointer({ target: document, type: 'pointermove', clientX: 100, clientY: 180 });
     expect(callbacks.onDraftChange).not.toHaveBeenCalled();
     begin();
-    pointer(document, 'pointermove', 100, 180);
+    pointer({ target: document, type: 'pointermove', clientX: 100, clientY: 180 });
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    pointer(document, 'pointerup', 100, 180);
+    pointer({ target: document, type: 'pointerup', clientX: 100, clientY: 180 });
     expect(receive).not.toHaveBeenCalled();
     begin();
-    pointer(document, 'pointermove', 100, 180);
+    pointer({ target: document, type: 'pointermove', clientX: 100, clientY: 180 });
     engine.detach();
     expect(callbacks.onDraftChange).toHaveBeenLastCalledWith(null);
-    pointer(document, 'pointerup', 100, 180);
+    pointer({ target: document, type: 'pointerup', clientX: 100, clientY: 180 });
     expect(receive).not.toHaveBeenCalled();
   });
 });

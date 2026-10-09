@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ConstraintEngine, jsDayOfWeek } from '../../src/core/constraint/constraintEngine.js';
 
-// businessHours: seg-sex 08:00-18:00 (daysOfWeek 1..5)
 const weekdayBusinessHours = [
   { daysOfWeek: [1, 2, 3, 4, 5], startTime: '08:00', endTime: '18:00' },
 ];

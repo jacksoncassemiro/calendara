@@ -1,4 +1,6 @@
+/// <reference types="vite/client" />
 import type { CalendarOptions } from '@jacksoncassemiro/calendara';
+import summarySource from './Summary.tsx?raw';
 
 export type DemoDefinition = {
   id: string;
@@ -13,13 +15,13 @@ export const demos: DemoDefinition[] = [
     id: 'week',
     title: ['Semana, dia e slots', 'Week, day and slots'],
     view: 'week',
-    code: '<Calendar views={[weekView, dayView]} options={{ slotMinutes: 30, pxPerMinute: 2, timeLabelInterval: 60 }} />',
+    code: '<Calendar views={[weekView, dayView]} initialView="week" options={{ slotMinutes: 30, pxPerMinute: 1.5, timeLabelInterval: 60 }} />',
   },
   {
     id: 'month',
     title: ['Mês e responsividade', 'Month and responsiveness'],
     view: 'month',
-    code: '<Calendar views={[monthView, dayView]} options={{ monthCompactBreakpoint: 480, monthMaxEvents: 2 }} />',
+    code: '<Calendar views={[monthView, dayView]} initialView="month" options={{ monthCompactBreakpoint: indicators ? 480 : false, monthMaxEvents: 2 }} />',
     options: { monthMaxEvents: 2, monthCompactBreakpoint: 480 },
   },
   {
@@ -32,13 +34,19 @@ export const demos: DemoDefinition[] = [
     id: 'resources',
     title: ['Capacidade e salas', 'Capacity and rooms'],
     view: 'resources',
-    code: 'const resources = [{ id: "room", title: "Room", capacity: 2 }, { id: "open", title: "Open", capacity: false }];\n<Calendar resources={resources} views={[createResourceDayView()]} options={{ defaultResourceCapacity: 1 }} />',
+    code: `const resources = [
+  { id: "room", title: "Room / Sala", capacity: 2 },
+  { id: "open", title: "Open / Livre", capacity: false },
+];
+<Calendar resources={resources} views={[createResourceDayView()]}
+  constraints={{ blocked: [{ date: "2026-10-07", scope: "time", startTime: "12:00", endTime: "13:00" }] }}
+/>`,
   },
   {
     id: 'timeline',
     title: ['Timeline horizontal', 'Horizontal timeline'],
     view: 'timeline',
-    code: '<Calendar views={[createTimelineView()]} resources={resources} options={{ slotMinutes: 30, pxPerMinute: 2, timeLabelInterval: 60 }} />',
+    code: '<Calendar views={[createTimelineView()]} resources={resources} options={{ slotMinutes: 30, pxPerMinute: 1.5, timeLabelInterval: 60 }} />',
   },
   {
     id: 'persistence',
@@ -74,7 +82,7 @@ export const demos: DemoDefinition[] = [
     id: 'custom-view',
     title: ['Sua própria view', 'Your own view'],
     view: 'summary',
-    code: 'function Summary(context) {\n  return <p>{context.occurrences.length} occurrences</p>;\n}\nconst summary = createReactView({ name: "summary", label: "Summary" }, Summary);\n<Calendar views={[summary, dayView]} />',
+    code: `${summarySource}\nconst summary = createReactView({ name: "summary", label: "Summary" }, Summary);\n<Calendar views={[summary]} initialView="summary" />`,
   },
   {
     id: 'custom-render',
@@ -92,7 +100,26 @@ export const demos: DemoDefinition[] = [
     id: 'day-style',
     title: ['Fundo do dia sem bloqueio', 'Day background without blocking'],
     view: 'week',
-    code: '<Calendar views={[weekView]} getDayStyle={({ dateISO }) => dateISO === "2026-10-08" ? { backgroundColor: "#d8efe3" } : undefined} />',
+    code: `const [dateStatuses, setDateStatuses] = useState({ "2026-10-08": "near" });
+// Apply API data with setDateStatuses. PT: Aplica dados da API com setDateStatuses.
+<Calendar views={[weekView]}
+  getDayStyle={({ dateISO }) => {
+    const status = dateStatuses[dateISO];
+    return status ? {
+      backgroundColor: "var(--demo-day-" + status + "-bg)",
+      color: "var(--demo-day-" + status + "-fg)",
+      "--mc-color-muted": "var(--demo-day-" + status + "-fg)",
+      "--mc-color-btn-active-bg": "var(--demo-day-" + status + "-fg)",
+    } : undefined;
+  }}
+  renderDayHeader={({ dateISO, defaultContent }) => <>
+    {defaultContent}
+    {dateStatuses[dateISO] && <small className="focused-day-status">
+      {dateStatuses[dateISO] === "unavailable" && <span aria-hidden="true">⊘ </span>}
+      {dateStatusLabels[dateStatuses[dateISO]]}
+    </small>}
+  </>}
+/>`,
   },
   {
     id: 'custom-editor',
@@ -104,7 +131,20 @@ export const demos: DemoDefinition[] = [
     id: 'source',
     title: ['Fonte assíncrona', 'Async event source'],
     view: 'week',
-    code: '<Calendar views={[weekView]} eventSource={async (range, { signal }) => {\n  const response = await fetch(`/events?from=${range.start}&to=${range.end}`, { signal });\n  if (!response.ok) throw new Error("Request failed");\n  return response.json();\n}} onLoadingChange={setLoading} onError={setError} />',
+    code: `const simulatedSource = async (_range, { signal }) => {
+  await new Promise<void>((resolve, reject) => {
+    const timer = window.setTimeout(resolve, 350);
+    signal.addEventListener("abort", () => {
+      window.clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    }, { once: true });
+  });
+  return seedEvents("source");
+};
+<Calendar views={[weekView]} eventSource={simulatedSource}
+  onLoadingChange={loading => setStatus(loading ? "Loading simulated source…" : "Simulated source loaded.")}
+  onError={error => setStatus(String(error))}
+/>`,
   },
   {
     id: 'period',

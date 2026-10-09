@@ -44,7 +44,6 @@ describe('serializeRRule (round-trip semântico)', () => {
   ];
   for (const ruleText of rules) {
     it(`round-trip: ${ruleText}`, () => {
-      // parse → serialize → parse deve preservar o modelo
       expect(parseRRule(serializeRRule(parseRRule(ruleText)))).toEqual(parseRRule(ruleText));
     });
   }

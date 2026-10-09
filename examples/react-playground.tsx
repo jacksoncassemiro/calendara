@@ -114,7 +114,14 @@ function SummaryView(context: ViewRenderContext) {
   const formatTime = (occurrence: EventOccurrence) => {
     if (occurrence.event.time.allDay) return t('Dia inteiro', 'All day');
     const eventTime = occurrence.event.time;
-    const formatEndpoint = (dateTime: string, timeZone: string) => {
+    const formatEndpoint = ({
+      dateTime,
+      timeZone,
+    }: {
+      /** Local ISO date-time to format. / PT: Data e hora ISO local para formatar. */
+      dateTime: string; /** Time zone for display. / PT: Fuso para exibição. */
+      timeZone: string;
+    }) => {
       const instant = context.temporal.PlainDateTime.from(dateTime)
         .toZonedDateTime(timeZone)
         .toInstant();
@@ -124,8 +131,14 @@ function SummaryView(context: ViewRenderContext) {
         timeZone: context.options.timeZone,
       }).format(new Date(Number(instant.epochMilliseconds)));
     };
-    const startLabel = formatEndpoint(eventTime.start.dateTime!, eventTime.start.timeZone!);
-    const endLabel = formatEndpoint(eventTime.end.dateTime!, eventTime.end.timeZone!);
+    const startLabel = formatEndpoint({
+      dateTime: eventTime.start.dateTime!,
+      timeZone: eventTime.start.timeZone!,
+    });
+    const endLabel = formatEndpoint({
+      dateTime: eventTime.end.dateTime!,
+      timeZone: eventTime.end.timeZone!,
+    });
     return `${startLabel} – ${endLabel}${eventTime.end.dateTime!.slice(0, 10) !== date ? t(' · dia seguinte', ' · following day') : ''}`;
   };
   const sorted = [...context.occurrences].sort((left, right) => {
@@ -236,7 +249,7 @@ function App() {
     try {
       localStorage.setItem('calendara-theme', theme);
     } catch {
-      /* Preferences are optional. */
+      /* Unavailable storage leaves defaults. / PT: Sem armazenamento, mantém os padrões. */
     }
     media.addEventListener('change', apply);
     return () => media.removeEventListener('change', apply);
@@ -263,7 +276,7 @@ function App() {
   );
   const { ref, api } = useCalendar();
   const { containerRef } = useCompactCalendar();
-  // Width changes alter layout, not a view the user explicitly selected.
+  // Resizing preserves the selected view. / PT: Redimensionar preserva a view selecionada.
   const requestedView = query.get('view') === 'agenda' ? 'list' : query.get('view');
   const initialView = useRef(
     views.some((view) => view.name === requestedView)
@@ -374,12 +387,18 @@ function App() {
     );
     setEnd(occurrence.event.time.end.date ?? occurrence.event.time.end.dateTime!.slice(0, 16));
   };
-  const openCreate = (
-    date: string,
-    minute: number,
+  /** Open a timed draft using local minutes. / PT: Abre um rascunho com minutos locais. */
+  const openCreate = ({
+    date,
+    minute,
     endMinute = minute + 30,
-    resourceId?: string,
-  ) => {
+    resourceId,
+  }: {
+    date: string;
+    minute: number;
+    endMinute?: number;
+    resourceId?: string;
+  }) => {
     const Temporal = getTemporal();
     setEditorResources(resourceId ? [resourceId] : []);
     const dayStart = Temporal.PlainDate.from(date).toPlainDateTime('00:00');
@@ -404,7 +423,7 @@ function App() {
   };
   const commit = async (change: EventChange) => {
     if (rejectPendingSave()) return false;
-    setEvents((current) => applyEventTimeChange(current, change));
+    setEvents((current) => applyEventTimeChange({ events: current, change }));
     setFeedback(t('Horário atualizado nesta demonstração.', 'Time updated in this demo.'));
     return true;
   };
@@ -824,7 +843,7 @@ function App() {
               }}
               onEventResize={commit}
               onEventClick={openEditor}
-              onDateClick={(date, minute = 9 * 60) => openCreate(date, minute)}
+              onDateClick={(date, minute = 9 * 60) => openCreate({ date, minute })}
               onDateSelect={(selection) => {
                 if (selection.allDay) {
                   setEditing(null);
@@ -834,12 +853,12 @@ function App() {
                   setEnd(selection.endDateISO!);
                   setEditorResources(selection.resourceId ? [selection.resourceId] : []);
                 } else
-                  openCreate(
-                    selection.dateISO,
-                    selection.startMin,
-                    selection.endMin,
-                    selection.resourceId,
-                  );
+                  openCreate({
+                    date: selection.dateISO,
+                    minute: selection.startMin,
+                    endMinute: selection.endMin,
+                    resourceId: selection.resourceId,
+                  });
               }}
               onDropBlocked={(info) =>
                 setFeedback(
@@ -973,13 +992,13 @@ function App() {
                   return false;
                 if (editing && context.scope === 'following') {
                   const master = events.find((item) => item.id === editing.masterId)!;
-                  const split = splitEventSeries(
-                    getTemporal(),
-                    master,
-                    editing.originalStart,
-                    crypto.randomUUID(),
-                    draft,
-                  );
+                  const split = splitEventSeries({
+                    temporal: getTemporal(),
+                    event: master,
+                    originalStart: editing.originalStart,
+                    newId: crypto.randomUUID(),
+                    changes: draft,
+                  });
                   setEvents((current) => [
                     ...current.filter((item) => item.id !== master.id),
                     ...(split.before ? [split.before] : []),
@@ -1039,12 +1058,12 @@ function App() {
                         return false;
                       if (context.scope === 'following') {
                         const master = events.find((item) => item.id === editing.masterId)!;
-                        const split = splitEventSeries(
-                          getTemporal(),
-                          master,
-                          editing.originalStart,
-                          crypto.randomUUID(),
-                        );
+                        const split = splitEventSeries({
+                          temporal: getTemporal(),
+                          event: master,
+                          originalStart: editing.originalStart,
+                          newId: crypto.randomUUID(),
+                        });
                         setEvents((current) => [
                           ...current.filter((item) => item.id !== master.id),
                           ...(split.before ? [split.before] : []),

@@ -1,6 +1,6 @@
 import type { CalendarView } from '../../viewTypes.js';
 
-/** Validate the complete selection before mutating an existing calendar. */
+/** Validate all views before changing the registry. @remarks Português: Valida todas as views antes de alterar o registro. */
 export function createViewRegistry(views: readonly CalendarView[]): Map<string, CalendarView> {
   if (!Array.isArray(views) || views.length === 0)
     throw new Error('[calendara] informe pelo menos uma view');

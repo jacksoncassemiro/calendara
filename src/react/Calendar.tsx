@@ -1,7 +1,6 @@
 /** @jsxRuntime automatic @jsxImportSource react */
-/**
- * Native React calendar. The controller publishes cached React snapshots while the
- * consumer's React tree owns rendering, contexts and component lifecycle.
+/** Native React calendar with a stable controller.
+ * @remarks Português: Calendário React nativo com controlador estável.
  */
 import {
   useCallback,
@@ -15,6 +14,9 @@ import { CalendarApp, type CalendarConfig, type RangeChange } from './app/calend
 import { createHandle } from './handle.js';
 import type { CalendarProps, CalendarHandle } from './types.js';
 
+/** Native calendar component; consumers own event persistence.
+ * @remarks Português: Componente de calendário nativo; consumidores controlam a persistência dos eventos.
+ */
 export function Calendar(props: CalendarProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<CalendarApp | null>(null);
@@ -27,13 +29,11 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
   const getSnapshot = useCallback(() => mountedApp?.getSnapshot() ?? null, [mountedApp]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, () => null);
 
-  // Sempre a versão mais recente das props (callbacks/eventSource/renderEvent/customToolbar).
   const propsRef = useRef(props);
   useEffect(() => {
     propsRef.current = props;
   });
 
-  // --- cria a instância UMA vez -------------------------------------------
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
@@ -63,6 +63,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
     if (initial.eventSource) config.eventSource = initial.eventSource;
     if (initial.renderEvent) config.renderEvent = initial.renderEvent;
     if (initial.getDayStyle) config.getDayStyle = initial.getDayStyle;
+    if (initial.renderDayHeader) config.renderDayHeader = initial.renderDayHeader;
     if (initial.renderEventMore) config.renderEventMore = initial.renderEventMore;
     if (initial.renderMonthMore) config.renderMonthMore = initial.renderMonthMore;
     if (initial.customToolbar) config.renderToolbar = initial.customToolbar;
@@ -87,7 +88,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
       app.destroy();
       appRef.current = null;
     };
-    // Instância criada uma única vez — props subsequentes entram pelos efeitos de sync abaixo.
+    // Mount once; later props synchronize below. PT: Monta uma vez; props posteriores sincronizam abaixo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -111,6 +112,8 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
         app.setRenderEvent(props.renderEvent);
       if (!previous || previous.getDayStyle !== props.getDayStyle)
         app.setDayStyle(props.getDayStyle);
+      if (!previous || previous.renderDayHeader !== props.renderDayHeader)
+        app.setRenderDayHeader(props.renderDayHeader);
       if (!previous || previous.renderEventMore !== props.renderEventMore)
         app.setRenderEventMore(props.renderEventMore);
       if (!previous || previous.renderMonthMore !== props.renderMonthMore)
@@ -151,6 +154,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
     props.renderMonthMore,
     props.renderEventMore,
     props.getDayStyle,
+    props.renderDayHeader,
     props.view,
     props.date,
     props.refetchKey,

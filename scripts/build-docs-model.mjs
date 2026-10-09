@@ -5,6 +5,27 @@ import ts from 'typescript';
 const contracts = [
   ['CalendarProps', 'src/react/types.ts'],
   ['CalendarHandle', 'src/react/types.ts'],
+  ['CalendarConfig', 'src/react/app/calendarApp.ts'],
+  ['DayHeaderInfo', 'src/react/viewTypes.ts'],
+  ['DayStyleInfo', 'src/react/viewTypes.ts'],
+  ['CalendarEventEditorProps', 'src/react/CalendarEventEditor.tsx'],
+  ['CalendarEditorContext', 'src/react/CalendarEventEditor.tsx'],
+  ['ReactViewConfig', 'src/react/createReactView.tsx'],
+  ['UseCalendar', 'src/react/useCalendar.ts'],
+  ['RangeChange', 'src/react/app/calendarApp.ts'],
+  ['EventSourceContext', 'src/react/app/calendarApp.ts'],
+  ['ViewContext', 'src/react/viewTypes.ts'],
+  ['ViewRange', 'src/react/viewTypes.ts'],
+  ['ViewNavigationInput', 'src/react/viewTypes.ts'],
+  ['ViewRenderContext', 'src/react/viewTypes.ts'],
+  ['CalendarView', 'src/react/viewTypes.ts'],
+  ['ToolbarContext', 'src/react/viewTypes.ts'],
+  ['EventSlotInfo', 'src/react/viewTypes.ts'],
+  ['MonthMoreInfo', 'src/react/viewTypes.ts'],
+  ['EventDropOutsideInfo', 'src/react/externalDrag.ts'],
+  ['EventDateTime', 'src/core/types/datetime.ts'],
+  ['EventTime', 'src/core/types/datetime.ts'],
+  ['EventOccurrence', 'src/core/types/event.ts'],
   ['CalendarOptions', 'src/core/render/state.ts'],
   ['CalendarEvent', 'src/core/types/event.ts'],
   ['CalendarResource', 'src/core/types/resource.ts'],
@@ -37,6 +58,8 @@ const model = contracts.map(([name, relativePath]) => {
       .replace(/\s+/g, ' ')
       .trim();
     const english = commentText(documentation?.comment).replace(/\s+/g, ' ').trim();
+    if (!english || !portuguese)
+      throw new Error(`Missing EN/PT JSDoc: ${name}.${member.name?.getText(source)}`);
     return {
       name: member.name?.getText(source) ?? '',
       type: ts.isMethodSignature(member)

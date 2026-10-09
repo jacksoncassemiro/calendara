@@ -1,7 +1,3 @@
-/**
- * Interação (Fase 4): drag & drop + resize + seleção. Núcleo puro (geometria/ocupação) +
- * InteractionEngine (Pointer Events, preview → commit → revert).
- */
 export {
   minutesToDateTime,
   applyEventTimeChange,
@@ -19,6 +15,11 @@ export {
   type BlockedInfo,
   type CommitResult,
   type OutsideDropTarget,
+  type ReassignResourceInput,
+  type ShiftCalendarDateInput,
+  type NormalizeCalendarMinuteInput,
+  type MinutesToDateTimeInput,
+  type ApplyEventTimeChangeInput,
 } from './model.js';
 
 export {
@@ -28,6 +29,8 @@ export {
   computeResizeDraft,
   computeSelectDraft,
   type SnapRounding,
+  type SnapMinuteInput,
+  type ClampSpanToGridInput,
 } from './gestureGeometry.js';
 
 export {
