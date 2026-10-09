@@ -4,7 +4,7 @@ import { writeFileSync } from 'node:fs';
 import ICAL from 'ical.js';
 import rrule from 'rrule';
 import { RRuleTemporal } from 'rrule-temporal';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { parseRRule, serializeRRule, expandRuleAll } from '../dist/esm/core/index.js';
 import { expandTemporalRule } from '../dist/esm/core/recurrence/engine.js';
 import { iterateCivilDates } from '../dist/esm/core/recurrence/civilIterator.js';

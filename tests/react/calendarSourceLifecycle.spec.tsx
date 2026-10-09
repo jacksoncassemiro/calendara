@@ -2,7 +2,7 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { Calendar } from '../../src/react/Calendar.js';
 import {
   CalendarApp,

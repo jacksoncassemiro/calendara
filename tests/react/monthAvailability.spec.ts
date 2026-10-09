@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { monthView } from '../../src/react/views/MonthView.js';
 import { describe, expect, it, vi } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import type { CalendarEvent } from '../../src/core/index.js';
 describe('month availability follows global constraints in the displayed hours', () => {

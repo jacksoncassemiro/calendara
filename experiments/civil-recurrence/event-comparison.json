@@ -1,7 +1,7 @@
 {
-  "checkedAt": "2026-10-08T18:45:43.796Z",
+  "checkedAt": "2026-10-09T03:14:37.444Z",
   "node": "v24.18.1",
-  "productionBackend": "rrule-temporal 2.2.8 + calendar recurrence-set",
+  "productionBackend": "civil iterator + injected Temporal + calendar recurrence-set",
   "cache": false,
   "iterations": 25,
   "scope": "Timed starts + one-hour wall-clock ends, instants, RDATE/EXDATE, DST. No overrides, constraints, layout or browser timing.",
@@ -28,16 +28,16 @@
       ],
       "milliseconds": {
         "production": {
-          "median": 1.348,
-          "p95": 2.119
+          "median": 1.147,
+          "p95": 1.928
         },
         "rruleTemporalPrepared": {
-          "median": 0.422,
-          "p95": 0.829
+          "median": 0.564,
+          "p95": 1.687
         },
         "rruleTemporalWithParsing": {
-          "median": 0.477,
-          "p95": 0.907
+          "median": 0.545,
+          "p95": 1.021
         }
       }
     },
@@ -63,16 +63,16 @@
       ],
       "milliseconds": {
         "production": {
-          "median": 0.774,
-          "p95": 1.288
+          "median": 1.077,
+          "p95": 1.634
         },
         "rruleTemporalPrepared": {
-          "median": 0.131,
-          "p95": 0.277
+          "median": 0.21,
+          "p95": 0.735
         },
         "rruleTemporalWithParsing": {
-          "median": 0.254,
-          "p95": 0.586
+          "median": 0.268,
+          "p95": 0.415
         }
       }
     },
@@ -93,16 +93,16 @@
       ],
       "milliseconds": {
         "production": {
-          "median": 0.497,
-          "p95": 0.943
+          "median": 0.644,
+          "p95": 1.154
         },
         "rruleTemporalPrepared": {
-          "median": 0.074,
-          "p95": 0.109
+          "median": 0.095,
+          "p95": 0.156
         },
         "rruleTemporalWithParsing": {
-          "median": 0.141,
-          "p95": 0.218
+          "median": 0.196,
+          "p95": 0.403
         }
       }
     },
@@ -138,16 +138,16 @@
       ],
       "milliseconds": {
         "production": {
-          "median": 0.948,
-          "p95": 1.475
+          "median": 1.4,
+          "p95": 1.813
         },
         "rruleTemporalPrepared": {
-          "median": 0.188,
-          "p95": 0.224
+          "median": 0.234,
+          "p95": 0.505
         },
         "rruleTemporalWithParsing": {
-          "median": 0.295,
-          "p95": 0.449
+          "median": 0.307,
+          "p95": 0.555
         }
       }
     },
@@ -1988,16 +1988,16 @@
       ],
       "milliseconds": {
         "production": {
-          "median": 27.246,
-          "p95": 36.787
+          "median": 45.43,
+          "p95": 56.733
         },
         "rruleTemporalPrepared": {
-          "median": 10.003,
-          "p95": 12.55
+          "median": 12.361,
+          "p95": 16.336
         },
         "rruleTemporalWithParsing": {
-          "median": 8.722,
-          "p95": 17.782
+          "median": 9.905,
+          "p95": 13.113
         }
       }
     }

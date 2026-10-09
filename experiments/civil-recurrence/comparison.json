@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-07T20:31:09.044Z",
+  "checkedAt": "2026-10-09T02:24:49.004Z",
   "node": "v24.18.1",
   "differentialChecks": 1440,
   "iterations": 25,
@@ -10,34 +10,34 @@
       "occurrences": 31,
       "milliseconds": {
         "temporalReference": {
-          "mean": 1.945,
-          "median": 1.961,
-          "p95": 2.016
+          "mean": 1.471,
+          "median": 1.219,
+          "p95": 2.291
         },
         "civil": {
-          "mean": 0.667,
-          "median": 0.207,
-          "p95": 0.24
+          "mean": 0.145,
+          "median": 0.152,
+          "p95": 0.201
         },
         "production": {
-          "mean": 0.436,
-          "median": 0.434,
-          "p95": 0.519
+          "mean": 0.205,
+          "median": 0.171,
+          "p95": 0.354
         },
         "rrule": {
-          "mean": 38.452,
-          "median": 38.638,
-          "p95": 43.492
+          "mean": 25.317,
+          "median": 24.732,
+          "p95": 28.76
         },
         "ical": {
-          "mean": 74.68,
-          "median": 77.42,
-          "p95": 81.42
+          "mean": 40.57,
+          "median": 40.446,
+          "p95": 43.658
         },
         "rruleTemporal": {
-          "mean": 0.34,
-          "median": 0.317,
-          "p95": 0.865
+          "mean": 0.257,
+          "median": 0.23,
+          "p95": 0.42
         }
       }
     },
@@ -46,34 +46,34 @@
       "occurrences": 24,
       "milliseconds": {
         "temporalReference": {
-          "mean": 1.59,
-          "median": 1.271,
-          "p95": 1.982
+          "mean": 0.975,
+          "median": 0.814,
+          "p95": 1.624
         },
         "civil": {
-          "mean": 0.185,
-          "median": 0.18,
-          "p95": 0.228
+          "mean": 0.068,
+          "median": 0.068,
+          "p95": 0.07
         },
         "production": {
-          "mean": 0.399,
-          "median": 0.391,
-          "p95": 0.455
+          "mean": 0.138,
+          "median": 0.126,
+          "p95": 0.234
         },
         "rrule": {
-          "mean": 0.205,
-          "median": 0.171,
+          "mean": 0.145,
+          "median": 0.158,
           "p95": 0.254
         },
         "ical": {
-          "mean": 0.518,
-          "median": 0.489,
-          "p95": 0.835
+          "mean": 0.292,
+          "median": 0.236,
+          "p95": 0.486
         },
         "rruleTemporal": {
-          "mean": 0.151,
-          "median": 0.113,
-          "p95": 0.241
+          "mean": 0.089,
+          "median": 0.064,
+          "p95": 0.143
         }
       }
     },
@@ -82,34 +82,34 @@
       "occurrences": 24,
       "milliseconds": {
         "temporalReference": {
-          "mean": 11.921,
-          "median": 8.85,
-          "p95": 34.37
+          "mean": 3.905,
+          "median": 3.3,
+          "p95": 5.085
         },
         "civil": {
-          "mean": 0.378,
-          "median": 0.346,
-          "p95": 0.512
+          "mean": 0.269,
+          "median": 0.263,
+          "p95": 0.299
         },
         "production": {
-          "mean": 0.887,
-          "median": 0.425,
-          "p95": 0.655
+          "mean": 0.353,
+          "median": 0.319,
+          "p95": 0.604
         },
         "rrule": {
-          "mean": 0.18,
-          "median": 0.166,
-          "p95": 0.29
+          "mean": 0.178,
+          "median": 0.189,
+          "p95": 0.238
         },
         "ical": {
-          "mean": 3.066,
-          "median": 3.004,
-          "p95": 3.387
+          "mean": 3.339,
+          "median": 3.129,
+          "p95": 4.957
         },
         "rruleTemporal": {
-          "mean": 0.143,
-          "median": 0.137,
-          "p95": 0.213
+          "mean": 0.221,
+          "median": 0.253,
+          "p95": 0.318
         }
       }
     },
@@ -118,24 +118,24 @@
       "occurrences": 6,
       "milliseconds": {
         "temporalReference": {
-          "mean": 134.407,
-          "median": 129.598,
-          "p95": 181.91
+          "mean": 78.779,
+          "median": 75.476,
+          "p95": 97.164
         },
         "civil": {
-          "mean": 0.102,
-          "median": 0.106,
-          "p95": 0.133
+          "mean": 0.087,
+          "median": 0.093,
+          "p95": 0.123
         },
         "production": {
-          "mean": 0.078,
-          "median": 0.076,
-          "p95": 0.087
+          "mean": 0.064,
+          "median": 0.063,
+          "p95": 0.07
         },
         "rrule": {
-          "mean": 1.076,
-          "median": 0.404,
-          "p95": 0.607
+          "mean": 0.742,
+          "median": 0.379,
+          "p95": 0.531
         },
         "ical": {
           "comparable": false,
@@ -157,9 +157,9 @@
           ]
         },
         "rruleTemporal": {
-          "mean": 0.095,
-          "median": 0.073,
-          "p95": 0.182
+          "mean": 0.092,
+          "median": 0.087,
+          "p95": 0.122
         }
       }
     }

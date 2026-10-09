@@ -1,0 +1,91 @@
+{
+  "checkedAt": "2026-10-09T03:09:03.050Z",
+  "runtime": "v24.18.1",
+  "platform": "win32",
+  "versions": {
+    "reference": "0.5.1",
+    "candidate": "1.0.5"
+  },
+  "sampleCount": 25,
+  "methodology": "Same integrated event expansion and output, five warmups, alternating provider order; Node CPU timing, not physical mobile or browser frame latency.",
+  "results": [
+    {
+      "name": "366 timed occurrences",
+      "occurrences": 366,
+      "equivalent": true,
+      "reference": {
+        "medianMs": 35.651,
+        "p95Ms": 45.381
+      },
+      "candidate": {
+        "medianMs": 30.19,
+        "p95Ms": 40.577
+      }
+    },
+    {
+      "name": "DST gap COUNT and exclusion",
+      "occurrences": 29,
+      "equivalent": true,
+      "reference": {
+        "medianMs": 2.944,
+        "p95Ms": 4.13
+      },
+      "candidate": {
+        "medianMs": 2.432,
+        "p95Ms": 3.326
+      }
+    },
+    {
+      "name": "DST fold UTC UNTIL",
+      "occurrences": 2,
+      "equivalent": true,
+      "reference": {
+        "medianMs": 0.429,
+        "p95Ms": 0.502
+      },
+      "candidate": {
+        "medianMs": 0.403,
+        "p95Ms": 0.505
+      }
+    },
+    {
+      "name": "Monthly ordinal and override",
+      "occurrences": 24,
+      "equivalent": true,
+      "reference": {
+        "medianMs": 2.628,
+        "p95Ms": 2.964
+      },
+      "candidate": {
+        "medianMs": 2.301,
+        "p95Ms": 5.33
+      }
+    },
+    {
+      "name": "Distant visible month without COUNT",
+      "occurrences": 31,
+      "equivalent": true,
+      "reference": {
+        "medianMs": 3.421,
+        "p95Ms": 5.787
+      },
+      "candidate": {
+        "medianMs": 2.736,
+        "p95Ms": 6.729
+      }
+    },
+    {
+      "name": "Leap all-day recurrence",
+      "occurrences": 10,
+      "equivalent": true,
+      "reference": {
+        "medianMs": 0.445,
+        "p95Ms": 0.859
+      },
+      "candidate": {
+        "medianMs": 0.506,
+        "p95Ms": 0.897
+      }
+    }
+  ]
+}

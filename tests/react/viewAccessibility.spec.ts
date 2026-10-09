@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { createElement } from 'react';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import { createRoot, type Root } from 'react-dom/client';

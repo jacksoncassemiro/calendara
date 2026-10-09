@@ -1,5 +1,5 @@
 /** Measure headless recurrence, projection and geometry. @remarks Português: Mede recorrência, projeção e geometria sem interface. */
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import {
   expandRange,
   buildDays,
@@ -138,7 +138,7 @@ console.log(`média por render (expand+buildDays+layout, semana): ${avg.toFixed(
 console.log(
   `throughput: ${Math.round(occurrenceCount / (avg / 1000)).toLocaleString()} ocorrências/s`,
 );
-console.log(`runtime=${process.version}; Temporal=@js-temporal/polyfill; timezone=${TZ}`);
+console.log(`runtime=${process.version}; Temporal=temporal-polyfill; timezone=${TZ}`);
 for (const [stage, elapsed] of Object.entries(stageTimes))
   console.log(`${stage}: ${(elapsed / iterations).toFixed(3)} ms média`);
 console.log(

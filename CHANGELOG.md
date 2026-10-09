@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- Recurrence uses the existing civil iterator with one injected Temporal implementation; the previous provider is retained only as a development oracle. Month + Day consumer bundles shrink from 146,041 to 70,925 gzip bytes in the pinned comparison.
 - Retired duplicate API catalogs and one-time migration tools; archived engineering records retain neutral decisions and scenarios.
 - Touch swipes scroll without briefly creating a gesture preview; holding enables intentional moves.
 - All-day labels stay aligned with the time axis during combined page and horizontal scrolling.

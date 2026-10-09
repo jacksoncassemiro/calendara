@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { expandRange, buildDays, resourceBusyIntervals } from '../../src/core/render/derive.js';
 import { buildResourceColumns } from '../../src/core/render/resourceDerive.js';
 import type { CalendarEvent } from '../../src/core/types/event.js';

@@ -144,7 +144,7 @@ recurrence: {
 }
 ```
 
-Campos públicos: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST e BYYEARDAY para YEARLY. `rDates` adiciona ocorrências; `exDates` exclui; overrides usam `originalStart` como chave. Exclusão date-only remove o dia; datetime remove o início original exato. O motor usa `rrule-temporal` 2.2.8 e Temporal/fallback para composição; não houve remoção completa dessas dependências.
+Campos públicos: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST e BYYEARDAY para YEARLY. `rDates` adiciona ocorrências; `exDates` exclui; overrides usam `originalStart` como chave. Exclusão date-only remove o dia; datetime remove o início original exato. O iterador civil gera datas da regra; Temporal injetada trata fusos e composição dos eventos. Temporal nativo tem prioridade, com fallback lazy `temporal-polyfill`. Horários locais inexistentes na recorrência não consomem COUNT.
 
 `splitEventSeries` corta esta-e-seguintes numa ocorrência RRULE ativa. Corte RDATE-only, filtros incompatíveis, troca de fuso e conversão timed/dia inteiro são recusados. Persista os dois mestres atomicamente e defina janela de validação para séries infinitas. Expandir regra ilimitada diretamente exige janela finita.
 
