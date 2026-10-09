@@ -126,7 +126,7 @@ it('new weekly recurrence enables weekdays and saves interval and count', async 
   );
   expect(screen.queryByLabelText('Intervalo da repetição')).toBeNull();
   fireEvent.change(screen.getByLabelText('Repetir'), { target: { value: 'WEEKLY' } });
-  fireEvent.click(screen.getByLabelText('Sexta-feira'));
+  fireEvent.click(screen.getByLabelText(/sexta-feira/i));
   fireEvent.change(screen.getByLabelText('Intervalo da repetição'), { target: { value: '2' } });
   fireEvent.change(screen.getByLabelText('Fim da repetição'), { target: { value: 'count' } });
   fireEvent.change(screen.getByLabelText('Quantidade de ocorrências'), { target: { value: '6' } });
@@ -151,7 +151,7 @@ it('yearly recurrence exposes month/day and an inclusive final date', async () =
     />,
   );
   fireEvent.change(screen.getByLabelText('Repetir'), { target: { value: 'DAILY' } });
-  expect(screen.queryByLabelText('Segunda-feira')).toBeNull();
+  expect(screen.queryByLabelText(/segunda-feira/i)).toBeNull();
   expect(screen.queryByLabelText('Dia do mês da repetição')).toBeNull();
   fireEvent.change(screen.getByLabelText('Repetir'), { target: { value: 'MONTHLY' } });
   expect(screen.getByLabelText('Dia do mês da repetição')).toBeTruthy();
@@ -219,4 +219,113 @@ it('switching to occurrence scope ignores staged series rule changes', async () 
   await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
   expect(onSave.mock.calls[0]?.[0].recurrence).toEqual(event.recurrence);
   expect(onSave.mock.calls[0]?.[1].scope).toBe('occurrence');
+});
+it('supports partial editor dictionaries, live updates and locale weekday names', async () => {
+  const props = {
+    event,
+    temporal: Temporal as never,
+    locale: 'es-ES',
+    onSave: vi.fn().mockResolvedValue(false),
+    onCancel: vi.fn(),
+    messages: {
+      fields: { title: 'Título de la cita' },
+      actions: { save: 'Guardar' },
+      feedback: { saveFailed: 'No se pudo guardar' },
+    },
+  };
+  const editor = render(<CalendarEventEditor {...props} />);
+  expect(screen.getByLabelText('Título de la cita')).toBeTruthy();
+  expect(screen.getByRole('checkbox', { name: 'lunes' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Cancelar' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('No se pudo guardar');
+  editor.rerender(
+    <CalendarEventEditor
+      {...props}
+      locale="en-US"
+      messages={{ fields: { title: 'Appointment name' } }}
+    />,
+  );
+  expect(screen.getByLabelText('Appointment name')).toBeTruthy();
+  expect(screen.getByRole('checkbox', { name: 'Monday' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Save event' })).toBeTruthy();
+});
+
+it('translates recurrence validation formatters without calling persistence', async () => {
+  const onSave = vi.fn();
+  render(
+    <CalendarEventEditor
+      event={event}
+      temporal={Temporal as never}
+      onSave={onSave}
+      onCancel={() => {}}
+      messages={{
+        recurrence: { interval: 'Intervalo' },
+        validation: { positiveInteger: ({ field }) => `${field} debe ser positivo` },
+        actions: { save: 'Guardar' },
+      }}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText('Intervalo'), { target: { value: '0' } });
+  fireEvent.submit(screen.getByRole('form'));
+  expect((await screen.findByRole('alert')).textContent).toBe('Intervalo debe ser positivo');
+  expect(onSave).not.toHaveBeenCalled();
+});
+
+it.each(['SECONDLY', 'MINUTELY', 'HOURLY'])(
+  'edits timed %s recurrence with interval units and preserves zone',
+  async (frequency) => {
+    const onSave = vi.fn();
+    const timed: CalendarEvent = {
+      ...event,
+      recurrence: undefined,
+      time: {
+        allDay: false,
+        start: { dateTime: '2026-10-07T09:00:00', timeZone: 'America/Sao_Paulo' },
+        end: { dateTime: '2026-10-07T09:30:00', timeZone: 'America/Sao_Paulo' },
+      },
+    };
+    render(
+      <CalendarEventEditor
+        event={timed}
+        temporal={Temporal as never}
+        locale="en-US"
+        onSave={onSave}
+        onCancel={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText('Start').getAttribute('value')).toBe('2026-10-07T09:00:00'),
+    );
+    fireEvent.change(screen.getByLabelText('Repeat'), { target: { value: frequency } });
+    fireEvent.change(screen.getByLabelText('Recurrence interval'), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save event' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0].recurrence.rule).toMatchObject({
+      freq: frequency,
+      interval: 2,
+      count: 10,
+    });
+    expect(onSave.mock.calls[0][0].time.start.timeZone).toBe('America/Sao_Paulo');
+  },
+);
+it('rejects intraday all-day recurrence through a translated error before saving', async () => {
+  const onSave = vi.fn();
+  render(
+    <CalendarEventEditor
+      event={{ ...event, recurrence: { rule: 'FREQ=HOURLY;COUNT=3' } }}
+      temporal={Temporal as never}
+      locale="en-US"
+      messages={{
+        validation: { allDayRecurrenceInvalid: 'Use una cita con horario' },
+        actions: { cancel: undefined },
+      }}
+      onSave={onSave}
+      onCancel={() => {}}
+    />,
+  );
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Save event' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('Use una cita con horario');
+  expect(onSave).not.toHaveBeenCalled();
 });

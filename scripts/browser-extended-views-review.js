@@ -16,7 +16,7 @@ async (page) => {
     fixture.style.cssText = 'width:100%;max-width:1100px;margin:20px auto';
     document.body.append(fixture);
     const resources = [
-      { id: 'room', title: 'Room', type: 'Clinic' },
+      { id: 'room', title: 'Room', type: 'Clinic', bufferAfter: 15 },
       { id: 'doctor', title: 'Doctor', type: 'Clinic' },
     ];
     const views = [
@@ -54,14 +54,45 @@ async (page) => {
       view: 'resource-week',
       resources,
       events: [event],
+      constraints: {
+        blocked: [{ scope: 'time', date: '2026-10-07', startTime: '12:00', endTime: '13:00' }],
+      },
       options: { timeZone: 'UTC', locale: 'en-US', startHour: 8, endHour: 18 },
     });
     app.mount(fixture);
     await app.ready();
     window.extendedApp = app;
+    window.extendedEvent = event;
     return app.listViews().length;
   });
   if (setup !== 7) throw new Error('Extra views must be explicitly registered');
+  const fixedBlocks = async () =>
+    page
+      .locator('#extended-fixture .mc-blocked')
+      .evaluateAll((blocks) =>
+        blocks.map((block) => ({ top: block.style.top, height: block.style.height })),
+      );
+  const initialBlocks = await fixedBlocks();
+  if (!initialBlocks.length) throw new Error('Fixed closure fixture is missing');
+  await page.evaluate(() => {
+    const event = window.extendedEvent;
+    window.extendedApp.setEvents([
+      {
+        ...event,
+        time: {
+          ...event.time,
+          start: { dateTime: '2026-10-08T11:00', timeZone: 'UTC' },
+          end: { dateTime: '2026-10-08T12:00', timeZone: 'UTC' },
+        },
+      },
+    ]);
+  });
+  await page.waitForTimeout(100);
+  if (JSON.stringify(await fixedBlocks()) !== JSON.stringify(initialBlocks))
+    throw new Error('Fixed closure followed the changed event');
+  if (!(await page.locator('#extended-fixture [data-mc-event]').count()))
+    throw new Error('Event disappeared after changing its date');
+  await page.evaluate(() => window.extendedApp.setEvents([window.extendedEvent]));
   for (const view of [
     'resource-week',
     'timeline-week',
@@ -90,6 +121,22 @@ async (page) => {
       (await page.locator('#extended-fixture [data-mc-timeline-date]').count()) !== 31
     )
       throw new Error('Monthly dates');
+    if (view === 'year-planner') {
+      const fits = await page
+        .locator('#extended-fixture .mc-year-planner-event')
+        .first()
+        .evaluate((event) => {
+          const cell = event.closest('td').getBoundingClientRect();
+          const card = event.getBoundingClientRect();
+          return (
+            cell.width >= 110 &&
+            card.left >= cell.left &&
+            card.right <= cell.right &&
+            getComputedStyle(event).textOverflow === 'ellipsis'
+          );
+        });
+      if (!fits) throw new Error('Annual event spills beyond its date cell');
+    }
     await page.screenshot({ path: `output/layout-review/extended-${view}.png`, fullPage: true });
   }
   await page.setViewportSize({ width: 360, height: 780 });

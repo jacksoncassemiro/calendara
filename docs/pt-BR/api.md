@@ -105,7 +105,7 @@ const constraints: ConstraintSet = {
 
 `Calendar` não monta nem abre `CalendarEventEditor`. Abra modal/drawer/rota própria por `onEventClick`, `onDateSelect` ou pelo aplicativo. Valide com `api.evaluateEvent(draft, originalOccurrence?)`; na edição, passe a ocorrência original para excluir sua reserva. A avaliação cobre intervalo/recursos do candidato, não todas as repetições futuras, e lança erro antes do motor ficar pronto. Persista, atualize estado e feche o formulário.
 
-O editor opcional aceita `event`, `occurrence`, `resources`, `timeZone`, `locale`, `validate`, `onSave`, `onDelete` e `onCancel`. Use `key={occurrenceKey(occurrence)}` ao trocar de ocorrência editada. Os callbacks definem persistência e escopo recorrente. Defina `locale="en-US"` ou `locale="pt-BR"` no editor padrão; o padrão é português. Formulários próprios controlam suas traduções.
+O editor opcional aceita `event`, `occurrence`, `resources`, `timeZone`, `locale`, `messages`, `validate`, `onSave`, `onDelete` e `onCancel`. Use `key={occurrenceKey(occurrence)}` ao trocar de ocorrência editada. Os callbacks definem persistência e escopo recorrente. Defina `locale="en-US"` ou `locale="pt-BR"` no editor padrão; o padrão é português. Use messages para traduções próprias ou um formulário do consumidor.
 
 `renderEvent={info => <MeuEvento {...info} />}` troca o conteúdo mantendo geometria. Hooks ficam dentro de `MeuEvento`, nunca diretamente no callback. `customToolbar` substitui a navegação. `renderMonthMore`/`renderEventMore` personalizam ver mais; callbacks de clique correspondentes podem retornar `false` e abrir componente próprio. `monthMoreView`/`eventMoreView` direcionam para outra view registrada.
 
@@ -144,7 +144,7 @@ recurrence: {
 }
 ```
 
-Campos públicos: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST e BYYEARDAY para YEARLY. `rDates` adiciona ocorrências; `exDates` exclui; overrides usam `originalStart` como chave. Exclusão date-only remove o dia; datetime remove o início original exato. O iterador civil gera datas da regra; Temporal injetada trata fusos e composição dos eventos. Temporal nativo tem prioridade, com fallback lazy `temporal-polyfill`. Horários locais inexistentes na recorrência não consomem COUNT.
+As sete frequências são suportadas: SECONDLY/MINUTELY/HOURLY/DAILY/WEEKLY/MONTHLY/YEARLY. Os campos públicos incluem INTERVAL, COUNT, UNTIL, BYMONTH, BYWEEKNO, BYYEARDAY, BYMONTHDAY, BYDAY, BYHOUR, BYMINUTE, BYSECOND, BYSETPOS e WKST. Frequências intradiárias exigem eventos com horário; BYWEEKNO exige YEARLY, enquanto BYYEARDAY aceita YEARLY e frequências intradiárias. COUNT e UNTIL são mutuamente exclusivos. `rDates` adiciona ocorrências; `exDates` exclui; overrides usam `originalStart` como chave. Exclusão date-only remove o dia; datetime remove o início original exato. Os iteradores civis geram candidatos locais; Temporal injetada trata fusos e composição dos eventos. Temporal nativo tem prioridade, com fallback lazy `temporal-polyfill`. Horários locais inexistentes são ignorados antes de BYSETPOS e COUNT. Veja [recorrência](recurrence.md) para combinações suportadas, limites de trabalho e limitações RFC explícitas.
 
 `splitEventSeries` corta esta-e-seguintes numa ocorrência RRULE ativa. Corte RDATE-only, filtros incompatíveis, troca de fuso e conversão timed/dia inteiro são recusados. Persista os dois mestres atomicamente e defina janela de validação para séries infinitas. Expandir regra ilimitada diretamente exige janela finita.
 
@@ -155,17 +155,25 @@ Campos públicos: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, 
 Use estado do aplicativo para associar datas/recursos a situações. `getDayStyle` aplica cores ao cabeçalho e corpo do dia; `renderDayHeader` recebe `dateISO`, `viewName`, `resourceId` opcional, `isToday`, `isSelected` opcional e `defaultContent`. Preserve `defaultContent` ao adicionar legenda ou ícone para manter os controles padrão da data. Hooks ficam dentro de um componente retornado.
 
 ```tsx
-<Calendar views={[weekView]} events={events}
-  getDayStyle={({ dateISO }) => statuses[dateISO] ? {
-    backgroundColor: `var(--status-${statuses[dateISO]}-bg)`,
-    color: `var(--status-${statuses[dateISO]}-fg)`,
-    '--mc-color-muted': `var(--status-${statuses[dateISO]}-fg)`,
-    '--mc-color-btn-active-bg': `var(--status-${statuses[dateISO]}-fg)`,
-  } : undefined}
-  renderDayHeader={({ dateISO, defaultContent }) => <>
-    {defaultContent}
-    {statuses[dateISO] && <small>{statusLabels[statuses[dateISO]]}</small>}
-  </>}
+<Calendar
+  views={[weekView]}
+  events={events}
+  getDayStyle={({ dateISO }) =>
+    statuses[dateISO]
+      ? {
+          backgroundColor: `var(--status-${statuses[dateISO]}-bg)`,
+          color: `var(--status-${statuses[dateISO]}-fg)`,
+          '--mc-color-muted': `var(--status-${statuses[dateISO]}-fg)`,
+          '--mc-color-btn-active-bg': `var(--status-${statuses[dateISO]}-fg)`,
+        }
+      : undefined
+  }
+  renderDayHeader={({ dateISO, defaultContent }) => (
+    <>
+      {defaultContent}
+      {statuses[dateISO] && <small>{statusLabels[statuses[dateISO]]}</small>}
+    </>
+  )}
 />
 ```
 
@@ -206,4 +214,30 @@ Use a forma com entradas nomeadas nessas operações; as sobrecargas posicionais
 
 ## Recursos e limites
 
-React/React DOM 18 e 19 são peers; testes atuais de runtime usam React 19, com verificação de tipos React 18. SSR emite o container inicial. Não se promete RFC completo, virtualização/hierarquia de recursos, ICS, undo/redo, RTL ou API de impressão. Hooks de editor/slots adicionais nas specs são propostas. Browser automatizado usa Edge; validação física mobile/Safari e leitor de tela permanece pendente. Veja releases/specs para evidências da versão.
+React/React DOM 18 e 19 são peers; testes atuais de runtime usam React 19, com verificação de tipos React 18. SSR emite o container inicial. [Views ampliadas](extended-views.md) oferece hierarquia de recursos, virtualização vertical da timeline e impressão pelo navegador. [ICS](ics.md) oferece importação/exportação de subconjunto estrito, [histórico](history.md) oferece desfazer/refazer do consumidor e [direção](rtl.md) documenta layout e interação RTL. [Recorrência](recurrence.md) suporta as sete frequências com limites explícitos de trabalho/semântica; agendamento iCalendar completo, virtualização horizontal e PDF binário ficam fora do contrato. Hooks de editor/slots adicionais nas specs continuam como propostas. Browser automatizado usa Edge; validação física mobile/Safari e leitor de tela permanece pendente. Veja releases/specs para evidências da versão.
+
+## Traduções próprias do editor
+
+O editor aceita `messages?: CalendarEditorMessageOverrides` para textos próprios. Chaves omitidas usam inglês quando `locale` começa com en e português nos demais (padrão pt-BR). Valores undefined também usam fallback. `locale` formata meses/dias via Intl; campos de data nativos seguem o navegador. Títulos de recursos, erros do Temporal e erros de validação/persistência do consumidor não são traduzidos automaticamente. Props podem mudar sem remontar; remonte apenas ao trocar o evento editado.
+
+```tsx
+<CalendarEventEditor
+  event={draft}
+  locale="es-ES"
+  messages={{
+    fields: { title: 'Título de la cita' },
+    actions: { save: 'Guardar' },
+    validation: {
+      positiveInteger: ({ field }) => `${field} debe ser un entero positivo.`,
+    },
+  }}
+  onSave={saveEvent}
+  onCancel={closeEditor}
+/>
+```
+
+O exemplo é um dicionário parcial, não uma tradução completa para espanhol. Preencha todas as chaves do contrato gerado CalendarEditorMessages para um formulário inteiramente traduzido. O editor expõe as sete frequências com horário; dia inteiro exige frequência diária ou maior, sem filtros de horário.
+
+Ao selecionar recorrência por segundo/minuto/hora, um fim ilimitado passa à quantidade atual de ocorrências (padrão 10). Você pode escolher outra quantidade/data ou voltar explicitamente ao fim ilimitado; mantenha as janelas carregadas dentro dos limites de expansão.
+
+As seções são `fields`, `actions`, `scope`, `recurrence`, `validation` e `feedback`. Forneça apenas chaves alteradas; ausentes/undefined preservam padrões dentro da seção. Textos estáticos são strings. Mensagens dinâmicas são funções tipadas com um objeto de contexto nomeado; `positiveInteger` recebe `{ field }`. As funções retornam texto de forma síncrona; use `Intl.NumberFormat` e `Intl.PluralRules` para números e pluralização quando necessário.

@@ -234,6 +234,35 @@ async (page) => {
     );
     await page.screenshot({ path: `output/layout-review/playground-dark-en-mobile-${width}.png` });
   }
+  await page.goto(`${playground}?lang=en&theme=dark&view=resources`);
+  await page.locator('[data-mc-root][data-mc-view="resources"]').waitFor();
+  await page
+    .getByRole('spinbutton', { name: 'Preparation after (minutes)', exact: true })
+    .fill('30');
+  await page
+    .getByRole('spinbutton', { name: 'Preparation before (minutes)', exact: true })
+    .fill('10');
+  await page.getByText(/Brown band: Room 1 preparation, 10 minutes before and 30 after/).waitFor();
+  await page.getByRole('checkbox', { name: 'Room 1 preparation', exact: true }).uncheck();
+  check(
+    await page
+      .getByRole('spinbutton', { name: 'Preparation after (minutes)', exact: true })
+      .isDisabled(),
+    'Preparation can be disabled and configured',
+  );
+  await page.getByText(/Brown band: Room 1 preparation, 0 minutes before and 0 after/).waitFor();
+  check(
+    await page
+      .locator('.demo-tools input[type="number"]')
+      .evaluateAll((inputs) =>
+        inputs.every(
+          (input) =>
+            input.getBoundingClientRect().width <=
+            input.parentElement.getBoundingClientRect().width + 1,
+        ),
+      ),
+    'Number controls remain bounded by their container',
+  );
   if (runtimeErrors.length) throw new Error(runtimeErrors.join('\n'));
   return results;
 };

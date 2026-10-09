@@ -39,7 +39,7 @@ export function SlotCells(props: {
         aria-label={`${props.dateISO}, ${formatHourLabel({ minuteOfDay: minute, locale: props.locale ?? 'pt-BR' })}${props.resourceId ? `, ${props.resourceId}` : ''}`}
         style={
           props.horizontal
-            ? { left: offset, width: size, top: 0, bottom: 0 }
+            ? { insetInlineStart: offset, width: size, top: 0, bottom: 0 }
             : { top: offset, height: size, left: 0, right: 0 }
         }
       />,

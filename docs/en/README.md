@@ -6,6 +6,10 @@
 - [Feature scenarios](features.md): live workflows and supported limits.
 - [Extended views and printing](extended-views.md): resource periods, annual planning and browser PDF.
 - [API guide](api.md): views, persistence, forms, resources, recurrence and styling.
+- [Recurrence](recurrence.md): rule combinations, zones and work limits.
+- [ICS](ics.md): import/export and interoperability limits.
+- [History](history.md): consumer undo/redo and async persistence.
+- [RTL](rtl.md): direction, gestures and coverage.
 - [Comparison](comparison.md): integration tradeoffs and licensing.
 - [Bundle measurements](bundle-comparison.md): reproducible sizes and packaging tradeoffs.
 - [Temporal fallback](temporal-comparison.md): measured capabilities, size and performance.

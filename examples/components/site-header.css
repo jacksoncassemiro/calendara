@@ -12,7 +12,7 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  color: var(--demo-heading, var(--site-blue));
+  color: var(--demo-heading, var(--site-brand));
   font-size: 1.4rem;
   font-weight: 700;
   letter-spacing: -0.04em;
@@ -74,11 +74,11 @@
 }
 .calendara-site-toggle button[aria-pressed='true'] {
   background: var(--demo-tint, var(--site-active));
-  color: var(--demo-heading, var(--site-blue));
+  color: var(--demo-heading, var(--site-brand));
   font-weight: 700;
 }
 .calendara-site-header :focus-visible {
-  outline: 2px solid var(--demo-heading, var(--site-blue));
+  outline: 2px solid var(--demo-heading, var(--site-brand));
   outline-offset: 3px;
 }
 @media (max-width: 640px) {

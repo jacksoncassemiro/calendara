@@ -98,12 +98,6 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.focused-code {
-  overflow: auto;
-  padding: 16px;
-  background: var(--demo-tint);
-  border-radius: 8px;
-}
 @media (max-width: 480px) {
   .focused-main {
     padding: 12px;

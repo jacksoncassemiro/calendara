@@ -13,9 +13,10 @@ export default defineConfig({
   oxc: { jsx: { runtime: 'automatic', importSource: 'react' } },
   test: {
     include: ['tests/**/*.{test,spec}.{ts,tsx}'],
-    // node por padrão (engines puros/Temporal). Specs de render pedem jsdom via
-    // docblock `// @vitest-environment jsdom` no topo do arquivo.
+    // Default engine environment; rendering specs select jsdom. / PT: Ambiente padrão do motor; testes de render selecionam jsdom.
     environment: 'node',
+    // Bound concurrent DOM suites to avoid CPU contention. / PT: Limita testes DOM simultâneos para evitar disputa por CPU.
+    maxWorkers: 4,
     globals: false,
   },
 });

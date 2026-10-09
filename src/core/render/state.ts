@@ -27,6 +27,8 @@ export interface CalendarOptions {
    * @remarks Português: Idioma dos rótulos; padrão pt-BR.
    */
   locale: string;
+  /** Visual reading direction; default ltr, independent of locale. @remarks Português: Direção visual; padrão ltr, independente do idioma. */
+  direction?: 'ltr' | 'rtl';
   /** First weekday in week views; default MO.
    * @remarks Português: Primeiro dia da semana; padrão segunda-feira (MO).
    */
@@ -145,6 +147,7 @@ export interface CalendarState {
  */
 export const DEFAULT_OPTIONS: CalendarOptions = {
   locale: 'pt-BR',
+  direction: 'ltr',
   weekStart: 'MO',
   startHour: 6,
   endHour: 22,
@@ -162,6 +165,8 @@ export const DEFAULT_OPTIONS: CalendarOptions = {
  * @remarks Português: Rejeita intervalos, escalas e limites inválidos antes da renderização.
  */
 export function validateCalendarOptions(options: CalendarOptions): void {
+  if (options.direction !== undefined && options.direction !== 'ltr' && options.direction !== 'rtl')
+    throw new RangeError('direction must be ltr or rtl');
   const validHour = (value: GridHour): boolean => {
     if (
       typeof value === 'string' &&

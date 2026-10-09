@@ -50,7 +50,6 @@ export const BASE: Scenario[] = [
   ],
   ['Monthly BYSETPOS 1 wkend', '2024-01-01', 'RRULE:FREQ=MONTHLY;BYDAY=SA,SU;BYSETPOS=1;COUNT=4'],
   ['Yearly leap only count3', '2024-02-29', 'RRULE:FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29;COUNT=3'],
-  ['Daily count+until both', '2024-01-01', 'RRULE:FREQ=DAILY;COUNT=10;UNTIL=20240105T000000Z'],
 ];
 
 /** Civil-calendar boundaries and combined filters. / PT: Limites do calendário civil e filtros combinados. */

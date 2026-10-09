@@ -4,10 +4,11 @@
 import type { WeekdayCode } from './datetime.js';
 import type { CalendarEvent } from './event.js';
 
-/** Supported daily, weekly, monthly or yearly recurrence.
- * @remarks Português: Frequências diária, semanal, mensal ou anual suportadas.
+/** RFC frequencies; intraday frequencies require timed events.
+ * @remarks Português: Frequências RFC; frequências intradiárias exigem eventos com horário.
  */
-export type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+export type Frequency =
+  'SECONDLY' | 'MINUTELY' | 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
 
 /** Weekday filter with an optional position.
  * @remarks Português: Filtro de dia da semana com posição opcional.
@@ -55,16 +56,32 @@ export interface RRuleModel {
    * @remarks Português: Filtro de meses de 1 a 12.
    */
   byMonth?: number[];
-  /** Year days ±1..366; supported only for YEARLY.
-   * @remarks Português: Dias do ano ±1..366; disponível somente em YEARLY.
+  /** Year days ±1..366; YEARLY or intraday frequencies.
+   * @remarks Português: Dias do ano ±1..366; YEARLY ou frequências intradiárias.
    */
   byYearDay?: number[];
+  /** Week numbers ±1..53; YEARLY only, using WKST and a four-day first week.
+   * @remarks Português: Semanas ±1..53; somente YEARLY, com WKST e primeira semana de quatro dias.
+   */
+  byWeekNo?: number[];
+  /** Local hours 0..23; timed events only.
+   * @remarks Português: Horas locais 0..23; somente eventos com horário.
+   */
+  byHour?: number[];
+  /** Local minutes 0..59; timed events only.
+   * @remarks Português: Minutos locais 0..59; somente eventos com horário.
+   */
+  byMinute?: number[];
+  /** Local seconds 0..59; leap seconds are unsupported.
+   * @remarks Português: Segundos locais 0..59; segundos intercalares não são suportados.
+   */
+  bySecond?: number[];
   /** Candidate positions within each period: ±1..366.
    * @remarks Português: Posições dos candidatos em cada período: ±1..366.
    */
   bySetPos?: number[];
-  /** Week boundary for weekly rules; default MO.
-   * @remarks Português: Início da semana para regras semanais; padrão MO.
+  /** Week boundary for WEEKLY and YEARLY BYWEEKNO; default MO.
+   * @remarks Português: Início da semana para WEEKLY e YEARLY com BYWEEKNO; padrão MO.
    */
   weekStart?: WeekdayCode;
 }

@@ -3,6 +3,7 @@ import type { TemporalLike } from '../date/temporal.js';
 import type { CalendarEvent, RRuleModel } from '../types/index.js';
 import type { ExpandWindow } from './recurrenceSet.js';
 import { hasPossibleMonthDay } from './monthDayFilters.js';
+import { iterateLocalDateTimes } from './dateTimeIterator.js';
 interface RuleStartsInput {
   /** Date/time implementation used for zoned expansion.
    * @remarks Português: Implementação usada para expandir no fuso da série.
@@ -27,6 +28,10 @@ interface RuleStartsInput {
  */
 export function ruleStarts({ temporal, event, model, window }: RuleStartsInput): string[] {
   const allDay = event.time.allDay;
+  const intraday = ['SECONDLY', 'MINUTELY', 'HOURLY'].includes(model.freq);
+  if (allDay && intraday)
+    throw new RangeError('[calendara] frequência intradiária exige evento com horário');
+  if (allDay) model = { ...model, byHour: undefined, byMinute: undefined, bySecond: undefined };
   const zone = allDay ? 'UTC' : (event.time.start.timeZone ?? 'UTC');
   const start = allDay ? `${event.time.start.date}T00:00:00` : event.time.start.dateTime!;
   const plain = temporal.PlainDateTime.from(start);
@@ -57,6 +62,33 @@ export function ruleStarts({ temporal, event, model, window }: RuleStartsInput):
   const zonedStartOnDate = (dateISO: string) =>
     temporal.PlainDate.from(dateISO).toPlainDateTime(seriesTime).toZonedDateTime(zone);
   const values: string[] = [];
+  if (intraday || model.byHour?.length || model.byMinute?.length || model.bySecond?.length) {
+    const lastDate = [upper?.toPlainDate().toString(), until?.toPlainDate().toString()]
+      .filter((date): date is string => date !== undefined)
+      .sort()[0];
+    for (const iso of iterateLocalDateTimes({
+      model,
+      start: plain.toString(),
+      lowerDate: lower.toPlainDate().toString(),
+      upperDate: lastDate,
+      accept: (iso) => {
+        const candidate = temporal.PlainDateTime.from(iso);
+        return (
+          temporal.PlainDateTime.compare(
+            candidate,
+            candidate.toZonedDateTime(zone).toPlainDateTime(),
+          ) === 0
+        );
+      },
+    })) {
+      const value = temporal.PlainDateTime.from(iso).toZonedDateTime(zone);
+      if (until && value.epochNanoseconds > until.epochNanoseconds) break;
+      if (upper && value.epochNanoseconds > upper.epochNanoseconds) break;
+      if (value.epochNanoseconds < lower.epochNanoseconds) continue;
+      values.push(value.toPlainDateTime().toString());
+    }
+    return values;
+  }
   for (const dateISO of iterateCivilDates({
     model: { ...model, until: until?.toPlainDate().toString() },
     startDateISO: plain.toPlainDate().toString(),

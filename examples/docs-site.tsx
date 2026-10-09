@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { CodeBlock } from './components/CodeBlock';
 import apiModel from './generated/api-model.json';
+import { demos } from './demos/catalog';
 import './docs-site.css';
 import { SiteHeader, type SiteLanguage, type SiteTheme } from './components/SiteHeader';
 
@@ -26,14 +28,21 @@ const content = {
     theme: 'Tema',
     themeOptions: ['Sistema', 'Claro', 'Escuro'],
     catalog: 'Explorar recursos',
+    catalogIntro:
+      'Encontre a view ou o comportamento que sua agenda precisa. Cada recurso mostra um exemplo e seu escopo de integração.',
+    featureSearch: 'Buscar recurso',
+    allFeatures: 'Todos os recursos',
+    featureEmpty: 'Nenhum recurso encontrado. Tente outro termo ou categoria.',
+    implemented: 'Disponível no pacote',
+    featureScope: 'Escopo',
     tryFeature: 'Abrir demonstração',
     bundle: 'Tamanho e organização do pacote',
     bundleNote:
-      'Mês + dia: 142,4 kB gzip no ensaio de produção, excluindo React e CSS e incluindo todos os chunks. FullCalendar: 70,6 kB; Schedule-X: 68,7 kB; Mantine: 85,1 kB; React Big Calendar: 54,9 kB. Os recursos e runtimes não são equivalentes. Mantemos um pacote: separar instalações não elimina o custo compartilhado de recorrência e datas.',
+      'Mês + dia: 72,9 kB gzip no ensaio de produção, excluindo React e CSS e incluindo todos os chunks. FullCalendar: 70,6 kB; Schedule-X: 68,7 kB; Mantine: 85,1 kB; React Big Calendar: 54,9 kB. Os recursos e runtimes não são equivalentes. Mantemos um pacote: separar instalações não elimina o custo compartilhado de recorrência e datas.',
     bundleLink: 'Metodologia, versões e resultados reproduzíveis',
     distribution: 'Distribuição no GitHub',
     distributionNote:
-      'A versão experimental 0.2.0 está publicada com .tgz e checksum. Instale pela URL fixa da release; o site e o pacote têm publicações separadas. GitHub Packages público é gratuito, mas o registro npm do GitHub exige autenticação até para instalar pacotes públicos. Escolhemos assets de GitHub Releases para evitar essa configuração no consumidor.',
+      'A versão experimental 0.2.0 está publicada com .tgz e checksum. Instale pela URL fixa da release; o site e o pacote têm publicações separadas. A instalação pelos assets públicos não exige autenticação no registro npm do GitHub.',
     distributionLink: 'Como preparar e instalar uma release',
     title: 'Uma agenda que se adapta ao seu trabalho.',
     introduction:
@@ -52,7 +61,7 @@ const content = {
     version: '0.2.0 · MIT',
     install: 'Instale uma versão publicada',
     installNote:
-      'Copie a URL do arquivo .tgz de uma GitHub Release publicada. O endereço abaixo mostra o formato previsto da primeira versão; confirme a disponibilidade antes de instalar.',
+      'Copie a URL do arquivo .tgz de uma GitHub Release publicada. Use a URL fixa da versão desejada, como no comando abaixo.',
     peer: 'React e React DOM 18 ou 19 são peers. Use versões compatíveis. Importar o CSS é necessário para o tema padrão; Tailwind não é exigido.',
     release: 'Ver releases',
     render: 'Escolha as views e renderize',
@@ -72,9 +81,9 @@ const content = {
     limitsIntro:
       'Use a demonstração para conferir o comportamento e as notas da versão para decidir a adoção. Ainda não há paridade completa com todas as bibliotecas de agenda.',
     limitsList: [
-      'Recorrência diária, semanal, mensal e anual com exceções; não oferece todo o RFC 5545.',
-      'Recursos e editor são MIT. Não há virtualização, ICS, impressão, undo/redo ou RTL completo.',
-      'Editor padrão em português e inglês; formulários próprios podem usar outros idiomas.',
+      'Recorrência de segundos até anos, com filtros e exceções; há limites explícitos de expansão.',
+      'Recursos, editor, impressão, histórico local e intercâmbio ICS são MIT. A virtualização cobre linhas da timeline. A direção RTL é configurável; componentes próprios devem respeitá-la.',
+      'O editor oferece EN/PT e aceita messages para traduções próprias; locale formata meses e dias.',
       'Testes automatizados usam Edge/Chrome. Safari, toque físico e leitores de tela precisam de validação específica.',
       'Validação cliente não substitui autorização nem reserva transacional no servidor.',
     ],
@@ -91,7 +100,7 @@ const content = {
         id: 'persistence',
         title: 'Salvar movimentos e edições',
         text: 'Escolha events em estado React ou eventSource como fonte de verdade. O gesto é otimista: retornar false ou rejeitar a Promise reverte. A biblioteca não grava no servidor.',
-        code: `async function commit(change: EventChange) {\n  await persistChange(change);\n  setEvents(current => applyEventTimeChange(current, change));\n}\n\n<Calendar views={views} events={events}\n  onEventDrop={commit} onEventResize={commit} />;`,
+        code: `async function commit(change: EventChange) {\n  await persistChange(change);\n  setEvents(current => applyEventTimeChange({ events: current, change }));\n}\n\n<Calendar views={views} events={events}\n  onEventDrop={commit} onEventResize={commit} />;`,
         note: 'Importe EventChange e applyEventTimeChange do pacote. persistChange e setEvents pertencem ao aplicativo.',
       },
       {
@@ -120,7 +129,7 @@ const content = {
         title: 'Recorrência e exceções',
         text: 'Regras são parte do evento. rDates adiciona datas; exDates remove; overrides usa o início original da ocorrência. Esta-e-seguintes divide o mestre para preservar o histórico.',
         code: `recurrence: {\n  rule: { freq: 'WEEKLY', byDay: [{ weekday: 'MO' }], count: 12 },\n  exDates: ['2026-10-12T09:00:00'],\n}`,
-        note: 'A composição usa rrule-temporal e Temporal/fallback. Uma validação do evento não verifica automaticamente todas as repetições futuras.',
+        note: 'A composição usa recorrência civil e Temporal/fallback. Validar um evento não verifica automaticamente todas as repetições futuras.',
       },
     ],
   },
@@ -128,14 +137,21 @@ const content = {
     theme: 'Theme',
     themeOptions: ['System', 'Light', 'Dark'],
     catalog: 'Explore features',
+    catalogIntro:
+      'Find the view or behavior your schedule needs. Every feature includes an example and its integration scope.',
+    featureSearch: 'Search features',
+    allFeatures: 'All features',
+    featureEmpty: 'No features found. Try another term or category.',
+    implemented: 'Available in the package',
+    featureScope: 'Scope',
     tryFeature: 'Open demonstration',
     bundle: 'Bundle size and package structure',
     bundleNote:
-      'Month + Day: 142.4 kB gzip in the production fixture, excluding React and CSS and including every chunk. FullCalendar: 70.6 kB; Schedule-X: 68.7 kB; Mantine: 85.1 kB; React Big Calendar: 54.9 kB. Features and runtimes differ. We retain one package: separate installations do not remove shared recurrence and date costs.',
+      'Month + Day: 72.9 kB gzip in the production fixture, excluding React and CSS and including every chunk. FullCalendar: 70.6 kB; Schedule-X: 68.7 kB; Mantine: 85.1 kB; React Big Calendar: 54.9 kB. Features and runtimes differ. We retain one package: separate installations do not remove shared recurrence and date costs.',
     bundleLink: 'Methodology, versions and reproducible results',
     distribution: 'GitHub distribution',
     distributionNote:
-      'Experimental version 0.2.0 is published with a .tgz and checksum. Install using the fixed release URL; the site and package are published separately. Public GitHub Packages are free, but its npm registry requires authentication even when installing public packages. We chose GitHub Release assets to avoid that consumer setup.',
+      'Experimental version 0.2.0 is published with a .tgz and checksum. Install using the fixed release URL; the site and package are published separately. Installing public release assets does not require GitHub npm registry authentication.',
     distributionLink: 'Preparing and installing a release',
     title: 'A schedule that fits the way you work.',
     introduction:
@@ -154,7 +170,7 @@ const content = {
     version: '0.2.0 · MIT',
     install: 'Install a published version',
     installNote:
-      'Copy the .tgz asset URL from a published GitHub Release. The address below shows the planned first-version format; verify availability before installing.',
+      'Copy the .tgz asset URL from a published GitHub Release. Use the fixed URL of the desired version, as in the command below.',
     peer: 'React and React DOM 18 or 19 are peers. Use matching versions. Import CSS for the default theme; Tailwind is not required.',
     release: 'Browse releases',
     render: 'Choose views and render',
@@ -174,9 +190,9 @@ const content = {
     limitsIntro:
       'Use the demo to check behavior and the release notes to decide adoption. Complete parity with every scheduling library is not claimed.',
     limitsList: [
-      'Daily, weekly, monthly and yearly recurrence with exceptions; not the whole RFC 5545.',
-      'Resource views and editor are MIT. No virtualization, ICS, printing, undo/redo or full RTL.',
-      'The built-in editor supports Portuguese and English; custom forms can use other languages.',
+      'Secondly through yearly recurrence, with filters and exceptions; expansion has explicit limits.',
+      'Resource views, editor, printing, local history and ICS interchange are MIT. Virtualization covers timeline rows. RTL direction is configurable; custom components must respect it.',
+      'The editor includes EN/PT and accepts messages for custom translations; locale formats months and weekdays.',
       'Automated tests use Edge/Chrome. Safari, physical touch and screen readers require separate validation.',
       'Client validation does not replace server authorization or transactional reservations.',
     ],
@@ -193,7 +209,7 @@ const content = {
         id: 'persistence',
         title: 'Save moves and edits',
         text: 'Choose React events state or eventSource as the authority. Gestures are optimistic: false or a rejected promise reverts. The library does not persist on a server.',
-        code: `async function commit(change: EventChange) {\n  await persistChange(change);\n  setEvents(current => applyEventTimeChange(current, change));\n}\n\n<Calendar views={views} events={events}\n  onEventDrop={commit} onEventResize={commit} />;`,
+        code: `async function commit(change: EventChange) {\n  await persistChange(change);\n  setEvents(current => applyEventTimeChange({ events: current, change }));\n}\n\n<Calendar views={views} events={events}\n  onEventDrop={commit} onEventResize={commit} />;`,
         note: 'Import EventChange and applyEventTimeChange from the package. persistChange and setEvents belong to your application.',
       },
       {
@@ -222,154 +238,164 @@ const content = {
         title: 'Recurrence and exceptions',
         text: 'Rules belong to the event. rDates adds starts; exDates removes them; overrides uses the original occurrence start. This-and-following splits the master to preserve history.',
         code: `recurrence: {\n  rule: { freq: 'WEEKLY', byDay: [{ weekday: 'MO' }], count: 12 },\n  exDates: ['2026-10-12T09:00:00'],\n}`,
-        note: 'Composition uses rrule-temporal and Temporal/fallback. Validating an event does not automatically check every future repetition.',
+        note: 'Composition uses civil recurrence and Temporal/fallback. Validating an event does not automatically check every future repetition.',
       },
     ],
   },
 };
 
-const featureCatalog = [
+const featureCatalog = demos.map((demo) => ({
+  ...demo,
+  scenario: demo.id,
+  detail: demo.description,
+}));
+
+const featureGroups = [
   {
-    view: 'resource-week',
-    title: ['Recursos durante a semana', 'Resources across the week'],
+    id: 'views',
+    title: ['Views e períodos', 'Views and periods'],
     detail: [
-      'Colunas por data ou recurso, com capacidade e buffers compartilhados.',
-      'Date or resource columns with shared capacity and buffers.',
+      'Escolha a escala que corresponde ao trabalho.',
+      'Choose the time span that matches the work.',
     ],
   },
   {
-    view: 'timeline-week',
-    title: ['Timelines semanais e mensais', 'Weekly and monthly timelines'],
+    id: 'resources',
+    title: ['Recursos e disponibilidade', 'Resources and availability'],
     detail: [
-      'Faixas diárias, grupos recolhíveis e recorte explícito de recursos.',
-      'Dated tracks, collapsible groups and explicit resource windows.',
+      'Combine planejamento visual e regras de ocupação.',
+      'Combine visual planning and occupancy rules.',
     ],
   },
   {
-    view: 'year',
-    title: ['Ano e trimestre', 'Year and quarter'],
+    id: 'interaction',
+    title: ['Interação e persistência', 'Interaction and persistence'],
     detail: [
-      'Painéis mensais com eventos, conteúdo próprio e ver mais.',
-      'Month panels with events, custom content and overflow actions.',
+      'Mantenha o aplicativo no controle das alterações.',
+      'Keep your application in control of changes.',
     ],
   },
   {
-    view: 'year-planner',
-    title: ['Planejamento anual', 'Year planner'],
+    id: 'integration',
+    title: ['Conteúdo e distribuição', 'Content and output'],
     detail: [
-      'Visão anual por datas com indicadores e navegação por teclado.',
-      'Annual date overview with indicators and keyboard navigation.',
-    ],
-  },
-  {
-    view: 'day-agenda',
-    title: ['Agenda diária', 'Daily agenda'],
-    detail: [
-      'Eventos em ordem cronológica com resumo dos recursos.',
-      'Chronological events with resource summaries.',
-    ],
-  },
-  {
-    view: 'print',
-    title: ['Impressão e PDF', 'Printing and PDF'],
-    detail: [
-      'Documento separado para impressão e salvar como PDF pelo navegador.',
-      'Isolated document for printing and browser Save as PDF.',
-    ],
-  },
-  {
-    view: 'week',
-    title: ['Semana, dia e períodos personalizados', 'Week, day and custom periods'],
-    detail: [
-      'Slots, snapping, escala e rótulos independentes. Altere as opções de tempo no playground.',
-      'Independent slots, snapping, scale and labels. Change time options in the playground.',
-    ],
-  },
-  {
-    view: 'month',
-    title: ['Mês e eventos entre dias', 'Month and multi-day events'],
-    detail: [
-      'Eventos contínuos por semana e +mais com popover, componente próprio ou outra view.',
-      'Continuous events within each week and +more with a popover, custom component or another view.',
-    ],
-  },
-  {
-    view: 'list',
-    title: ['Agenda e telas menores', 'Agenda and narrow screens'],
-    detail: [
-      'Lista por data; a aplicação pode trocar para modo compacto e abrir seu formulário.',
-      'Date-grouped list; applications can choose compact mode and open their own form.',
-    ],
-  },
-  {
-    view: 'resources',
-    scenario: 'capacity',
-    title: ['Salas e disponibilidade', 'Rooms and availability'],
-    detail: [
-      'Capacidade global, por sala ou ilimitada; bloqueios e buffers separados da sobreposição visual.',
-      'Global, per-room or unlimited capacity; blocks and buffers are separate from visual overlap.',
-    ],
-  },
-  {
-    view: 'timeline',
-    title: ['Linha de tempo por recurso', 'Resource timeline'],
-    detail: [
-      'Horários na horizontal, recursos na vertical; escala configurável e scroll horizontal.',
-      'Horizontal time, vertical resources; configurable scale and horizontal scrolling.',
-    ],
-  },
-  {
-    view: 'day',
-    title: ['Mover, redimensionar e salvar', 'Move, resize and save'],
-    detail: [
-      'Prévia do gesto, horários atualizados, rejeição assíncrona e cancelamento. Dados desta demo ficam em memória.',
-      'Gesture preview, updated times, async rejection and cancellation. Demo data stays in memory.',
-    ],
-  },
-  {
-    view: 'day',
-    scenario: 'recurrence',
-    title: ['Recorrência e seu editor', 'Recurrence and your editor'],
-    detail: [
-      'Abra um evento para editar repetições e exceções. O editor padrão é opcional; seus callbacks controlam o fluxo.',
-      'Open an event to edit repetitions and exceptions. The built-in editor is optional; callbacks control the flow.',
-    ],
-  },
-  {
-    view: 'day',
-    scenario: 'external-drag',
-    title: ['Transferências de eventos', 'Event transfers'],
-    detail: [
-      'Arraste um modelo para dentro e um evento para a área externa. A aplicação decide inserir, salvar ou remover.',
-      'Drag a template in and an event to the outside area. The application decides insertion, persistence or removal.',
-    ],
-  },
-  {
-    view: 'day',
-    scenario: 'overflow',
-    title: ['Eventos próximos e sobreposição', 'Dense events and overlap'],
-    detail: [
-      'Compare lado a lado, sobreposição parcial e +mais. Capacidade continua independente do layout.',
-      'Compare side-by-side, partial overlap and +more. Capacity remains independent of layout.',
-    ],
-  },
-  {
-    view: 'summary',
-    title: ['Views e conteúdo próprios', 'Custom views and content'],
-    detail: [
-      'Resumo é uma view do exemplo, criada com createReactView; não é uma view embutida do pacote.',
-      'Summary is an example view created with createReactView, not a built-in package view.',
+      'Adapte a apresentação e compartilhe a agenda.',
+      'Adapt the presentation and share the schedule.',
     ],
   },
 ];
 
-function CodeBlock({ children }: { children: string }) {
-  return (
-    <pre className="site-code">
-      <code>{children}</code>
-    </pre>
-  );
+function featureGroup(feature: (typeof featureCatalog)[number]) {
+  if (
+    [
+      'ics',
+      'print',
+      'custom-view',
+      'custom-render',
+      'custom-toolbar',
+      'custom-editor',
+      'day-style',
+    ].includes(feature.scenario)
+  )
+    return 'integration';
+  if (
+    feature.scenario === 'capacity' ||
+    [
+      'resources',
+      'resource-week',
+      'timeline-week',
+      'timeline-month',
+      'timeline-tree',
+      'timeline',
+    ].includes(feature.view)
+  )
+    return 'resources';
+  if (
+    feature.view === 'day' ||
+    ['overflow', 'history', 'recurrence', 'source'].includes(feature.scenario)
+  )
+    return 'interaction';
+  return 'views';
 }
+
+const featureScope: Record<string, [string, string]> = {
+  history: [
+    'Histórico da sessão; persistência e concorrência permanecem no consumidor.',
+    'Session history; persistence and concurrency remain consumer-owned.',
+  ],
+  ics: [
+    'VEVENT com diagnósticos explícitos; não oferece todo o RFC 5545.',
+    'VEVENT with explicit diagnostics; the full RFC 5545 is not supported.',
+  ],
+  'timeline-tree': [
+    'Virtualização apenas de linhas; formulários próprios devem respeitar a direção.',
+    'Row virtualization only; custom forms must respect the reading direction.',
+  ],
+  'resource-week': [
+    'Capacidade não representa sobreposição visual; confirme reservas no servidor.',
+    'Capacity is separate from visual overlap; confirm bookings on the server.',
+  ],
+  'timeline-week': [
+    'Grupos e janelas de recursos são configuráveis por view.',
+    'Groups and resource windows are configured per view.',
+  ],
+  year: [
+    'Mais eventos podem exigir a ação ver mais em cada mês.',
+    'Dense months may require overflow actions.',
+  ],
+  'year-planner': [
+    'Resumo anual; abra outra view para trabalhar com horários.',
+    'Annual overview; open another view to work with times.',
+  ],
+  'day-agenda': [
+    'A lista resume a ocupação; não substitui validação de reservas.',
+    'The list summarizes occupancy; it does not replace booking validation.',
+  ],
+  print: [
+    'Salvar como PDF depende do diálogo de impressão do navegador.',
+    'Save as PDF uses the browser print dialog.',
+  ],
+  week: [
+    'Slots, escala e intervalo de rótulos têm controles separados.',
+    'Slots, scale and label intervals have separate controls.',
+  ],
+  month: [
+    'Fins são exclusivos; eventos longos preservam a duração completa.',
+    'Ends are exclusive; long events retain their full duration.',
+  ],
+  list: [
+    'O consumidor escolhe quando trocar para uma view compacta.',
+    'The consumer chooses when to switch to a compact view.',
+  ],
+  capacity: [
+    'A validação cliente não garante reservas concorrentes no servidor.',
+    'Client validation does not guarantee concurrent server bookings.',
+  ],
+  timeline: [
+    'Virtualização de linhas exige configuração; não virtualiza todas as views.',
+    'Row virtualization requires configuration; it does not virtualize every view.',
+  ],
+  day: [
+    'Rejeitar a persistência reverte o gesto; os dados da demo duram a sessão.',
+    'Rejecting persistence rolls back the gesture; demo data lasts for the session.',
+  ],
+  recurrence: [
+    'Recorrência com exceções; não implementa todo o RFC 5545.',
+    'Recurrence with exceptions; the full RFC 5545 is not implemented.',
+  ],
+  'external-drag': [
+    'Inserir, remover e salvar pertencem aos callbacks do consumidor.',
+    'Insertion, removal and persistence belong to consumer callbacks.',
+  ],
+  overflow: [
+    'O layout de sobreposição não altera a capacidade dos recursos.',
+    'Overlap layout does not change resource capacity.',
+  ],
+  summary: [
+    'Este exemplo usa createReactView; Resumo não é uma view embutida.',
+    'This example uses createReactView; Summary is not a built-in view.',
+  ],
+};
 
 function DocumentationSite() {
   const [language, setLanguage] = useState<SiteLanguage>(() =>
@@ -386,8 +412,18 @@ function DocumentationSite() {
     }
   });
   const [search, setSearch] = useState('');
+  const [featureSearch, setFeatureSearch] = useState('');
+  const [featureCategory, setFeatureCategory] = useState('all');
   const [contractName, setContractName] = useState('CalendarProps');
   const text = content[language];
+  const localeIndex = language === 'en' ? 1 : 0;
+  const matchingFeatures = featureCatalog.filter(
+    (feature) =>
+      (featureCategory === 'all' || featureGroup(feature) === featureCategory) &&
+      `${feature.title[localeIndex]} ${feature.detail?.[localeIndex] ?? ''} ${featureScope[feature.scenario]?.[localeIndex] ?? ''}`
+        .toLocaleLowerCase()
+        .includes(featureSearch.toLocaleLowerCase().trim()),
+  );
   const guideUrl = `${repository}/blob/main/docs/${language}/api.md`;
   const activeContract = apiModel.find((contract) => contract.name === contractName)!;
   const filteredFields = activeContract.fields.filter((field) =>
@@ -515,12 +551,14 @@ function DocumentationSite() {
             <h2>{text.start}</h2>
             <h3>{text.install}</h3>
             <p>{text.installNote}</p>
-            <CodeBlock>{installCommand}</CodeBlock>
+            <CodeBlock locale={language} language="bash">
+              {installCommand}
+            </CodeBlock>
             <p>
               {text.peer} <a href={`${repository}/releases`}>{text.release}</a>.
             </p>
             <h3>{text.render}</h3>
-            <CodeBlock>{firstCalendar}</CodeBlock>
+            <CodeBlock locale={language}>{firstCalendar}</CodeBlock>
             <p>{text.exampleNote}</p>
             <a href={`${repository}/blob/main/docs/${language}/getting-started.md`}>
               {text.fullGuide}
@@ -533,7 +571,7 @@ function DocumentationSite() {
               <article className="site-topic" id={topic.id} key={topic.id}>
                 <h3>{topic.title}</h3>
                 <p>{topic.text}</p>
-                <CodeBlock>{topic.code}</CodeBlock>
+                <CodeBlock locale={language}>{topic.code}</CodeBlock>
                 <p className="site-help">{topic.note}</p>
                 <a
                   href={`./examples/features.html?demo=${topic.id === 'editor' ? 'custom-editor' : topic.id === 'time-axis' ? 'week' : topic.id}&lang=${language}&theme=${theme}`}
@@ -547,23 +585,114 @@ function DocumentationSite() {
             <a href={`${repository}/blob/main/docs/${language}/extended-views.md`}>
               {language === 'en' ? 'Extended views and printing' : 'Views adicionais e impressão'}
             </a>
+            <div className="site-integration-links">
+              <a href={`${repository}/blob/main/docs/${language}/history.md`}>
+                {language === 'en'
+                  ? 'Undo and redo with consumer persistence'
+                  : 'Desfazer e refazer com persistência do consumidor'}
+              </a>
+              <a href={`${repository}/blob/main/docs/${language}/ics.md`}>
+                {language === 'en'
+                  ? 'Import and export ICS: supported scope'
+                  : 'Importar e exportar ICS: escopo suportado'}
+              </a>
+            </div>
           </section>
 
           <section className="site-section" id="features">
             <h2>{text.catalog}</h2>
-            <div className="site-feature-catalog">
-              {featureCatalog.map((feature) => (
-                <article key={feature.title[1]}>
-                  <h3>{feature.title[language === 'en' ? 1 : 0]}</h3>
-                  <p>{feature.detail[language === 'en' ? 1 : 0]}</p>
-                  <a
-                    href={`./examples/features.html?demo=${feature.scenario === 'capacity' ? 'resources' : (feature.scenario ?? (feature.view === 'summary' ? 'custom-view' : feature.view === 'day' ? 'persistence' : feature.view))}&lang=${language}&theme=${theme}`}
+            <p>{text.catalogIntro}</p>
+            <div className="site-feature-controls">
+              <label htmlFor="feature-search">{text.featureSearch}</label>
+              <input
+                id="feature-search"
+                type="search"
+                value={featureSearch}
+                onChange={(event) => setFeatureSearch(event.target.value)}
+              />
+              <div className="site-feature-categories" role="group" aria-label={text.catalog}>
+                <button
+                  type="button"
+                  aria-pressed={featureCategory === 'all'}
+                  onClick={() => setFeatureCategory('all')}
+                >
+                  {text.allFeatures} <span>{featureCatalog.length}</span>
+                </button>
+                {featureGroups.map((group) => (
+                  <button
+                    type="button"
+                    key={group.id}
+                    aria-pressed={featureCategory === group.id}
+                    onClick={() => setFeatureCategory(group.id)}
                   >
-                    {text.tryFeature}
-                  </a>
-                </article>
-              ))}
+                    {group.title[localeIndex]}{' '}
+                    <span>
+                      {
+                        featureCatalog.filter((feature) => featureGroup(feature) === group.id)
+                          .length
+                      }
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
+            <p className="site-feature-results" role="status">
+              {matchingFeatures.length === 0
+                ? text.featureEmpty
+                : language === 'en'
+                  ? `${matchingFeatures.length} of ${featureCatalog.length} features`
+                  : `${matchingFeatures.length} de ${featureCatalog.length} recursos`}
+            </p>
+            {featureGroups.map((group) => {
+              const features = matchingFeatures.filter(
+                (feature) => featureGroup(feature) === group.id,
+              );
+              if (!features.length) return null;
+              return (
+                <section
+                  className="site-feature-group"
+                  key={group.id}
+                  aria-labelledby={`feature-${group.id}`}
+                >
+                  <div className="site-feature-group-heading">
+                    <h3 id={`feature-${group.id}`}>{group.title[localeIndex]}</h3>
+                    <p>{group.detail[localeIndex]}</p>
+                  </div>
+                  <div className="site-feature-catalog">
+                    {features.map((feature) => (
+                      <article key={feature.title[1]}>
+                        <div className="site-feature-description">
+                          <h4>{feature.title[localeIndex]}</h4>
+                          <p>{feature.detail?.[localeIndex] ?? group.detail[localeIndex]}</p>
+                          <p className="site-feature-scope">
+                            <strong>{text.featureScope}: </strong>
+                            {featureScope[feature.scenario]?.[localeIndex] ??
+                              (language === 'en'
+                                ? 'Consumer callbacks and styles control this integration.'
+                                : 'Callbacks e estilos do consumidor controlam esta integração.')}
+                          </p>
+                        </div>
+                        <div className="site-feature-action">
+                          <span className="site-feature-availability">
+                            {feature.view === 'summary'
+                              ? language === 'en'
+                                ? 'Consumer example'
+                                : 'Exemplo do consumidor'
+                              : text.implemented}
+                          </span>
+                          <a
+                            data-demo-view={feature.view}
+                            href={`./examples/features.html?demo=${feature.scenario}&lang=${language}&theme=${theme}`}
+                          >
+                            {text.tryFeature}
+                          </a>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
             <p>
               <a
                 href={`./examples/features.html?demo=custom-render&lang=${language}&theme=${theme}`}

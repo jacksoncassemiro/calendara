@@ -1,7 +1,10 @@
 /** Pin visual headers and synchronize horizontal scrolling. @remarks Português: Fixa cabeçalhos visuais e sincroniza scroll horizontal. */
 import { useEffect, useRef, type RefObject } from 'react';
 
-export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement | null> {
+export function usePageStickyHeaders(
+  locale?: string,
+  direction?: 'ltr' | 'rtl',
+): RefObject<HTMLDivElement | null> {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const scroller = scrollRef.current;
@@ -38,6 +41,7 @@ export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement 
     scrollbar.append(scrollbarContent);
     scrollbarHost.append(scrollbar);
     scroller.before(scrollbarHost);
+    scroller.classList.add('mc-top-scrollbar');
     let pendingScrollbarPosition: number | null = null;
     const syncScroll = (): void => {
       // Ignore queued events from synchronization. PT: Ignora eventos enfileirados pela sincronização.
@@ -106,6 +110,13 @@ export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement 
       if (copyDirty) refreshCopy();
       const viewport = scroller.getBoundingClientRect();
       const source = header.getBoundingClientRect();
+      const rtl = window.getComputedStyle(scroller).direction === 'rtl';
+      const viewportLeft = viewport.left + scroller.clientLeft;
+      const viewportRight = viewportLeft + scroller.clientWidth;
+      const sourceOffset = source.left - viewportLeft;
+      const cornerOffset = rtl ? viewportRight - source.right : viewportLeft - source.left;
+      overlay.dir = rtl ? 'rtl' : 'ltr';
+      scrollbar.dir = rtl ? 'rtl' : 'ltr';
       const offset =
         Number.parseFloat(window.getComputedStyle(scroller).getPropertyValue('--mc-sticky-top')) ||
         0;
@@ -151,21 +162,29 @@ export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement 
         const eventRect = content.parentElement!.getBoundingClientRect();
         const horizontal = Boolean(content.closest('.mc-timeline'));
         const delta = horizontal
-          ? Math.max(0, viewport.left + axisWidth - eventRect.left)
+          ? rtl
+            ? Math.max(0, eventRect.right - viewportRight + axisWidth)
+            : Math.max(0, viewportLeft + axisWidth - eventRect.left)
           : Math.max(0, contentTop - eventRect.top);
         const limit = horizontal
           ? Math.max(0, eventRect.width - 60)
           : Math.max(0, eventRect.height - 24);
-        content.style.setProperty('--mc-content-offset', `${Math.min(delta, limit)}px`);
+        content.style.setProperty(
+          '--mc-content-offset',
+          `${Math.min(delta, limit) * (horizontal && rtl ? -1 : 1)}px`,
+        );
       }
       if (!visible) return;
       overlay.style.top = `${offset}px`;
       overlay.style.left = `${viewport.left + scroller.clientLeft}px`;
       overlay.style.width = `${scroller.clientWidth}px`;
+      overlay.style.height = `${source.height}px`;
       copy.style.width = `${source.width}px`;
-      copy.style.transform = `translateX(${-scroller.scrollLeft}px)`;
+      copy.style.position = 'absolute';
+      copy.style.left = '0px';
+      copy.style.transform = `translateX(${sourceOffset}px)`;
       corners.forEach((corner) => {
-        corner.style.transform = `translateX(${scroller.scrollLeft}px)`;
+        corner.style.transform = `translateX(${cornerOffset}px)`;
       });
       if (allDay) {
         if (!allDayFixed) {
@@ -177,11 +196,10 @@ export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement 
         }
         const width = source.width;
         allDay.style.top = `${offset + source.height}px`;
-        allDay.style.left = `${viewport.left + scroller.clientLeft - scroller.scrollLeft}px`;
+        allDay.style.left = `${source.left}px`;
         allDay.style.width = `${width}px`;
-        allDay.style.clipPath = `inset(0 ${Math.max(0, width - scroller.clientWidth - scroller.scrollLeft)}px 0 ${scroller.scrollLeft}px)`;
-        (allDay.firstElementChild as HTMLElement).style.transform =
-          `translateX(${scroller.scrollLeft}px)`;
+        allDay.style.clipPath = `inset(0 ${Math.max(0, source.right - viewportRight)}px 0 ${Math.max(0, viewportLeft - source.left)}px)`;
+        (allDay.firstElementChild as HTMLElement).style.transform = `translateX(${cornerOffset}px)`;
         placeholder.style.height = `${allDay.getBoundingClientRect().height}px`;
       }
     };
@@ -220,6 +238,7 @@ export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement 
       overlay.remove();
       scrollbar.removeEventListener('scroll', syncScroll);
       scrollbarHost.remove();
+      scroller.classList.remove('mc-top-scrollbar');
       restoreAllDay();
       placeholder.remove();
       scroller.classList.remove('mc-internal-scroll');
@@ -228,6 +247,6 @@ export function usePageStickyHeaders(locale?: string): RefObject<HTMLDivElement 
         .querySelectorAll<HTMLElement>('.mc-event-content')
         .forEach((content) => content.style.removeProperty('--mc-content-offset'));
     };
-  }, [locale]);
+  }, [locale, direction]);
   return scrollRef;
 }

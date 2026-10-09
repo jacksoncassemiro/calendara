@@ -153,6 +153,14 @@
   overscroll-behavior-x: contain;
 }
 
+/* The synchronized top control owns horizontal scrolling. PT: O controle superior sincronizado exibe a rolagem horizontal. */
+[data-mc-root] .mc-hscroll.mc-top-scrollbar:not(.mc-internal-scroll) {
+  scrollbar-width: none;
+}
+[data-mc-root] .mc-hscroll.mc-top-scrollbar::-webkit-scrollbar:horizontal {
+  height: 0;
+}
+
 [data-mc-root] .mc-hscroll > .mc-header-row,
 [data-mc-root] .mc-hscroll > .mc-resource-header-row,
 [data-mc-root] .mc-hscroll > .mc-timeline-header {
@@ -160,6 +168,12 @@
   top: 0;
   z-index: 5;
   background: var(--mc-color-bg);
+}
+/* Keep row indicators beneath pinned headers. PT: Mantém indicadores das linhas abaixo dos cabeçalhos fixos. */
+[data-mc-root] .mc-body,
+[data-mc-root] .mc-timeline-rows,
+[data-mc-root] [data-mc-resource-rows] {
+  isolation: isolate;
 }
 [data-mc-root] .mc-page-sticky-header {
   position: fixed;
@@ -189,6 +203,8 @@
 }
 [data-mc-root] .mc-page-sticky-corner {
   position: relative;
+  inset-inline-start: auto !important;
+  inset-inline-end: auto !important;
   z-index: 2;
   background: var(--mc-color-bg);
 }
@@ -200,6 +216,8 @@
 }
 [data-mc-root] .mc-hscroll > .mc-page-sticky-allday > .mc-page-allday-corner {
   position: relative !important;
+  inset-inline-start: auto !important;
+  inset-inline-end: auto !important;
   z-index: 2;
   background: var(--mc-color-bg);
 }
@@ -252,10 +270,17 @@
 [data-mc-root] .mc-hscroll .mc-timeline-corner,
 [data-mc-root] .mc-hscroll .mc-timeline-label {
   position: sticky !important;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 2;
   background: var(--mc-color-bg);
-  border-right: 1px solid var(--mc-color-border);
+  border-inline-end: 1px solid var(--mc-color-border);
+}
+
+[data-mc-root] .mc-hscroll .mc-time-axis {
+  z-index: 10002;
+}
+[data-mc-root] .mc-hscroll .mc-timeline-label {
+  z-index: 10002;
 }
 
 [data-mc-root] .mc-header-row,
@@ -296,7 +321,7 @@
 }
 
 [data-mc-root] .mc-day-col {
-  border-left: 1px solid var(--mc-color-border);
+  border-inline-start: 1px solid var(--mc-color-border);
   background: var(--mc-color-business);
 }
 [data-mc-root] .mc-day-col.mc-today {
@@ -339,7 +364,7 @@
 }
 [data-mc-root] .mc-event-time {
   font-weight: 600;
-  margin-right: 4px;
+  margin-inline-end: 4px;
 }
 [data-mc-root] .mc-event-title {
   opacity: 1;
@@ -375,12 +400,12 @@
   font-weight: 600;
 }
 [data-mc-root] .mc-resource-col {
-  border-left: 1px solid var(--mc-color-border);
+  border-inline-start: 1px solid var(--mc-color-border);
   background: var(--mc-color-business);
 }
 [data-mc-root] .mc-capacity-badge {
   display: inline-block;
-  margin-left: 4px;
+  margin-inline-start: 4px;
   padding: 0 5px;
   border-radius: 999px;
   background: var(--mc-color-overcapacity);
@@ -437,13 +462,13 @@
 }
 [data-mc-root] .mc-timeline-now {
   border-top: 0;
-  border-left: 2px solid var(--mc-color-now);
+  border-inline-start: 2px solid var(--mc-color-now);
   width: 0;
 }
 [data-mc-root] .mc-resource-allday-row > div:not(:first-child) {
   min-width: var(--mc-resource-min-width);
   contain: inline-size;
-  border-left: 1px solid var(--mc-color-border);
+  border-inline-start: 1px solid var(--mc-color-border);
 }
 [data-mc-root] .mc-resource-allday {
   min-height: 26px;
@@ -476,11 +501,11 @@
 [data-mc-root] .mc-month-event[data-mc-editable='true'] {
   cursor: grab;
   touch-action: auto;
-  padding-right: 14px;
+  padding-inline-end: 14px;
 }
 [data-mc-root] .mc-month-resize {
   position: absolute;
-  right: 0;
+  inset-inline-end: 0;
   top: 0;
   bottom: 0;
   width: 12px;
@@ -537,7 +562,7 @@
 [data-mc-root] .mc-month-day {
   min-width: 0;
   min-height: 96px;
-  border-left: 1px solid var(--mc-color-border);
+  border-inline-start: 1px solid var(--mc-color-border);
 }
 [data-mc-root] .mc-month-daynum {
   font-size: var(--mc-font-size-sm);
@@ -706,7 +731,7 @@
   display: inline-block;
   width: 6px;
   height: 6px;
-  margin-right: 4px;
+  margin-inline-end: 4px;
   border-radius: 50%;
   background: var(--mc-color-event-fg);
 }
@@ -886,11 +911,11 @@
 .mc-allday-event[data-mc-editable='true'] {
   touch-action: auto;
   cursor: grab;
-  padding-right: 16px;
+  padding-inline-end: 16px;
 }
 .mc-allday-resize {
   position: absolute;
-  right: 0;
+  inset-inline-end: 0;
   top: 0;
   bottom: 0;
   width: 12px;
@@ -953,8 +978,8 @@
 }
 [data-mc-root] .mc-month-resize.mc-resize-start,
 [data-mc-root] .mc-allday-resize.mc-resize-start {
-  left: 0;
-  right: auto;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
 }
 [data-mc-root] .mc-draft {
   z-index: 4;
@@ -997,7 +1022,7 @@
   text-align: center;
   font-weight: 600;
   border-bottom: 1px solid var(--mc-color-border);
-  border-left: 1px solid var(--mc-color-border);
+  border-inline-start: 1px solid var(--mc-color-border);
   background: var(--mc-color-bg);
 }
 
@@ -1091,7 +1116,7 @@
 .mc-year-planner {
   border-collapse: collapse;
   width: 100%;
-  min-width: 1680px;
+  min-width: calc(90px + 31 * var(--mc-year-day-width, 120px));
   table-layout: fixed;
 }
 .mc-year-planner caption {
@@ -1111,7 +1136,7 @@
 }
 .mc-year-planner th:first-child {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   width: 90px;
   z-index: 1;
 }
@@ -1138,12 +1163,21 @@
 }
 .mc-year-planner-event {
   min-height: 24px;
-  padding: 0;
+  padding: 2px 4px;
   border: 0;
   background: var(--mc-color-event-bg);
   width: 100%;
   border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+  color: var(--mc-color-event-fg);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--mc-font-size-sm);
+  text-align: start;
 }
+
 .mc-year-planner-more {
   padding: 0;
   border: 0;
@@ -1173,9 +1207,23 @@
 
 [data-mc-root] .mc-period-resource-labels {
   position: sticky;
-  left: 0;
-  z-index: 4;
+  inset-inline-start: 0;
+  z-index: 10002;
   background: var(--mc-color-bg);
+  border-inline-end: 1px solid var(--mc-color-border);
+  box-sizing: border-box;
+}
+[data-mc-root] .mc-resource-title-button {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 [data-mc-root] .mc-period-resource-labels > div {
   box-sizing: border-box;
@@ -1186,11 +1234,11 @@
 [data-mc-root] .mc-period-date-header > [data-mc-timeline-date] {
   box-sizing: border-box;
   padding: 0;
-  border-left: 0;
+  border-inset-inline-start: 0;
 }
 [data-mc-root] .mc-resource-group-toggle {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   margin: 4px;
 }
 [data-mc-root] .mc-timeline-period-day .mc-timeline-label {
@@ -1206,12 +1254,12 @@
   padding: 4px;
   font-size: var(--mc-font-size-sm);
   overflow-wrap: anywhere;
-  border-right: 1px solid var(--mc-color-border);
+  border-inline-end: 1px solid var(--mc-color-border);
 }
 [data-mc-root] .mc-timeline-period-day .mc-timeline-label {
   box-sizing: border-box;
   padding: 4px;
-  border-right: 1px solid var(--mc-color-border);
+  border-inline-end: 1px solid var(--mc-color-border);
   overflow: hidden;
 }
 [data-mc-root] .mc-period-time-header .mc-timeline-axis {
