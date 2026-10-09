@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+- Melhora o contraste do controle de mais eventos no mês e reduz seu espaçamento vertical.
+- Ajusta cartões visíveis e altura mínima dos dias pela largura medida de cada painel, inclusive ano/trimestre; preserva callbacks de overflow e exibição explicitamente ilimitada.
+
 ## [0.4.1] - 2026-10-09
 
 - Alinha a altura dos painéis e semanas nas views de ano/trimestre quando a quantidade de eventos difere.
