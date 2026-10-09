@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -84,6 +84,17 @@ const events: CalendarEvent[] = [];
 export function Example() { const {ref} = useCalendar(); return <Calendar views={[dayView]} apiRef={ref} events={events} />; }
 `,
 );
+const guideFiles = ['en', 'pt-BR'].map((language) => {
+  const guide = readFileSync(
+    new URL(`../docs/${language}/ai-integration.md`, import.meta.url),
+    'utf8',
+  );
+  const example = guide.match(/```tsx\r?\n([\s\S]*?)```/)?.[1];
+  if (!example) throw new Error(`Missing AI integration example: ${language}`);
+  const target = new URL(`ai-guide-${language}.tsx`, consumer);
+  writeFileSync(target, example);
+  return fileURLToPath(target);
+});
 run({
   command: process.execPath,
   args: [
@@ -100,6 +111,7 @@ run({
     '--target',
     'ES2022',
     fileURLToPath(new URL('consumer.tsx', consumer)),
+    ...guideFiles,
   ],
 });
 console.log('Consumidor React TypeScript externo: OK.');

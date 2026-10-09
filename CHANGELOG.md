@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-09
+
+- Default month/year/quarter panels to six weeks; add `monthFixedWeeks: false` for natural four-to-six-week ranges, including adjacent dates in reported ranges.
+- Correct annual-planner sticky scrolling and uniform row heights, compact multi-month cells with closed borders, resource-timeline group dividers and the demo's today contrast.
+- Add EN/PT AI integration guides, a `llms.txt` index and readable Markdown API contracts generated from source types; correct persistence examples to use named arguments.
+
 ## [0.3.0] - 2026-10-09
 
 - Add grouped partial editor dictionaries with EN/PT fallback, named message formatters, Intl date labels and seven timed recurrence frequencies; prevent intraday all-day rules.

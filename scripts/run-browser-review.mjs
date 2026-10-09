@@ -66,6 +66,7 @@ try {
   await run({ args: ['run-code', '--filename', 'scripts/browser-sticky-review.js'] });
   await run({ args: ['run-code', '--filename', 'scripts/browser-feature-review.js'] });
   await run({ args: ['run-code', '--filename', 'scripts/browser-extended-views-review.js'] });
+  await run({ args: ['run-code', '--filename', 'scripts/browser-annual-layout-review.js'] });
   await run({ args: ['run-code', '--filename', 'scripts/browser-resource-window-review.js'] });
   await run({ args: ['run-code', '--filename', 'scripts/browser-rtl-review.js'] });
   await run({ args: ['run-code', '--filename', 'scripts/browser-page-sticky-review.js'] });

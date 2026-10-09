@@ -26,7 +26,7 @@
 
   --mc-color-now: #ea4335;
 
-  --mc-color-today-bg: #f2f7fd;
+  --mc-color-today-bg: #eef6f3;
 
   --mc-color-event-bg: #e4eefb;
   --mc-color-event-fg: #174376;
@@ -1034,6 +1034,7 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 1.5rem;
   padding: 1rem;
+  align-items: start;
 }
 .mc-multi-month-panel {
   min-width: 0;
@@ -1048,7 +1049,13 @@
   text-transform: capitalize;
 }
 .mc-multi-month-panel .mc-month-week {
-  min-height: 90px;
+  min-height: 64px;
+}
+.mc-multi-month-panel .mc-month-day {
+  min-height: 64px;
+}
+.mc-multi-month-panel .mc-month-week:last-child {
+  border-bottom: 1px solid var(--mc-color-border);
 }
 .mc-multi-month-panel .mc-month-weekday {
   padding: 0.5rem 0.25rem;
@@ -1109,36 +1116,53 @@
   margin: 1.5rem 0;
   color: var(--mc-color-muted);
 }
-.mc-year-planner-scroll {
-  overflow: auto;
-  padding: 1rem;
+[data-mc-root] .mc-year-planner-scroll {
+  padding: 0;
 }
-.mc-year-planner {
-  border-collapse: collapse;
+[data-mc-root] .mc-year-planner {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-block-start: 1px solid var(--mc-color-border);
+  border-inline-start: 1px solid var(--mc-color-border);
   width: 100%;
   min-width: calc(90px + 31 * var(--mc-year-day-width, 120px));
   table-layout: fixed;
 }
 .mc-year-planner caption {
   text-align: start;
-  padding-bottom: 0.75rem;
+  padding: 0.75rem;
   color: var(--mc-color-muted);
 }
 .mc-year-planner th,
 .mc-year-planner td {
-  border: 1px solid var(--mc-color-border);
+  box-sizing: border-box;
+  border: 0;
+  border-inline-end: 1px solid var(--mc-color-border);
+  border-block-end: 1px solid var(--mc-color-border);
   padding: 0.25rem;
-  height: 60px;
+  height: 38px;
   vertical-align: top;
 }
 .mc-year-planner th {
   background: var(--mc-color-bg);
 }
+.mc-year-planner tbody th,
+.mc-year-planner td {
+  height: 116px;
+}
+.mc-year-planner thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+[data-mc-root] .mc-year-planner.mc-page-sticky-content {
+  display: table;
+}
 .mc-year-planner th:first-child {
   position: sticky;
   inset-inline-start: 0;
   width: 90px;
-  z-index: 1;
+  z-index: 2;
 }
 .mc-year-planner-outside {
   background: var(--mc-color-nonbusiness);
@@ -1153,7 +1177,7 @@
 }
 .mc-year-planner-date[aria-current='date'] {
   font-weight: 700;
-  color: var(--mc-color-btn-active-bg);
+  color: var(--mc-color-fg);
   text-decoration: underline;
 }
 .mc-year-planner-indicators {
@@ -1205,7 +1229,8 @@
   padding: 0.375rem;
 }
 
-[data-mc-root] .mc-period-resource-labels {
+[data-mc-root] .mc-period-resource-labels,
+[data-mc-root] .mc-period-group-label {
   position: sticky;
   inset-inline-start: 0;
   z-index: 10002;
@@ -1234,12 +1259,35 @@
 [data-mc-root] .mc-period-date-header > [data-mc-timeline-date] {
   box-sizing: border-box;
   padding: 0;
-  border-inset-inline-start: 0;
+  border-inline-start: 1px solid var(--mc-color-border);
 }
 [data-mc-root] .mc-resource-group-toggle {
   position: sticky;
   inset-inline-start: 0;
   margin: 4px;
+  max-width: calc(100% - 8px);
+}
+[data-mc-root] .mc-period-group-row {
+  display: flex;
+  border-bottom: 1px solid var(--mc-color-border);
+  box-sizing: border-box;
+}
+[data-mc-root] .mc-period-group-day {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border-inline-end: 1px solid var(--mc-color-border);
+}
+[data-mc-root] .mc-period-resource-day {
+  position: relative;
+}
+[data-mc-root] .mc-period-resource-day::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 1px;
+  background: var(--mc-color-border);
+  pointer-events: none;
 }
 [data-mc-root] .mc-timeline-period-day .mc-timeline-label {
   position: relative !important;

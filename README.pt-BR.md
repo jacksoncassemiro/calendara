@@ -17,10 +17,10 @@ Projeto pessoal e experimental desenvolvido com assistência do OpenAI Codex. As
 
 ## Instalação
 
-Calendara é distribuída como `.tgz` anexado a uma GitHub Release. Não está publicada no npm. A versão [0.3.0](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.3.0) está disponível. Instale pela URL fixa do pacote:
+Calendara é distribuída como `.tgz` anexado a uma GitHub Release. Não está publicada no npm. A versão [0.4.0](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.4.0) está disponível. Instale pela URL fixa do pacote:
 
 ```sh
-yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.3.0/calendara-0.3.0.tgz
+yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.4.0/calendara-0.4.0.tgz
 yarn add react react-dom
 ```
 
@@ -71,6 +71,10 @@ export function App() {
 - Editor opcional, slots de renderização, tokens CSS, layouts compactos e ativação de horários por teclado.
 
 A biblioteca está em desenvolvimento e não oferece paridade completa com todos os concorrentes. A recorrência civil usa Temporal injetado, com fallback lazy de `temporal-polyfill`. Testes físicos em Safari/mobile e tecnologias assistivas são distintos dos testes automatizados no Chromium. Veja [recursos e limites](docs/pt-BR/features.md).
+
+## Integração com IAs
+
+Usando uma assistente de IA? Comece pelo [guia de integração para IAs](docs/pt-BR/ai-integration.md). O [llms.txt do site](https://jacksoncassemiro.me/calendara/llms.txt) indexa guias legíveis e contratos gerados da API.
 
 ## Desenvolvimento
 

@@ -50,7 +50,7 @@ function Agenda() {
 
   async function commit(change: EventChange) {
     await persistChange(change);
-    setEvents((current) => applyEventTimeChange(current, change));
+    setEvents((current) => applyEventTimeChange({ events: current, change }));
   }
 
   return <Calendar views={views} events={events} onEventDrop={commit} onEventResize={commit} />;
