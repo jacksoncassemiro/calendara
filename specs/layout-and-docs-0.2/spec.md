@@ -38,3 +38,5 @@ Brand review: documentation and playground share petrol/mint brand tokens with n
 
 Editor follow-up: partial CalendarEditorMessages overrides, EN/PT fallback, Intl month/weekday labels and intraday options are validated by 13 editor integration cases. Complete verification passed 573 tests in 44 suites with 42 generated contracts; the full browser suite passed in 115.89 s, including the 28th focused translation example. A finite-count default mitigates accidental unbounded intraday expansion. Transparent 3x site-logo exports replace opaque README captures.
 
+Grouped editor dictionary: fields/actions/scope/recurrence/validation/feedback expose partial per-section overrides; dynamic validation receives a named context object. Final local verification passed 573 tests in 44 suites and 50 generated contracts (367 fields); the complete browser suite passed in 117.54 s. Limiting concurrent test workers to four prevents a monthly timeline timeout observed only in the full parallel suite. The measured Month + Day fixture stays at 72,856 gzip bytes; the optional editor fixture totals 82,073 gzip bytes across its chunks.
+

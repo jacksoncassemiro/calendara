@@ -228,9 +228,9 @@ it('supports partial editor dictionaries, live updates and locale weekday names'
     onSave: vi.fn().mockResolvedValue(false),
     onCancel: vi.fn(),
     messages: {
-      title: 'Título de la cita',
-      saveEvent: 'Guardar',
-      saveFailed: 'No se pudo guardar',
+      fields: { title: 'Título de la cita' },
+      actions: { save: 'Guardar' },
+      feedback: { saveFailed: 'No se pudo guardar' },
     },
   };
   const editor = render(<CalendarEventEditor {...props} />);
@@ -240,14 +240,18 @@ it('supports partial editor dictionaries, live updates and locale weekday names'
   fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
   expect((await screen.findByRole('alert')).textContent).toBe('No se pudo guardar');
   editor.rerender(
-    <CalendarEventEditor {...props} locale="en-US" messages={{ title: 'Appointment name' }} />,
+    <CalendarEventEditor
+      {...props}
+      locale="en-US"
+      messages={{ fields: { title: 'Appointment name' } }}
+    />,
   );
   expect(screen.getByLabelText('Appointment name')).toBeTruthy();
   expect(screen.getByRole('checkbox', { name: 'Monday' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Save event' })).toBeTruthy();
 });
 
-it('translates recurrence validation templates without calling persistence', async () => {
+it('translates recurrence validation formatters without calling persistence', async () => {
   const onSave = vi.fn();
   render(
     <CalendarEventEditor
@@ -256,13 +260,13 @@ it('translates recurrence validation templates without calling persistence', asy
       onSave={onSave}
       onCancel={() => {}}
       messages={{
-        intervalName: 'Intervalo',
-        positiveIntegerError: '{field} debe ser positivo',
-        saveEvent: 'Guardar',
+        recurrence: { interval: 'Intervalo' },
+        validation: { positiveInteger: ({ field }) => `${field} debe ser positivo` },
+        actions: { save: 'Guardar' },
       }}
     />,
   );
-  fireEvent.change(screen.getByLabelText('Intervalo da repetição'), { target: { value: '0' } });
+  fireEvent.change(screen.getByLabelText('Intervalo'), { target: { value: '0' } });
   fireEvent.submit(screen.getByRole('form'));
   expect((await screen.findByRole('alert')).textContent).toBe('Intervalo debe ser positivo');
   expect(onSave).not.toHaveBeenCalled();
@@ -312,7 +316,10 @@ it('rejects intraday all-day recurrence through a translated error before saving
       event={{ ...event, recurrence: { rule: 'FREQ=HOURLY;COUNT=3' } }}
       temporal={Temporal as never}
       locale="en-US"
-      messages={{ allDayRecurrenceInvalid: 'Use una cita con horario', cancel: undefined }}
+      messages={{
+        validation: { allDayRecurrenceInvalid: 'Use una cita con horario' },
+        actions: { cancel: undefined },
+      }}
       onSave={onSave}
       onCancel={() => {}}
     />,

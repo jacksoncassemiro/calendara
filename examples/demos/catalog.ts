@@ -21,7 +21,11 @@ export const demos: DemoDefinition[] = [
     ],
     view: 'day',
     code: `<CalendarEventEditor event={editing.event} locale="es-ES"
-  messages={{ title: 'Título de la cita', start: 'Inicio', end: 'Fin', saveEvent: 'Guardar', cancel: 'Cancelar', saveFailed: 'No se pudo guardar' }}
+  messages={{
+    fields: { title: 'Título de la cita', start: 'Inicio', end: 'Fin' },
+    actions: { save: 'Guardar', cancel: 'Cancelar' },
+    feedback: { saveFailed: 'No se pudo guardar' },
+  }}
   onCancel={() => setEditing(undefined)}
   onSave={candidate => {
     setEvents(current => current.map(item => item.id === editing.masterId ? candidate : item));

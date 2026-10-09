@@ -39,4 +39,14 @@ export {
   type RangeChange,
 } from './app/calendarApp.js';
 
-export type { CalendarEditorMessages } from './editorMessages.js';
+export type {
+  CalendarEditorMessages,
+  CalendarEditorMessageOverrides,
+  CalendarEditorValidationContext,
+  CalendarEditorFieldMessages,
+  CalendarEditorActionMessages,
+  CalendarEditorScopeMessages,
+  CalendarEditorRecurrenceMessages,
+  CalendarEditorValidationMessages,
+  CalendarEditorFeedbackMessages,
+} from './editorMessages.js';

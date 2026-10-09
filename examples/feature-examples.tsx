@@ -706,12 +706,9 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
             messages={
               id === 'editor-language'
                 ? {
-                    title: 'Título de la cita',
-                    start: 'Inicio',
-                    end: 'Fin',
-                    saveEvent: 'Guardar',
-                    cancel: 'Cancelar',
-                    saveFailed: 'No se pudo guardar',
+                    fields: { title: 'Título de la cita', start: 'Inicio', end: 'Fin' },
+                    actions: { save: 'Guardar', cancel: 'Cancelar' },
+                    feedback: { saveFailed: 'No se pudo guardar' },
                   }
                 : undefined
             }

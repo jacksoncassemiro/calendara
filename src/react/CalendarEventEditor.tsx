@@ -14,9 +14,9 @@ import {
 } from '../core/index.js';
 
 import {
-  englishEditorMessages,
-  portugueseEditorMessages,
-  type CalendarEditorMessages,
+  resolveEditorMessages,
+  type CalendarEditorMessageOverrides,
+  type CalendarEditorValidationMessages,
 } from './editorMessages.js';
 
 const WEEKDAYS: readonly WeekdayCode[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
@@ -29,18 +29,18 @@ type RecurrenceField = 'frequency' | 'interval' | 'end' | 'weekdays' | 'monthDay
 function parsePositiveInteger({
   value,
   label,
-  errorTemplate,
+  formatError,
 }: {
   /** Raw form value. @remarks Português: Valor bruto do formulário. */
   value: string;
   /** Localized field name. @remarks Português: Nome traduzido do campo. */
   label: string;
-  /** Error template with {field}. @remarks Português: Modelo do erro com {field}. */
-  errorTemplate: string;
+  /** Localized validation formatter. @remarks Português: Formatador traduzido de validação. */
+  formatError: CalendarEditorValidationMessages['positiveInteger'];
 }): number {
   const parsedInteger = Number(value);
   if (!value.trim() || !Number.isSafeInteger(parsedInteger) || parsedInteger <= 0) {
-    throw new Error(errorTemplate.replaceAll('{field}', label));
+    throw new Error(formatError({ field: label }));
   }
   return parsedInteger;
 }
@@ -69,7 +69,7 @@ export interface CalendarEventEditorProps {
    */
   locale?: string;
   /** Override editor text; missing keys use the EN/PT locale fallback. @remarks Português: Substitui textos; chaves ausentes usam fallback EN/PT do locale. */
-  messages?: Partial<CalendarEditorMessages>;
+  messages?: CalendarEditorMessageOverrides;
   /** Inject Temporal; otherwise resolved automatically. @remarks Português: Injeta Temporal; ausente resolve automaticamente. */
   temporal?: TemporalLike;
   /** Return an error before saving. @remarks Português: Retorna mensagem de erro antes de salvar. */
@@ -100,17 +100,10 @@ function previousDate(iso: string): string {
 /** Optional event form; remount with the occurrence key when switching events. @remarks Português: Formulário opcional; remonte usando a chave da ocorrência ao trocar de evento. */
 export function CalendarEventEditor(props: CalendarEventEditorProps) {
   const { event } = props;
-  const defaultMessages = props.locale?.toLowerCase().startsWith('en')
-    ? englishEditorMessages
-    : portugueseEditorMessages;
-  const messages = useMemo(() => {
-    const resolved = { ...defaultMessages };
-    for (const key of Object.keys(defaultMessages) as (keyof CalendarEditorMessages)[]) {
-      const override = props.messages?.[key];
-      if (override !== undefined) resolved[key] = override;
-    }
-    return resolved;
-  }, [defaultMessages, props.messages]);
+  const messages = useMemo(
+    () => resolveEditorMessages({ locale: props.locale, overrides: props.messages }),
+    [props.locale, props.messages],
+  );
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const dateFormatters = useMemo(
@@ -202,7 +195,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
         );
       })
       .catch(() => {
-        if (active) setError(messagesRef.current.timeZoneLoadFailed);
+        if (active) setError(messagesRef.current.feedback.timeZoneLoadFailed);
       });
     return () => {
       active = false;
@@ -221,10 +214,10 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
     try {
       if (deleteRequested) {
         if ((await props.onDelete?.(event, context)) === false)
-          throw new Error(messages.deleteFailed);
+          throw new Error(messages.feedback.deleteFailed);
         return;
       }
-      if (!title.trim()) throw new Error(messages.titleRequired);
+      if (!title.trim()) throw new Error(messages.validation.titleRequired);
       const temporal = props.temporal ?? (await ensureTemporal());
       const calendarTimeZone = props.timeZone ?? event.time.start.timeZone ?? 'UTC';
       let time: CalendarEvent['time'];
@@ -232,7 +225,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
         const startDate = temporal.PlainDate.from(start);
         const endDate = temporal.PlainDate.from(end);
         if (temporal.PlainDate.compare(endDate, startDate) < 0)
-          throw new Error(messages.lastDayInvalid);
+          throw new Error(messages.validation.lastDayInvalid);
         time = {
           allDay: true,
           start: { date: startDate.toString() },
@@ -248,7 +241,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
           disambiguation: 'reject',
         });
         if (zonedEnd.epochMilliseconds <= zonedStart.epochMilliseconds)
-          throw new Error(messages.endInvalid);
+          throw new Error(messages.validation.endInvalid);
         time = {
           allDay: false,
           start: { dateTime: startDate.toString(), timeZone: calendarTimeZone },
@@ -270,8 +263,8 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
           if (shouldUpdateRuleField('interval'))
             rule.interval = parsePositiveInteger({
               value: repeatInterval,
-              label: messages.intervalName,
-              errorTemplate: messages.positiveIntegerError,
+              label: messages.recurrence.interval,
+              formatError: messages.validation.positiveInteger,
             });
           if (shouldUpdateRuleField('end')) {
             delete rule.count;
@@ -279,20 +272,20 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
             if (repeatEnd === 'count')
               rule.count = parsePositiveInteger({
                 value: repeatCount,
-                label: messages.countName,
-                errorTemplate: messages.positiveIntegerError,
+                label: messages.recurrence.count,
+                formatError: messages.validation.positiveInteger,
               });
             if (repeatEnd === 'until') {
               const endDate = temporal.PlainDate.from(repeatUntil);
               if (
                 temporal.PlainDate.compare(endDate, temporal.PlainDate.from(start.slice(0, 10))) < 0
               )
-                throw new Error(messages.recurrenceEndInvalid);
+                throw new Error(messages.validation.recurrenceEndInvalid);
               rule.until = endDate.toString();
             }
           }
           if (frequency === 'WEEKLY' && shouldUpdateRuleField('weekdays')) {
-            if (!repeatWeekdays.length) throw new Error(messages.weekdaysRequired);
+            if (!repeatWeekdays.length) throw new Error(messages.validation.weekdaysRequired);
             rule.byDay = repeatWeekdays.map((weekday) => ({ weekday }));
           }
           if (usesMonthDay && shouldUpdateRuleField('monthDay')) {
@@ -303,15 +296,15 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
               day === 0 ||
               Math.abs(day) > 31
             )
-              throw new Error(messages.monthDayInvalid);
+              throw new Error(messages.validation.monthDayInvalid);
             rule.byMonthDay = [day];
           }
           if (frequency === 'YEARLY' && shouldUpdateRuleField('month'))
             rule.byMonth = [
               parsePositiveInteger({
                 value: repeatMonth,
-                label: messages.monthName,
-                errorTemplate: messages.positiveIntegerError,
+                label: messages.recurrence.month,
+                formatError: messages.validation.positiveInteger,
               }),
             ];
           // Retain untouched advanced recurrence clauses. PT: Preserva cláusulas avançadas de recorrência não editadas.
@@ -330,12 +323,13 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
           recurrenceModel.byMinute?.length ||
           recurrenceModel.bySecond?.length)
       )
-        throw new Error(messages.allDayRecurrenceInvalid);
+        throw new Error(messages.validation.allDayRecurrenceInvalid);
       const validationError = await props.validate?.(updated, context);
       if (validationError) throw new Error(validationError);
-      if ((await props.onSave(updated, context)) === false) throw new Error(messages.saveFailed);
+      if ((await props.onSave(updated, context)) === false)
+        throw new Error(messages.feedback.saveFailed);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : messages.actionFailed);
+      setError(cause instanceof Error ? cause.message : messages.feedback.actionFailed);
     } finally {
       busyRef.current = false;
       setPending(false);
@@ -345,7 +339,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
   return (
     <form
       className="mc-event-editor"
-      aria-label={messages.editEvent}
+      aria-label={messages.fields.formTitle}
       aria-busy={pending}
       onSubmit={(submitEvent) => {
         submitEvent.preventDefault();
@@ -353,9 +347,9 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
       }}
     >
       <fieldset disabled={pending || readOnly}>
-        <legend>{messages.editAndReschedule}</legend>
-        {readOnly && <p>{messages.readOnly}</p>}
-        <label htmlFor={`${id}-title`}>{messages.title}</label>
+        <legend>{messages.fields.heading}</legend>
+        {readOnly && <p>{messages.feedback.readOnly}</p>}
+        <label htmlFor={`${id}-title`}>{messages.fields.title}</label>
         <input
           ref={titleRef}
           id={`${id}-title`}
@@ -365,17 +359,17 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
         />
         {recurring && (
           <>
-            <label htmlFor={`${id}-scope`}>{messages.applyChanges}</label>
+            <label htmlFor={`${id}-scope`}>{messages.scope.label}</label>
             <select
               id={`${id}-scope`}
               value={scope}
               onChange={(changeEvent) => setScope(changeEvent.target.value as CalendarEditScope)}
             >
-              {props.occurrence && <option value="occurrence">{messages.onlyOccurrence}</option>}
+              {props.occurrence && <option value="occurrence">{messages.scope.occurrence}</option>}
               {props.occurrence && parsedRule && (
-                <option value="following">{messages.followingOccurrences}</option>
+                <option value="following">{messages.scope.following}</option>
               )}
-              <option value="series">{messages.entireSeries}</option>
+              <option value="series">{messages.scope.series}</option>
             </select>
           </>
         )}
@@ -390,15 +384,15 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
               setEnd(isAllDayChecked ? end.slice(0, 10) : `${end.slice(0, 10)}T10:00`);
             }}
           />
-          {messages.allDay}
+          {messages.fields.allDay}
         </label>
         {!allDay && (
           <p>
-            {messages.timeZone}
+            {messages.fields.timeZone}
             {props.timeZone ?? event.time.start.timeZone ?? 'UTC'}
           </p>
         )}
-        <label htmlFor={`${id}-start`}>{messages.start}</label>
+        <label htmlFor={`${id}-start`}>{messages.fields.start}</label>
         <input
           id={`${id}-start`}
           type={allDay ? 'date' : 'datetime-local'}
@@ -407,7 +401,9 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
           required
           onChange={(changeEvent) => setStart(changeEvent.target.value)}
         />
-        <label htmlFor={`${id}-end`}>{allDay ? messages.lastDay : messages.end}</label>
+        <label htmlFor={`${id}-end`}>
+          {allDay ? messages.fields.lastDay : messages.fields.end}
+        </label>
         <input
           id={`${id}-end`}
           type={allDay ? 'date' : 'datetime-local'}
@@ -418,7 +414,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
         />
         {scope === 'series' && (
           <>
-            <label htmlFor={`${id}-repeat`}>{messages.repeat}</label>
+            <label htmlFor={`${id}-repeat`}>{messages.recurrence.label}</label>
             <select
               id={`${id}-repeat`}
               value={frequency}
@@ -435,25 +431,25 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                 }
               }}
             >
-              <option value="">{messages.noRepeat}</option>
+              <option value="">{messages.recurrence.none}</option>
               <option value="SECONDLY" disabled={allDay}>
-                {messages.secondly}
+                {messages.recurrence.secondly}
               </option>
               <option value="MINUTELY" disabled={allDay}>
-                {messages.minutely}
+                {messages.recurrence.minutely}
               </option>
               <option value="HOURLY" disabled={allDay}>
-                {messages.hourly}
+                {messages.recurrence.hourly}
               </option>
-              <option value="DAILY">{messages.daily}</option>
-              <option value="WEEKLY">{messages.weekly}</option>
-              <option value="MONTHLY">{messages.monthly}</option>
-              <option value="YEARLY">{messages.yearly}</option>
+              <option value="DAILY">{messages.recurrence.daily}</option>
+              <option value="WEEKLY">{messages.recurrence.weekly}</option>
+              <option value="MONTHLY">{messages.recurrence.monthly}</option>
+              <option value="YEARLY">{messages.recurrence.yearly}</option>
             </select>
             {frequency && (
               <fieldset>
-                <legend>{messages.recurrenceSettings}</legend>
-                <label htmlFor={`${id}-repeat-interval`}>{messages.recurrenceInterval}</label>
+                <legend>{messages.recurrence.settings}</legend>
+                <label htmlFor={`${id}-repeat-interval`}>{messages.recurrence.interval}</label>
                 <input
                   id={`${id}-repeat-interval`}
                   type="number"
@@ -468,22 +464,22 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                 />
                 <p>
                   {frequency === 'SECONDLY'
-                    ? messages.inSeconds
+                    ? messages.recurrence.inSeconds
                     : frequency === 'MINUTELY'
-                      ? messages.inMinutes
+                      ? messages.recurrence.inMinutes
                       : frequency === 'HOURLY'
-                        ? messages.inHours
+                        ? messages.recurrence.inHours
                         : frequency === 'DAILY'
-                          ? messages.inDays
+                          ? messages.recurrence.inDays
                           : frequency === 'WEEKLY'
-                            ? messages.inWeeks
+                            ? messages.recurrence.inWeeks
                             : frequency === 'MONTHLY'
-                              ? messages.inMonths
-                              : messages.inYears}
+                              ? messages.recurrence.inMonths
+                              : messages.recurrence.inYears}
                 </p>
                 {frequency === 'WEEKLY' && (
                   <fieldset className="mc-recurrence-weekdays">
-                    <legend>{messages.weekdays}</legend>
+                    <legend>{messages.recurrence.weekdays}</legend>
                     {WEEKDAYS.map((weekday, index) => (
                       <label className="mc-editor-check" key={weekday}>
                         <input
@@ -505,7 +501,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                 )}
                 {usesMonthDay && (
                   <>
-                    <label htmlFor={`${id}-repeat-day`}>{messages.recurringMonthDay}</label>
+                    <label htmlFor={`${id}-repeat-day`}>{messages.recurrence.monthDay}</label>
                     <input
                       id={`${id}-repeat-day`}
                       type="number"
@@ -519,12 +515,12 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                         markRuleField('monthDay');
                       }}
                     />
-                    <p>{messages.negativeMonthDayHint}</p>
+                    <p>{messages.recurrence.monthDayHint}</p>
                   </>
                 )}
                 {frequency === 'YEARLY' && (
                   <>
-                    <label htmlFor={`${id}-repeat-month`}>{messages.recurringMonth}</label>
+                    <label htmlFor={`${id}-repeat-month`}>{messages.recurrence.month}</label>
                     <select
                       id={`${id}-repeat-month`}
                       value={repeatMonth}
@@ -543,7 +539,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                     </select>
                   </>
                 )}
-                <label htmlFor={`${id}-repeat-end`}>{messages.recurrenceEnd}</label>
+                <label htmlFor={`${id}-repeat-end`}>{messages.recurrence.end}</label>
                 <select
                   id={`${id}-repeat-end`}
                   value={repeatEnd}
@@ -552,13 +548,13 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                     markRuleField('end');
                   }}
                 >
-                  <option value="never">{messages.never}</option>
-                  <option value="count">{messages.afterCount}</option>
-                  <option value="until">{messages.untilDate}</option>
+                  <option value="never">{messages.recurrence.never}</option>
+                  <option value="count">{messages.recurrence.afterCount}</option>
+                  <option value="until">{messages.recurrence.untilDate}</option>
                 </select>
                 {repeatEnd === 'count' && (
                   <>
-                    <label htmlFor={`${id}-repeat-count`}>{messages.occurrenceCount}</label>
+                    <label htmlFor={`${id}-repeat-count`}>{messages.recurrence.count}</label>
                     <input
                       id={`${id}-repeat-count`}
                       type="number"
@@ -575,7 +571,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                 )}
                 {repeatEnd === 'until' && (
                   <>
-                    <label htmlFor={`${id}-repeat-until`}>{messages.lastRecurrenceDate}</label>
+                    <label htmlFor={`${id}-repeat-until`}>{messages.recurrence.until}</label>
                     <input
                       id={`${id}-repeat-until`}
                       type="date"
@@ -588,14 +584,14 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                     />
                   </>
                 )}
-                {parsedRule && <p>{messages.advancedRuleHint}</p>}
+                {parsedRule && <p>{messages.recurrence.advancedHint}</p>}
               </fieldset>
             )}
           </>
         )}
         {!!props.resources?.length && (
           <fieldset>
-            <legend>{messages.resources}</legend>
+            <legend>{messages.fields.resources}</legend>
             {props.resources.map((resource) => (
               <label className="mc-editor-check" key={resource.id}>
                 <input
@@ -622,10 +618,10 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
       )}
       <div className="mc-editor-actions">
         <button type="submit" disabled={pending || readOnly}>
-          {pending ? messages.saving : messages.saveEvent}
+          {pending ? messages.actions.saving : messages.actions.save}
         </button>
         <button type="button" disabled={pending} onClick={props.onCancel}>
-          {messages.cancel}
+          {messages.actions.cancel}
         </button>
         {props.onDelete && (
           <button
@@ -633,7 +629,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
             disabled={pending || readOnly}
             onClick={() => void persistEditorChanges(true)}
           >
-            {messages.deleteEvent}
+            {messages.actions.delete}
           </button>
         )}
       </div>

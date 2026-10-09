@@ -218,16 +218,18 @@ React/React DOM 18 and 19 are declared peers; current runtime tests use React 19
 
 ## Custom editor translations
 
-The optional editor accepts `messages?: Partial<CalendarEditorMessages>` for custom text. Omitted keys use English when `locale` starts with en, Portuguese otherwise (default pt-BR). Undefined values also fall back. `locale` formats month/weekday names through Intl; native date controls follow the browser. Resource titles, Temporal errors and consumer validation/persistence errors are not translated automatically. Props can change without remounting; remount only when changing the edited event.
+The optional editor accepts `messages?: CalendarEditorMessageOverrides` for custom text. Omitted keys use English when `locale` starts with en, Portuguese otherwise (default pt-BR). Undefined values also fall back. `locale` formats month/weekday names through Intl; native date controls follow the browser. Resource titles, Temporal errors and consumer validation/persistence errors are not translated automatically. Props can change without remounting; remount only when changing the edited event.
 
 ```tsx
 <CalendarEventEditor
   event={draft}
   locale="es-ES"
   messages={{
-    title: 'Título de la cita',
-    saveEvent: 'Guardar',
-    positiveIntegerError: '{field} debe ser un entero positivo.',
+    fields: { title: 'Título de la cita' },
+    actions: { save: 'Guardar' },
+    validation: {
+      positiveInteger: ({ field }) => `${field} debe ser un entero positivo.`,
+    },
   }}
   onSave={saveEvent}
   onCancel={closeEditor}
@@ -237,3 +239,5 @@ The optional editor accepts `messages?: Partial<CalendarEditorMessages>` for cus
 This example is a partial dictionary, not a complete Spanish translation. Complete all keys using the generated CalendarEditorMessages contract for a fully translated form. The editor exposes all seven timed recurrence frequencies; all-day recurrence requires daily or longer frequencies without time filters.
 
 Selecting secondly/minutely/hourly recurrence changes an unbounded end to the current occurrence count (default 10). You can explicitly choose another count/date or an unbounded end; keep loaded ranges within expansion limits.
+
+Sections are `fields`, `actions`, `scope`, `recurrence`, `validation` and `feedback`. Supply only the keys you override; missing/undefined keys retain defaults within each section. Static copy is a string. Dynamic messages are typed functions receiving a named context object; `positiveInteger` receives `{ field }`. Functions must return text synchronously; use `Intl.NumberFormat` and `Intl.PluralRules` for numbers and pluralization when needed.

@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-- Add partial editor dictionaries with EN/PT fallback, Intl date labels and seven timed recurrence frequencies; prevent intraday all-day rules.
+- Add grouped partial editor dictionaries with EN/PT fallback, named message formatters, Intl date labels and seven timed recurrence frequencies; prevent intraday all-day rules.
 
 - Refreshed documentation/playground brand colors with theme-aware contrast; bilingual READMEs reuse the site logo and separate language selection from navigation.
 
@@ -12,7 +12,7 @@
 - Add consumer undo/redo with asynchronous persistence and strict ICS import/export with diagnostics.
 - Support seven recurrence frequencies and BYWEEKNO/time filters; reject invalid rule combinations, including COUNT with UNTIL (breaking validation change).
 - Add explicit reading direction, mirrored slot coordinates and sticky scrolling; expand simulated touch regressions.
-- Organize 27 focused examples into a searchable feature directory; add history, ICS and hierarchical timeline/RTL demonstrations.
+- Organize 28 focused examples into a searchable feature directory; add history, ICS, editor translation and hierarchical timeline/RTL demonstrations.
 - Contain annual-planner event titles, clarify preparation versus fixed closures, separate sticky resource labels and keep the current-time indicator below the time axis.
 - Hide duplicate horizontal scrollbar when the synchronized top control is active.
 - Share highlighted, copyable documentation snippets and expand the EN/PT integration comparison.

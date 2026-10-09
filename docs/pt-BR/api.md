@@ -218,16 +218,18 @@ React/React DOM 18 e 19 são peers; testes atuais de runtime usam React 19, com 
 
 ## Traduções próprias do editor
 
-O editor aceita `messages?: Partial<CalendarEditorMessages>` para textos próprios. Chaves omitidas usam inglês quando `locale` começa com en e português nos demais (padrão pt-BR). Valores undefined também usam fallback. `locale` formata meses/dias via Intl; campos de data nativos seguem o navegador. Títulos de recursos, erros do Temporal e erros de validação/persistência do consumidor não são traduzidos automaticamente. Props podem mudar sem remontar; remonte apenas ao trocar o evento editado.
+O editor aceita `messages?: CalendarEditorMessageOverrides` para textos próprios. Chaves omitidas usam inglês quando `locale` começa com en e português nos demais (padrão pt-BR). Valores undefined também usam fallback. `locale` formata meses/dias via Intl; campos de data nativos seguem o navegador. Títulos de recursos, erros do Temporal e erros de validação/persistência do consumidor não são traduzidos automaticamente. Props podem mudar sem remontar; remonte apenas ao trocar o evento editado.
 
 ```tsx
 <CalendarEventEditor
   event={draft}
   locale="es-ES"
   messages={{
-    title: 'Título de la cita',
-    saveEvent: 'Guardar',
-    positiveIntegerError: '{field} debe ser un entero positivo.',
+    fields: { title: 'Título de la cita' },
+    actions: { save: 'Guardar' },
+    validation: {
+      positiveInteger: ({ field }) => `${field} debe ser un entero positivo.`,
+    },
   }}
   onSave={saveEvent}
   onCancel={closeEditor}
@@ -237,3 +239,5 @@ O editor aceita `messages?: Partial<CalendarEditorMessages>` para textos própri
 O exemplo é um dicionário parcial, não uma tradução completa para espanhol. Preencha todas as chaves do contrato gerado CalendarEditorMessages para um formulário inteiramente traduzido. O editor expõe as sete frequências com horário; dia inteiro exige frequência diária ou maior, sem filtros de horário.
 
 Ao selecionar recorrência por segundo/minuto/hora, um fim ilimitado passa à quantidade atual de ocorrências (padrão 10). Você pode escolher outra quantidade/data ou voltar explicitamente ao fim ilimitado; mantenha as janelas carregadas dentro dos limites de expansão.
+
+As seções são `fields`, `actions`, `scope`, `recurrence`, `validation` e `feedback`. Forneça apenas chaves alteradas; ausentes/undefined preservam padrões dentro da seção. Textos estáticos são strings. Mensagens dinâmicas são funções tipadas com um objeto de contexto nomeado; `positiveInteger` recebe `{ field }`. As funções retornam texto de forma síncrona; use `Intl.NumberFormat` e `Intl.PluralRules` para números e pluralização quando necessário.

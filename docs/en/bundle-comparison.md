@@ -10,7 +10,7 @@ Node 24.18.1 / Windows, Vite 8.3.3, ES2022, production minification and tree sha
 | ------------------------------------------------------- | -------------: | ---------: |
 | Calendara Day                                           |        220,072 |     69,869 |
 | Calendara Month + Day                                   |        232,597 |     72,856 |
-| Calendara built-in views + resources + editor           |        270,568 |     81,995 |
+| Calendara built-in views + resources + editor           |        271,158 |     82,073 |
 | FullCalendar Month + Day, React 7.1.1                   |        256,315 |     70,580 |
 | Schedule-X Month + Day, calendar 4.9.1 / React 4.1.0    |        235,920 |     68,704 |
 | Mantine Month + Day, 9.7.1                              |        276,794 |     85,076 |

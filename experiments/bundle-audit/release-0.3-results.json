@@ -206,14 +206,14 @@
     },
     {
       "name": "calendara-all-resources-editor",
-      "jsBytes": 270568,
-      "gzipBytes": 81995,
+      "jsBytes": 271158,
+      "gzipBytes": 82073,
       "chunks": [
         {
           "file": "calendara-all-resources-editor.js",
           "entry": true,
-          "bytes": 166005,
-          "gzipBytes": 45580,
+          "bytes": 166595,
+          "gzipBytes": 45658,
           "modules": 53,
           "localModules": [
             "src/core/types/recurrence.ts",

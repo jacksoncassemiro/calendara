@@ -10,7 +10,7 @@ Node 24.18.1 / Windows, Vite 8.3.3, ES2022, minificação de produção e tree s
 | ----------------------------------------------------- | ----------------: | ---------: |
 | Calendara Dia                                         |           220.072 |     69.869 |
 | Calendara Mês + Dia                                   |           232.597 |     72.856 |
-| Calendara views embutidas + recursos + editor         |           270.568 |     81.995 |
+| Calendara views embutidas + recursos + editor         |           271.158 |     82.073 |
 | FullCalendar Mês + Dia, React 7.1.1                   |           256.315 |     70.580 |
 | Schedule-X Mês + Dia, calendar 4.9.1 / React 4.1.0    |           235.920 |     68.704 |
 | Mantine Mês + Dia, 9.7.1                              |           276.794 |     85.076 |
