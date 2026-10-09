@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-09
+
 - Alinha a altura dos painéis e semanas nas views de ano/trimestre quando a quantidade de eventos difere.
 - Mede nomes de recursos/grupos com quebra de linha para alinhar a timeline e a geometria da virtualização, incluindo mudanças de fonte.
 - Usa espaçamento automático dos horários no exemplo estreito de timeline hierárquica.

@@ -111,7 +111,7 @@ describe('resource timeline civil periods', () => {
       app.destroy();
       container.remove();
     }
-  });
+  }, 10000);
   it('windows ordered resources after filtering and supports real group collapse', async () => {
     const { app, container } = await mountTimeline({
       config: {

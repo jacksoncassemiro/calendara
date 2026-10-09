@@ -17,10 +17,10 @@ Projeto pessoal e experimental desenvolvido com assistência do OpenAI Codex. As
 
 ## Instalação
 
-Calendara é distribuída como `.tgz` anexado a uma GitHub Release. Não está publicada no npm. A versão [0.4.0](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.4.0) está disponível. Instale pela URL fixa do pacote:
+Calendara é distribuída como `.tgz` anexado a uma GitHub Release. Não está publicada no npm. A versão [0.4.1](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.4.1) está disponível. Instale pela URL fixa do pacote:
 
 ```sh
-yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.4.0/calendara-0.4.0.tgz
+yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.4.1/calendara-0.4.1.tgz
 yarn add react react-dom
 ```
 
