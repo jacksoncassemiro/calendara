@@ -46,10 +46,11 @@ export function App() {
 - Dia, semana, mês, agenda, N dias, recursos e timeline; views React próprias.
 - Movimento, redimensionamento, eventos de vários dias, callbacks de arraste externo e modos de sobreposição/ver mais.
 - Capacidade, buffers, expediente e bloqueios com configuração por recurso.
-- Recorrência diária, semanal, mensal e anual, exceções e overrides.
+- Recorrência de segundos até anos, exceções e overrides.
+- Hierarquia de recursos, virtualização vertical da timeline, importação/exportação ICS e desfazer/refazer do consumidor.
 - Editor opcional, slots de renderização, tokens CSS, layouts compactos e ativação de horários por teclado.
 
-A biblioteca está em desenvolvimento e não oferece paridade completa com todos os concorrentes. A recorrência usa `rrule-temporal`; Temporal carrega um fallback quando necessário. Testes físicos em Safari/mobile e tecnologias assistivas são distintos dos testes automatizados no Edge. Veja [recursos e limites](docs/pt-BR/api.md#recursos-e-limites).
+A biblioteca está em desenvolvimento e não oferece paridade completa com todos os concorrentes. A recorrência civil usa Temporal injetado, com fallback lazy de `temporal-polyfill`. Testes físicos em Safari/mobile e tecnologias assistivas são distintos dos testes automatizados no Chromium. Veja [recursos e limites](docs/pt-BR/features.md).
 
 ## Desenvolvimento
 

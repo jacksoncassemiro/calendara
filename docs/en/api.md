@@ -144,7 +144,7 @@ recurrence: {
 }
 ```
 
-Supported public rule fields: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST and BYYEARDAY for YEARLY. `rDates` adds occurrences; `exDates` excludes them; overrides are keyed by `originalStart`. A date-only exclusion removes a day; a datetime exclusion targets its exact original start. The civil iterator generates rule dates; injected Temporal handles zones and event composition. Native Temporal takes priority, with a lazy `temporal-polyfill` fallback. Nonexistent recurring local times do not consume COUNT.
+All seven frequencies are supported: SECONDLY/MINUTELY/HOURLY/DAILY/WEEKLY/MONTHLY/YEARLY. Public rule parts include INTERVAL, COUNT, UNTIL, BYMONTH, BYWEEKNO, BYYEARDAY, BYMONTHDAY, BYDAY, BYHOUR, BYMINUTE, BYSECOND, BYSETPOS and WKST. Intraday frequencies require timed events; BYWEEKNO requires YEARLY, while BYYEARDAY supports YEARLY and intraday frequencies. COUNT and UNTIL are mutually exclusive. `rDates` adds occurrences; `exDates` excludes them; overrides are keyed by `originalStart`. A date-only exclusion removes a day; a datetime exclusion targets its exact original start. The civil iterators generate local candidates; injected Temporal handles zones and event composition. Native Temporal takes priority, with a lazy `temporal-polyfill` fallback. Nonexistent recurring local times are skipped before BYSETPOS and COUNT. See [recurrence](recurrence.md) for supported combinations, work limits and explicit RFC limitations.
 
 `splitEventSeries` supports this-and-following from an active RRULE occurrence. RDATE-only cuts, incompatible filters, timezone changes and all-day/timed conversions are rejected. Persist the two masters atomically and define a validation window for infinite series. Expanding an unbounded rule directly requires a finite window.
 
@@ -155,17 +155,25 @@ Supported public rule fields: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTI
 Use consumer state to map date/resource IDs to statuses. `getDayStyle` applies colors to the day header and body; `renderDayHeader` receives `dateISO`, `viewName`, optional `resourceId`, `isToday`, optional `isSelected`, and `defaultContent`. Preserve `defaultContent` when adding a caption or icon to retain the standard date controls. Keep hooks inside a returned component.
 
 ```tsx
-<Calendar views={[weekView]} events={events}
-  getDayStyle={({ dateISO }) => statuses[dateISO] ? {
-    backgroundColor: `var(--status-${statuses[dateISO]}-bg)`,
-    color: `var(--status-${statuses[dateISO]}-fg)`,
-    '--mc-color-muted': `var(--status-${statuses[dateISO]}-fg)`,
-    '--mc-color-btn-active-bg': `var(--status-${statuses[dateISO]}-fg)`,
-  } : undefined}
-  renderDayHeader={({ dateISO, defaultContent }) => <>
-    {defaultContent}
-    {statuses[dateISO] && <small>{statusLabels[statuses[dateISO]]}</small>}
-  </>}
+<Calendar
+  views={[weekView]}
+  events={events}
+  getDayStyle={({ dateISO }) =>
+    statuses[dateISO]
+      ? {
+          backgroundColor: `var(--status-${statuses[dateISO]}-bg)`,
+          color: `var(--status-${statuses[dateISO]}-fg)`,
+          '--mc-color-muted': `var(--status-${statuses[dateISO]}-fg)`,
+          '--mc-color-btn-active-bg': `var(--status-${statuses[dateISO]}-fg)`,
+        }
+      : undefined
+  }
+  renderDayHeader={({ dateISO, defaultContent }) => (
+    <>
+      {defaultContent}
+      {statuses[dateISO] && <small>{statusLabels[statuses[dateISO]]}</small>}
+    </>
+  )}
 />
 ```
 
@@ -206,4 +214,4 @@ Use the named-input form for these operations; positional overloads are removed.
 
 ## Features and limits
 
-React/React DOM 18 and 19 are declared peers; current runtime tests use React 19, with React 18 type checks. SSR emits the initial container. No full RFC recurrence, resource virtualization/hierarchy, ICS import/export, undo/redo, RTL or printing API is claimed. Future editor hooks/extra slots in specifications are proposals. Automated browser checks use Edge; physical mobile/Safari and screen-reader validation remain pending. Consult release notes and implementation specs for version-specific evidence.
+React/React DOM 18 and 19 are declared peers; current runtime tests use React 19, with React 18 type checks. SSR emits the initial container. [Extended views](extended-views.md) provides resource hierarchy, vertical timeline virtualization and browser printing. [ICS](ics.md) provides strict subset import/export, [history](history.md) provides consumer undo/redo and [direction](rtl.md) documents RTL layout and interaction. [Recurrence](recurrence.md) supports all seven frequencies with explicit work/semantic limits; complete iCalendar scheduling, horizontal virtualization and binary PDF export are outside the contract. Additional editor hooks/slots in specifications remain proposals. Automated browser checks use Edge; physical mobile/Safari and screen-reader validation remain pending. Consult release notes and implementation specs for version-specific evidence.

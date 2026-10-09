@@ -61,7 +61,7 @@ describe('resource preparation across date boundaries', () => {
           bands.map((band) =>
             view === 'resources'
               ? [band.style.top, band.style.height]
-              : [band.style.left, band.style.width],
+              : [band.style.insetInlineStart, band.style.width],
           ),
         ).toEqual([
           ['0px', '10px'],

@@ -773,10 +773,15 @@ export class InteractionEngine {
 
     const transposed = best.surface.dataset.mcSlot === 'x';
     const timePosition = transposed ? clientX : clientY;
-    const timeOrigin = transposed ? best.rect.left : best.rect.top;
+    const rtl =
+      transposed &&
+      (best.surface.closest<HTMLElement>('[dir]')?.dir ||
+        best.surface.ownerDocument.defaultView?.getComputedStyle(best.surface).direction) === 'rtl';
+    const timeOrigin = transposed ? (rtl ? best.rect.right : best.rect.left) : best.rect.top;
     const rawSize = transposed ? best.rect.width : best.rect.height;
     const usableSize = rawSize > 0 ? rawSize : spanMinutes;
-    const minutesFromOrigin = ((timePosition - timeOrigin) / usableSize) * spanMinutes;
+    const minutesFromOrigin =
+      (((timePosition - timeOrigin) * (rtl ? -1 : 1)) / usableSize) * spanMinutes;
     const rawMinute = bounds.startMin + minutesFromOrigin;
     const slot: PointerSlot = {
       dateISO: best.surface.dataset.mcSlotDate!,

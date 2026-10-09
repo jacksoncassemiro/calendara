@@ -356,11 +356,14 @@ export function expandEvent({ temporal, event, window = {} }: ExpandEventInput):
     if (!hasMovedTime) continue;
     const originalDate = temporal.PlainDate.from(originalStart.slice(0, 10));
     const originalISO = originalDate.toString();
-    const expectedStart = occurrenceTimes({
-      temporal,
-      shape,
-      date: originalDate,
-    }).originalStart;
+    const expectedStart =
+      !shape.allDay && originalStart.length > 10
+        ? originalStart
+        : occurrenceTimes({
+            temporal,
+            shape,
+            date: originalDate,
+          }).originalStart;
     const alreadyIncluded = ruleTimes.some(
       (times) =>
         times.originalStart === originalStart ||
@@ -411,8 +414,7 @@ export function expandEvent({ temporal, event, window = {} }: ExpandEventInput):
     }
     if (isRDate && matchingRDate)
       extraTimes.push(extraOccurrenceTimes({ temporal, shape, iso: matchingRDate }));
-    else if (isRDate || isRuleDate)
-      ruleTimes.push(occurrenceTimes({ temporal, shape, date: originalDate }));
+    else if (isRDate || isRuleDate) ruleTimes.push(timesForRuleStart(expectedStart));
   }
 
   const results: EventOccurrence[] = [];

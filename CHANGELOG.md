@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+- Add nested resource rows and bounded vertical timeline virtualization, preserving offscreen capacity, focused/active rows and print data.
+- Add consumer undo/redo with asynchronous persistence and strict ICS import/export with diagnostics.
+- Support seven recurrence frequencies and BYWEEKNO/time filters; reject invalid rule combinations, including COUNT with UNTIL (breaking validation change).
+- Add explicit reading direction, mirrored slot coordinates and sticky scrolling; expand simulated touch regressions.
+- Organize 27 focused examples into a searchable feature directory; add history, ICS and hierarchical timeline/RTL demonstrations.
+- Contain annual-planner event titles, clarify preparation versus fixed closures, separate sticky resource labels and keep the current-time indicator below the time axis.
+- Hide duplicate horizontal scrollbar when the synchronized top control is active.
+- Share highlighted, copyable documentation snippets and expand the EN/PT integration comparison.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added

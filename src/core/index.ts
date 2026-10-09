@@ -1,4 +1,13 @@
 export * from './types/index.js';
+export {
+  importICalendar,
+  exportICalendar,
+  type ICalendarDiagnostic,
+  type ImportICalendarInput,
+  type ImportICalendarResult,
+  type ExportICalendarInput,
+  type ExportICalendarResult,
+} from './io/ics.js';
 
 export type { LayoutDayInput } from './geometry/geometry.js';
 export type { ResourceConstraintSetInput } from './render/resourceConstraints.js';

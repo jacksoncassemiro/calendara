@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+- Adiciona recursos hierárquicos e virtualização vertical da timeline, preservando capacidade fora da tela, foco/gesto ativos e dados de impressão.
+- Adiciona desfazer/refazer do consumidor com persistência assíncrona e importação/exportação ICS estrita com diagnósticos.
+- Suporta sete frequências de recorrência e filtros BYWEEKNO/de horário; rejeita combinações inválidas, incluindo COUNT com UNTIL (mudança de validação incompatível).
+- Adiciona direção explícita, coordenadas espelhadas e scroll fixo; amplia regressões de touch simulado.
+- Organiza 27 exemplos focados em um catálogo pesquisável, com demonstrações de histórico, ICS e timeline hierárquica/RTL.
+- Contém títulos no planejamento anual, esclarece preparo versus bloqueio fixo, separa labels de recursos fixos e mantém o indicador de horário abaixo do eixo.
+- Oculta scrollbar horizontal duplicado quando o controle superior sincronizado está ativo.
+- Compartilha exemplos com destaque e cópia de código e amplia a comparação de integração EN/PT.
+
 ## [0.2.0] - 2026-10-09
 
 ### Adicionado

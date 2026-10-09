@@ -46,10 +46,11 @@ export function App() {
 - Day, week, month, agenda, N-day, resource-day and resource-timeline views; custom React views.
 - Drag, resize, multi-day events, external drag callbacks and overlap/overflow display modes.
 - Capacity, buffers, business hours and blocked intervals, including per-resource rules.
-- Daily, weekly, monthly and yearly recurrence, exceptions and overrides.
+- Secondly through yearly recurrence, exceptions and overrides.
+- Resource hierarchy, vertical timeline virtualization, ICS import/export and consumer undo/redo.
 - Optional event editor, render slots, CSS tokens, compact layouts and keyboard slot activation.
 
-This developing library does not offer complete scheduler parity. Recurrence uses `rrule-temporal`; Temporal loads a fallback when necessary. Physical Safari/mobile and assistive-technology checks remain separate from automated Edge validation. See [features and limits](docs/en/api.md#features-and-limits).
+This developing library does not offer complete scheduler parity. Civil recurrence uses injected Temporal, with a lazy `temporal-polyfill` fallback. Physical Safari/mobile and assistive-technology checks remain separate from automated Chromium validation. See [features and limits](docs/en/features.md).
 
 ## Develop
 

@@ -31,14 +31,14 @@ export interface CalendarResource {
    * options.defaultResourceCapacity; false remove esse limite apenas para o recurso.
    */
   capacity?: number | false;
-  /** Extend resource occupancy before each event, in minutes.
+  /** Extend occupancy before each event; finite nonnegative minutes, default 0 (disabled).
    * @remarks Português: Acrescenta minutos de preparação à ocupação antes do evento,
-   * respeitando a capacidade configurada.
+   * finitos e não negativos; padrão 0 (desativado), respeitando a capacidade.
    */
   bufferBefore?: number;
-  /** Extend resource occupancy after each event, in minutes.
+  /** Extend occupancy after each event; finite nonnegative minutes, default 0 (disabled).
    * @remarks Português: Acrescenta minutos à ocupação depois do evento, respeitando a
-   * capacidade configurada e podendo alcançar o dia seguinte.
+   * capacidade; minutos finitos e não negativos, padrão 0 (desativado); pode alcançar o dia seguinte.
    */
   bufferAfter?: number;
   /** Restrict availability with resource-specific business hours.
@@ -50,9 +50,8 @@ export interface CalendarResource {
    * @remarks Português: Acrescenta regras do recurso; as regras gerais continuam obrigatórias.
    */
   constraints?: ConstraintSet;
-  /** Identify a parent resource for consumer-defined grouping.
-   * @remarks Português: Identifica o recurso pai para agrupamento; o campo não cria sozinho
-   * uma interface de expansão e recolhimento.
+  /** Parent resource; enable hierarchy in resource timelines to render nesting.
+   * @remarks Português: Recurso pai; habilite hierarchy na timeline de recursos para exibir a árvore.
    */
   parentId?: string;
   /** Sort resources by ascending numeric order.

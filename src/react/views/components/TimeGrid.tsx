@@ -23,7 +23,10 @@ export function TimeGrid(props: {
   /** Resolved time-grid presentation model. @remarks Português: Modelo resolvido de apresentação da grade horária. */
   vm: GridVM;
 }): JSX.Element {
-  const scrollRef = usePageStickyHeaders(props.vm.context?.options.locale);
+  const scrollRef = usePageStickyHeaders(
+    props.vm.context?.options.locale,
+    props.vm.context?.options.direction,
+  );
   const vm = props.vm;
   const labels = getViewLabels(vm.context?.options.locale);
   const gridTopMin = vm.startHour * 60;
@@ -207,7 +210,11 @@ export function TimeGrid(props: {
               <div
                 key={hourLabel.min}
                 className="mc-hour-label"
-                style={{ position: 'absolute', top: toPx(minuteToY(hourLabel.min)), right: '4px' }}
+                style={{
+                  position: 'absolute',
+                  top: toPx(minuteToY(hourLabel.min)),
+                  insetInlineEnd: '4px',
+                }}
               >
                 {hourLabel.label}
               </div>
@@ -357,7 +364,7 @@ function DayColumn(props: {
             position: 'absolute',
             top: toPx(eventItem.block.top),
             height: toPx(eventItem.block.height),
-            left: `${eventItem.block.left * 100}%`,
+            insetInlineStart: `${eventItem.block.left * 100}%`,
             width: timedEventWidth({
               block: eventItem.block,
               overlap: props.context?.options.slotEventOverlap,

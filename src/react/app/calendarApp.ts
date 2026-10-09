@@ -880,6 +880,7 @@ export class CalendarApp {
       toolbar,
       body,
       locale: this.store.getState().options.locale,
+      direction: this.store.getState().options.direction,
       ...(this.renderToolbar ? { renderToolbar: this.renderToolbar } : {}),
     });
     this.snapshot = tree;

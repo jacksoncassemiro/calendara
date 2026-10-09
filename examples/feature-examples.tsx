@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { CodeBlock } from './components/CodeBlock';
 import {
   Calendar,
   CalendarEventEditor,
@@ -20,6 +21,10 @@ import {
   listView,
   useCalendar,
   useCalendarDraggable,
+  useCalendarHistory,
+  importICalendar,
+  exportICalendar,
+  ensureTemporal,
   type CalendarEvent,
   type CalendarProps,
   type EventChange,
@@ -37,6 +42,15 @@ const timeZone = 'UTC';
 const rooms = [
   { id: 'room', title: 'Room / Sala', capacity: 2 },
   { id: 'open', title: 'Open / Livre', capacity: false as const },
+];
+const treeResources = [
+  { id: 'site', title: 'Building / Prédio' },
+  ...Array.from({ length: 120 }, (_, index) => ({
+    id: index === 0 ? 'room' : `room-${index}`,
+    title: `Room / Sala ${index + 1}`,
+    parentId: 'site',
+    capacity: 2,
+  })),
 ];
 
 function appointment({
@@ -98,9 +112,22 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
   const definition = demos.find((demo) => demo.id === id)!;
   const english = language === 'en';
   const t = (portuguese: string, translated: string) => (english ? translated : portuguese);
-  const [events, setEvents] = useState(() => seedEvents(id));
+  const [localEvents, setEvents] = useState(() => seedEvents(id));
   const [reject, setReject] = useState(false);
+  const [rtl, setRtl] = useState(false);
+  const [icsText, setIcsText] = useState(
+    'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Calendara//Demo//EN\r\nBEGIN:VEVENT\r\nUID:imported\r\nDTSTAMP:20261007T080000Z\r\nDTSTART:20261007T100000Z\r\nDTEND:20261007T110000Z\r\nSUMMARY:Imported event / Evento importado\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n',
+  );
   const [status, setStatus] = useState('');
+  const history = useCalendarHistory({
+    initialEvents: seedEvents(id),
+    limit: 20,
+    persist: async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 200));
+      if (reject) throw new Error(t('Gravação recusada.', 'Save rejected.'));
+    },
+  });
+  const events = id === 'history' ? history.events : localEvents;
   const [editing, setEditing] = useState<EventOccurrence>();
   const [title, setTitle] = useState('');
   const [width, setWidth] = useState(1000);
@@ -128,6 +155,13 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
       listView,
       createResourceDayView(),
       createTimelineView(),
+      createResourceTimelineView({
+        name: 'timeline-tree',
+        duration: 'week',
+        hierarchy: true,
+        virtualization: { height: 360, overscan: 3 },
+        dayWidth: 180,
+      }),
       createResourceView({
         days: 7,
         alignment: 'week',
@@ -204,6 +238,19 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
     return () => observer.disconnect();
   }, []);
   const commit = async (change: EventChange) => {
+    if (id === 'history') {
+      try {
+        const accepted = await history.commit(
+          applyEventTimeChange({ events: history.events, change }),
+        );
+        if (!accepted) return false;
+        setStatus(t('Alteração salva no histórico local.', 'Change saved to local history.'));
+      } catch (error) {
+        setStatus(String(error));
+        return false;
+      }
+      return;
+    }
     if (reject) {
       setStatus(t('Gravação recusada; gesto revertido.', 'Save rejected; gesture reverted.'));
       return false;
@@ -243,6 +290,7 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
     nowMs: Date.parse('2026-10-08T12:00:00Z'),
     ...definition.options,
     ...(id === 'month' ? { monthCompactBreakpoint: monthIndicators ? 480 : false } : {}),
+    ...(id === 'timeline-tree' ? { direction: rtl ? ('rtl' as const) : ('ltr' as const) } : {}),
   };
   const extendedDemo = [
     'resource-week',
@@ -304,7 +352,7 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
             'Width is capped by available space. Drag the lower-right corner to test the container; this is not device emulation.',
           )}
         </p>
-        {id === 'persistence' && (
+        {(id === 'persistence' || id === 'history') && (
           <label>
             <input
               type="checkbox"
@@ -336,6 +384,142 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
           </button>
         )}
       </section>
+      {id === 'history' && (
+        <section className="focused-controls" aria-label={t('Histórico local', 'Local history')}>
+          <button
+            disabled={history.pending}
+            onClick={() => {
+              void history
+                .commit([
+                  ...history.events,
+                  appointment({ id: crypto.randomUUID(), start: '12:00', end: '12:30' }),
+                ])
+                .catch((error) => setStatus(String(error)));
+            }}
+          >
+            {t('Adicionar evento', 'Add event')}
+          </button>
+          <button
+            disabled={!history.canUndo}
+            onClick={() => {
+              void history.undo().catch((error) => setStatus(String(error)));
+            }}
+          >
+            {t('Desfazer', 'Undo')}
+          </button>
+          <button
+            disabled={!history.canRedo}
+            onClick={() => {
+              void history.redo().catch((error) => setStatus(String(error)));
+            }}
+          >
+            {t('Refazer', 'Redo')}
+          </button>
+          <button
+            disabled={history.pending}
+            onClick={() => {
+              history.replaceEvents(seedEvents(id));
+              setStatus(
+                t('Dados recarregados; histórico limpo.', 'Events reloaded; history cleared.'),
+              );
+            }}
+          >
+            {t('Recarregar eventos', 'Reload events')}
+          </button>
+          <p>
+            {t(
+              'Persistência simulada de 200 ms. Recusar preserva os eventos e o histórico; não há undo no servidor.',
+              'Simulated 200 ms persistence. Rejection retains events and history; this does not undo server transactions.',
+            )}
+          </p>
+        </section>
+      )}
+      {id === 'ics' && (
+        <section className="focused-controls" aria-label={t('Intercâmbio ICS', 'ICS interchange')}>
+          <label style={{ width: '100%' }}>
+            {t('Texto ICS', 'ICS text')}
+            <textarea
+              aria-label={t('Texto ICS', 'ICS text')}
+              rows={8}
+              style={{ width: '100%' }}
+              value={icsText}
+              onChange={(event) => setIcsText(event.target.value)}
+            />
+          </label>
+          <button
+            onClick={async () => {
+              try {
+                const result = importICalendar({
+                  text: icsText,
+                  calendarId: 'example',
+                  temporal: await ensureTemporal(),
+                });
+                setEvents(result.events);
+                setStatus(JSON.stringify(result.diagnostics, null, 2));
+              } catch (error) {
+                setStatus(String(error));
+              }
+            }}
+          >
+            {t('Importar ICS', 'Import ICS')}
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const result = exportICalendar({
+                  events,
+                  temporal: await ensureTemporal(),
+                  timestamp: new Date().toISOString(),
+                });
+                setIcsText(result.text);
+                setStatus(JSON.stringify(result.diagnostics, null, 2));
+              } catch (error) {
+                setStatus(String(error));
+              }
+            }}
+          >
+            {t('Exportar ICS', 'Export ICS')}
+          </button>
+          <button
+            onClick={() => {
+              const url = URL.createObjectURL(
+                new Blob([icsText], { type: 'text/calendar;charset=utf-8' }),
+              );
+              const anchor = document.createElement('a');
+              anchor.href = url;
+              anchor.download = 'calendara-demo.ics';
+              anchor.click();
+              window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }}
+          >
+            {t('Baixar texto ICS', 'Download ICS text')}
+          </button>
+          <p>
+            {t(
+              'Importação estrita de VEVENT. Confira os diagnósticos; não representa todo o RFC 5545.',
+              'Strict VEVENT import. Inspect diagnostics; this does not cover the whole RFC 5545.',
+            )}
+          </p>
+        </section>
+      )}
+      {id === 'timeline-tree' && (
+        <section className="focused-controls">
+          <label>
+            <input
+              type="checkbox"
+              checked={rtl}
+              onChange={(event) => setRtl(event.target.checked)}
+            />{' '}
+            {t('Direção RTL', 'RTL direction')}
+          </label>
+          <p>
+            {t(
+              '120 salas aninhadas. Role verticalmente e recolha o prédio; somente linhas de recursos são virtualizadas.',
+              '120 nested rooms. Scroll vertically and collapse the building; only resource rows are virtualized.',
+            )}
+          </p>
+        </section>
+      )}
       {id === 'print' && (
         <button
           type="button"
@@ -352,7 +536,7 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
           initialDate={referenceDate}
           events={source ? undefined : events}
           eventSource={source}
-          resources={rooms}
+          resources={id === 'timeline-tree' ? treeResources : rooms}
           options={demoOptions}
           constraints={
             id === 'resources'
@@ -366,6 +550,10 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
           onEventDrop={commit}
           onEventResize={commit}
           onEventClick={(occurrence) => {
+            if (id === 'history') {
+              setStatus(occurrence.event.title);
+              return;
+            }
             if (id === 'recurrence') {
               setStatus(JSON.stringify(occurrence.event.recurrence, null, 2));
               return;
@@ -549,39 +737,35 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
       )}
       <details open>
         <summary>{t('Código do recurso', 'Feature code')}</summary>
-        <pre className="focused-code">
-          <code>
-            {extendedDemo
-              ? 'const demoOptions = ' +
-                JSON.stringify(demoOptions, null, 2) +
-                ';\n' +
-                definition.code
-              : id === 'month'
-                ? definition.code.replace(
-                    'indicators ? 480 : false',
-                    String(demoOptions.monthCompactBreakpoint),
-                  )
-                : definition.code}
-          </code>
-        </pre>
+        <CodeBlock locale={language}>
+          {extendedDemo
+            ? 'const demoOptions = ' +
+              JSON.stringify(demoOptions, null, 2) +
+              ';\n' +
+              definition.code
+            : id === 'month'
+              ? definition.code.replace(
+                  'indicators ? 480 : false',
+                  String(demoOptions.monthCompactBreakpoint),
+                )
+              : definition.code}
+        </CodeBlock>
         <h3>
           {t('Configuração aplicada nesta demonstração', 'Configuration applied in this demo')}
         </h3>
-        <pre className="focused-code focused-config">
-          <code>
-            {JSON.stringify(
-              {
-                views: views.map((view) => view.name),
-                initialView: definition.view,
-                initialDate: referenceDate,
-                options: demoOptions,
-                ...(id === 'day-style' ? { dateStatuses } : {}),
-              },
-              null,
-              2,
-            )}
-          </code>
-        </pre>
+        <CodeBlock locale={language} language="json">
+          {JSON.stringify(
+            {
+              views: views.map((view) => view.name),
+              initialView: definition.view,
+              initialDate: referenceDate,
+              options: demoOptions,
+              ...(id === 'day-style' ? { dateStatuses } : {}),
+            },
+            null,
+            2,
+          )}
+        </CodeBlock>
         <p>
           {t(
             'Trecho de integração. A fonte completa contém imports, dados e callbacks.',

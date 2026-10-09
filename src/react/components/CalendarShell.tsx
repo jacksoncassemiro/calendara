@@ -14,6 +14,8 @@ export interface ShellProps {
   toolbar: ToolbarContext;
   /** Language tag for labels. @remarks Português: Código de idioma dos rótulos. */
   locale?: string;
+  /** Visual reading direction; default ltr. @remarks Português: Direção visual; padrão ltr. */
+  direction?: 'ltr' | 'rtl';
   /** Replace the built-in navigation content. @remarks Português: Substitui o conteúdo padrão da navegação. */
   renderToolbar?: ToolbarRenderSlot;
   /** Active view content. @remarks Português: Conteúdo da view ativa. */
@@ -23,9 +25,18 @@ export interface ShellProps {
 export function CalendarShell(props: ShellProps): JSX.Element {
   const toolbar = props.renderToolbar
     ? props.renderToolbar(props.toolbar)
-    : createElement(DefaultToolbar, { toolbar: props.toolbar, locale: props.locale });
+    : createElement(DefaultToolbar, {
+        toolbar: props.toolbar,
+        locale: props.locale,
+        direction: props.direction,
+      });
   return (
-    <div className="mc-calendar" data-mc-root data-mc-view={props.toolbar.viewName}>
+    <div
+      className="mc-calendar"
+      dir={props.direction ?? 'ltr'}
+      data-mc-root
+      data-mc-view={props.toolbar.viewName}
+    >
       {toolbar}
       <div className="mc-view-body" data-mc-view-body>
         {props.body}
@@ -35,6 +46,8 @@ export function CalendarShell(props: ShellProps): JSX.Element {
 }
 
 function DefaultToolbar(props: {
+  /** Visual reading direction. @remarks Português: Direção visual. */
+  direction?: 'ltr' | 'rtl';
   /** Current navigation actions and title. @remarks Português: Ações de navegação e título atuais. */
   toolbar: ToolbarContext;
   /** Language tag for labels. @remarks Português: Código de idioma dos rótulos. */
@@ -57,7 +70,7 @@ function DefaultToolbar(props: {
           aria-label={english ? 'Previous period' : 'Período anterior'}
           onClick={() => toolbar.goPrev()}
         >
-          ‹
+          {props.direction === 'rtl' ? '›' : '‹'}
         </button>
         <button
           type="button"
@@ -74,7 +87,7 @@ function DefaultToolbar(props: {
           aria-label={english ? 'Next period' : 'Próximo período'}
           onClick={() => toolbar.goNext()}
         >
-          ›
+          {props.direction === 'rtl' ? '‹' : '›'}
         </button>
       </div>
 

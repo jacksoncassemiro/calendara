@@ -6,6 +6,9 @@ async (page) => {
     : pathname.slice(0, pathname.lastIndexOf('/'));
   const url = (id) => `${origin}${siteBase}/examples/features.html?demo=${id}&lang=en&theme=dark`;
   const views = {
+    history: 'day',
+    ics: 'week',
+    'timeline-tree': 'timeline-tree',
     week: 'week',
     month: 'month',
     list: 'list',
@@ -37,19 +40,34 @@ async (page) => {
   for (const [demo, view] of Object.entries(views)) {
     await page.goto(url(demo));
     await page.locator(`[data-mc-root][data-mc-view="${view}"]`).waitFor();
-    if ((await page.locator('.focused-catalog a').count()) !== 24)
+    if ((await page.locator('.focused-catalog a').count()) !== Object.keys(views).length)
       throw new Error('Incomplete focused catalog');
-    if (!(await page.locator('.focused-code').first().textContent()).includes('Calendar'))
+    if (!(await page.locator('.example-code code').first().textContent()).includes('Calendar'))
       throw new Error('Missing integration code: ' + demo);
+    if (!(await page.locator('.example-code .token').count()))
+      throw new Error('Example source has no syntax highlighting: ' + demo);
+    if (demo === 'week') {
+      await page.context().grantPermissions(['clipboard-write']);
+      await page.getByRole('button', { name: 'Copy code', exact: true }).first().click();
+      await page
+        .locator('.example-code [role="status"]')
+        .first()
+        .filter({ hasText: 'Copied' })
+        .waitFor();
+      await page
+        .locator('.example-code')
+        .first()
+        .screenshot({ path: 'output/layout-review/example-code-dark.png' });
+    }
     if (demo === 'source')
       await page.getByRole('status').filter({ hasText: 'Simulated source loaded' }).waitFor();
     if (demo === 'custom-render' && !(await page.locator('[data-mc-event] strong').count()))
       throw new Error('Custom render did not apply');
-    const configuration = JSON.parse(await page.locator('.focused-config').textContent());
+    const configuration = JSON.parse(await page.locator('.example-code code').nth(1).textContent());
     if (configuration.initialView !== view || !configuration.views.includes(view))
       throw new Error('Displayed configuration differs from rendered view: ' + demo);
     if (demo === 'custom-view') {
-      const code = await page.locator('.focused-code').first().textContent();
+      const code = await page.locator('.example-code code').first().textContent();
       if (!code.includes('context.occurrences.map') || !code.includes('context.onEventClick'))
         throw new Error('Custom view code does not show the rendered event list');
     }
@@ -161,6 +179,6 @@ async (page) => {
   if (overflow > 1) throw new Error('Focused demo page overflows narrow viewport');
   if (errors.length) throw new Error(errors.join('\n'));
   return [
-    '24 exemplos focados: views explícitas, código, fonte simulada, formulário próprio; contêiner 360/768px; hoje/seleção/eventos separados; sem erros de página',
+    '27 exemplos focados: views explícitas, código, fonte simulada, formulário próprio, histórico, ICS e hierarquia; contêiner 360/768px; hoje/seleção/eventos separados; sem erros de página',
   ];
 };

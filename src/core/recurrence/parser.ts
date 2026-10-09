@@ -1,7 +1,15 @@
 import { WEEKDAY_CODES } from '../date/dateUtils.js';
 import type { ByDayEntry, Frequency, RRuleModel, WeekdayCode } from '../types/index.js';
 
-const FREQUENCIES: readonly Frequency[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'];
+const FREQUENCIES: readonly Frequency[] = [
+  'SECONDLY',
+  'MINUTELY',
+  'HOURLY',
+  'DAILY',
+  'WEEKLY',
+  'MONTHLY',
+  'YEARLY',
+];
 const WEEKDAY_CODE_SET = new Set<string>(WEEKDAY_CODES);
 
 const DEFAULT_INTERVAL = 1;
@@ -21,6 +29,28 @@ function integer(value: string): number {
  */
 export function validateRRuleModel(model: RRuleModel): void {
   if (!FREQUENCIES.includes(model.freq)) throw new RangeError('[calendara] FREQ não suportada');
+  const supportedFields = new Set([
+    'freq',
+    'interval',
+    'count',
+    'until',
+    'byMonth',
+    'byMonthDay',
+    'bySetPos',
+    'byYearDay',
+    'byWeekNo',
+    'byDay',
+    'weekStart',
+    'byHour',
+    'byMinute',
+    'bySecond',
+  ]);
+  for (const field of Object.keys(model)) {
+    if (!supportedFields.has(field))
+      throw new RangeError(`[calendara] campo RRULE não suportado: ${field}`);
+  }
+  if (model.count !== undefined && model.until !== undefined)
+    throw new RangeError('[calendara] COUNT e UNTIL são mutuamente exclusivos');
   for (const value of [model.interval, model.count]) {
     if (value !== undefined && (!Number.isSafeInteger(value) || value <= 0))
       throw new RangeError('[calendara] COUNT/INTERVAL devem ser inteiros positivos');
@@ -30,6 +60,7 @@ export function validateRRuleModel(model: RRuleModel): void {
     [model.byMonthDay, 31],
     [model.bySetPos, 366],
     [model.byYearDay, 366],
+    [model.byWeekNo, 53],
   ] as const) {
     if (
       values &&
@@ -42,8 +73,38 @@ export function validateRRuleModel(model: RRuleModel): void {
   }
   if (model.byMonth?.some((value) => value < 1))
     throw new RangeError('[calendara] BYMONTH inválido');
-  if (model.byYearDay?.length && model.freq !== 'YEARLY')
-    throw new RangeError('[calendara] BYYEARDAY exige YEARLY');
+  for (const [values, maximum, name] of [
+    [model.byHour, 23, 'BYHOUR'],
+    [model.byMinute, 59, 'BYMINUTE'],
+    [model.bySecond, 59, 'BYSECOND'],
+  ] as const) {
+    if (
+      values &&
+      (values.length > maximum + 1 ||
+        values.some((value) => !Number.isSafeInteger(value) || value < 0 || value > maximum))
+    )
+      throw new RangeError(`[calendara] ${name} inválido; segundos intercalares não suportados`);
+  }
+  if (model.byYearDay?.length && ['DAILY', 'WEEKLY', 'MONTHLY'].includes(model.freq))
+    throw new RangeError('[calendara] BYYEARDAY exige YEARLY ou frequência intradiária');
+  if (model.byWeekNo?.length && model.freq !== 'YEARLY')
+    throw new RangeError('[calendara] BYWEEKNO exige YEARLY');
+  if (model.byMonthDay?.length && model.freq === 'WEEKLY')
+    throw new RangeError('[calendara] BYMONTHDAY não é permitido com WEEKLY');
+  if (
+    model.bySetPos?.length &&
+    ![
+      model.byMonth,
+      model.byMonthDay,
+      model.byYearDay,
+      model.byWeekNo,
+      model.byDay,
+      model.byHour,
+      model.byMinute,
+      model.bySecond,
+    ].some((values) => values?.length)
+  )
+    throw new RangeError('[calendara] BYSETPOS exige outro filtro BYxxx');
   if (
     model.byDay &&
     (model.byDay.length > 366 ||
@@ -57,6 +118,11 @@ export function validateRRuleModel(model: RRuleModel): void {
       ))
   )
     throw new RangeError('[calendara] BYDAY inválido');
+  if (
+    model.byDay?.some((entry) => entry.ordinal !== undefined) &&
+    (!['MONTHLY', 'YEARLY'].includes(model.freq) || model.byWeekNo?.length)
+  )
+    throw new RangeError('[calendara] BYDAY ordinal exige MONTHLY ou YEARLY sem BYWEEKNO');
   if (model.weekStart !== undefined && !WEEKDAY_CODE_SET.has(model.weekStart))
     throw new RangeError('[calendara] WKST inválido');
   if (
@@ -69,7 +135,10 @@ export function validateRRuleModel(model: RRuleModel): void {
 function parseByDay(value: string): ByDayEntry[] {
   const entries: ByDayEntry[] = [];
   for (const rawToken of value.split(',')) {
-    const match = rawToken.trim().match(/^([+-]?\d+)?([A-Z]{2})$/);
+    const match = rawToken
+      .trim()
+      .toUpperCase()
+      .match(/^([+-]?\d+)?([A-Z]{2})$/);
     if (!match) throw new RangeError('[calendara] BYDAY inválido');
     const code = match[2] as WeekdayCode;
     if (!WEEKDAY_CODE_SET.has(code)) throw new RangeError('[calendara] BYDAY inválido');
@@ -81,6 +150,7 @@ function parseByDay(value: string): ByDayEntry[] {
 }
 
 function parseUntil(value: string): string {
+  value = value.toUpperCase();
   if (!/^\d{8}(?:T\d{6}Z?)?$/.test(value)) throw new RangeError('[calendara] UNTIL inválido');
   const date = `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
   if (value.length <= 8) return date;
@@ -149,6 +219,18 @@ export function parseRRule(input: string): RRuleModel {
       case 'BYYEARDAY':
         model.byYearDay = value.split(',').map(integer);
         break;
+      case 'BYWEEKNO':
+        model.byWeekNo = value.split(',').map(integer);
+        break;
+      case 'BYHOUR':
+        model.byHour = value.split(',').map(integer);
+        break;
+      case 'BYMINUTE':
+        model.byMinute = value.split(',').map(integer);
+        break;
+      case 'BYSECOND':
+        model.bySecond = value.split(',').map(integer);
+        break;
       default:
         throw new RangeError(`[calendara] campo RRULE não suportado: ${key}`);
     }
@@ -165,6 +247,7 @@ function serializeByDay(entries: ByDayEntry[]): string {
 }
 
 function serializeUntil(iso: string): string {
+  if (/[+-]\d{2}:\d{2}$/.test(iso)) iso = new Date(iso).toISOString();
   const date = iso.slice(0, 10).replace(/-/g, '');
   if (iso.length <= 10) return date;
   const time = iso.slice(11, 19).replace(/:/g, '');
@@ -175,6 +258,7 @@ function serializeUntil(iso: string): string {
  * @remarks Português: Serializa os campos suportados sem o prefixo RRULE.
  */
 export function serializeRRule(model: RRuleModel): string {
+  validateRRuleModel(model);
   const parts: string[] = [`FREQ=${model.freq}`];
   const hasCustomInterval = model.interval !== undefined && model.interval !== DEFAULT_INTERVAL;
   if (hasCustomInterval) parts.push(`INTERVAL=${model.interval}`);
@@ -182,6 +266,10 @@ export function serializeRRule(model: RRuleModel): string {
   if (model.until !== undefined) parts.push(`UNTIL=${serializeUntil(model.until)}`);
   if (model.byMonth?.length) parts.push(`BYMONTH=${model.byMonth.join(',')}`);
   if (model.byYearDay?.length) parts.push(`BYYEARDAY=${model.byYearDay.join(',')}`);
+  if (model.byWeekNo?.length) parts.push(`BYWEEKNO=${model.byWeekNo.join(',')}`);
+  if (model.byHour?.length) parts.push(`BYHOUR=${model.byHour.join(',')}`);
+  if (model.byMinute?.length) parts.push(`BYMINUTE=${model.byMinute.join(',')}`);
+  if (model.bySecond?.length) parts.push(`BYSECOND=${model.bySecond.join(',')}`);
   if (model.byMonthDay?.length) parts.push(`BYMONTHDAY=${model.byMonthDay.join(',')}`);
   if (model.byDay?.length) parts.push(`BYDAY=${serializeByDay(model.byDay)}`);
   if (model.bySetPos?.length) parts.push(`BYSETPOS=${model.bySetPos.join(',')}`);

@@ -5,6 +5,8 @@
 import { occurrenceKey } from '../../core/render/derive.js';
 import { DayHeaderContent } from './components/DayHeaderContent.js';
 import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
+import { useVirtualResourceRows } from './hooks/useVirtualResourceRows.js';
+import { resourceTreeRows } from './models/resourceTree.js';
 import { getViewLabels } from './formatting/viewLabels.js';
 import { isNestedInteractiveTarget } from '../../core/interaction/interactiveTarget.js';
 import { applyDenseLayout } from './layout/denseLayout.js';
@@ -124,7 +126,7 @@ function TimelineTimeAxis({
           style={{
             position: 'absolute',
             top: toPx(4 + (labelIndex % labelRows) * 20),
-            left: toPx(minuteToX(hourLabel.minute)),
+            insetInlineStart: toPx(minuteToX(hourLabel.minute)),
             whiteSpace: 'nowrap',
           }}
         >
@@ -152,8 +154,13 @@ function Timeline(props: {
    * @remarks Português: Alturas alinhadas das linhas em pixels
    */
   rowHeights?: ReadonlyMap<string, number>;
+  /** Reuse the period projection for embedded rows. @remarks Português: Reutiliza a projeção do período nas linhas internas. */
+  columns?: ReturnType<typeof buildResourceColumns>;
 }): JSX.Element {
-  const scrollRef = usePageStickyHeaders(props.context.options.locale);
+  const scrollRef = usePageStickyHeaders(
+    props.context.options.locale,
+    props.context.options.direction,
+  );
   const { context, resources } = props;
   const { options, range } = context;
   const day = range.startDate;
@@ -173,17 +180,19 @@ function Timeline(props: {
     nowMinute >= gridStartMin &&
     nowMinute <= gridEndMin;
 
-  const columns = buildResourceColumns({
-    temporal: context.temporal,
-    resources,
-    day,
-    occurrences: context.resourceBufferOccurrences ?? context.occurrences,
-    globalConstraints: context.constraints,
-    grid: { startHour, endHour },
-    displayTimeZone: options.timeZone,
-    visibleResourceIds: options.visibleResourceIds,
-    defaultCapacity: options.defaultResourceCapacity,
-  });
+  const columns =
+    props.columns ??
+    buildResourceColumns({
+      temporal: context.temporal,
+      resources,
+      day,
+      occurrences: context.resourceBufferOccurrences ?? context.occurrences,
+      globalConstraints: context.constraints,
+      grid: { startHour, endHour },
+      displayTimeZone: options.timeZone,
+      visibleResourceIds: options.visibleResourceIds,
+      defaultCapacity: options.defaultResourceCapacity,
+    });
 
   return (
     <div className="mc-timeline" data-mc-view="timeline">
@@ -328,7 +337,7 @@ function Timeline(props: {
                           position: 'absolute',
                           top: 0,
                           bottom: 0,
-                          left: toPx(minuteToX(segment.startMin)),
+                          insetInlineStart: toPx(minuteToX(segment.startMin)),
                           width: toPx((segment.endMin - segment.startMin) * options.pxPerMinute),
                         }}
                       />
@@ -388,7 +397,7 @@ function Timeline(props: {
                         title={event.title}
                         style={{
                           position: 'absolute',
-                          left: toPx(left),
+                          insetInlineStart: toPx(left),
                           width: toPx(width),
                           top: toPx(block.column * TIMELINE_ROW_HEIGHT_PX),
                           height: `calc(${TIMELINE_ROW_HEIGHT_PX}px - var(--mc-event-gap, 8px))`,
@@ -423,7 +432,7 @@ function Timeline(props: {
                                 position: 'absolute',
                                 top: 0,
                                 bottom: 0,
-                                left: 0,
+                                insetInlineStart: 0,
                                 width: 6,
                                 cursor: 'ew-resize',
                                 touchAction: 'none',
@@ -443,7 +452,7 @@ function Timeline(props: {
                                 position: 'absolute',
                                 top: 0,
                                 bottom: 0,
-                                right: 0,
+                                insetInlineEnd: 0,
                                 width: '6px',
                                 cursor: 'ew-resize',
                                 touchAction: 'none',
@@ -474,7 +483,7 @@ function Timeline(props: {
                         position: 'absolute',
                         top: 0,
                         bottom: 0,
-                        left: toPx(minuteToX(rowDraft.startMin)),
+                        insetInlineStart: toPx(minuteToX(rowDraft.startMin)),
                         width: toPx((rowDraft.endMin - rowDraft.startMin) * options.pxPerMinute),
                         pointerEvents: 'none',
                         zIndex: 10000,
@@ -508,7 +517,10 @@ function Timeline(props: {
                 position: 'absolute',
                 top: 0,
                 bottom: 0,
-                left: toPx(RESOURCE_LABEL_WIDTH_PX + minuteToX(nowMinute)),
+                insetInlineStart: toPx(
+                  (props.embedded ? PERIOD_ALL_DAY_WIDTH_PX : RESOURCE_LABEL_WIDTH_PX) +
+                    minuteToX(nowMinute),
+                ),
                 pointerEvents: 'none',
                 zIndex: 10001,
               }}
@@ -524,6 +536,27 @@ function Timeline(props: {
  * @remarks Português: Configuração de período e grupos da timeline por recursos
  */
 export interface ResourceTimelineConfig {
+  /** Render nested parentId resources; default false.
+   * @remarks Português: Exibe recursos aninhados por parentId; padrão false.
+   */
+  hierarchy?: boolean;
+  /** Initially collapsed parent resources.
+   * @remarks Português: Recursos pais inicialmente recolhidos.
+   */
+  collapsedResourceIds?: readonly string[];
+  /** Automatic vertical resource-row window; disabled by default.
+   * @remarks Português: Janela vertical automática de recursos; desativada por padrão.
+   */
+  virtualization?: {
+    /** Bounded scrollport height in pixels, minimum 120.
+     * @remarks Português: Altura do scroll em pixels, mínimo 120.
+     */
+    height: number;
+    /** Extra rows at each edge, default 4.
+     * @remarks Português: Linhas extras por borda, padrão 4.
+     */
+    overscan?: number;
+  };
   /** Fallback resources; context.resources takes precedence.
    * @remarks Português: Recursos padrão; context.resources tem prioridade
    */
@@ -571,6 +604,17 @@ export interface ResourceTimelineConfig {
  * @remarks Português: Cria faixas diárias, semanais ou mensais por recurso
  */
 export function createResourceTimelineView(config: ResourceTimelineConfig = {}): CalendarView {
+  if (
+    config.virtualization &&
+    (!Number.isFinite(config.virtualization.height) ||
+      config.virtualization.height < 120 ||
+      (config.virtualization.overscan !== undefined &&
+        (!Number.isSafeInteger(config.virtualization.overscan) ||
+          config.virtualization.overscan < 0)))
+  )
+    throw new RangeError(
+      '[calendara] virtualization requires height >= 120 and nonnegative integer overscan',
+    );
   const duration = config.duration ?? 'day';
   if (
     config.dayWidth !== undefined &&
@@ -640,8 +684,11 @@ function ResourceTimelinePeriod({
    */
   config: ResourceTimelineConfig;
 }): JSX.Element {
-  const scrollRef = usePageStickyHeaders(context.options.locale);
+  const scrollRef = usePageStickyHeaders(context.options.locale, context.options.direction);
   const [collapsed, setCollapsed] = useState(() => new Set(config.collapsedGroups ?? []));
+  const [collapsedResources, setCollapsedResources] = useState(
+    () => new Set(config.collapsedResourceIds ?? []),
+  );
   const resources = [...(context.resources ?? config.resources ?? [])]
     .filter(
       (resource) =>
@@ -671,6 +718,10 @@ function ResourceTimelinePeriod({
   };
   const days = context.range.days;
   const rowHeights = new Map<string, number>();
+  const columnsByDate = new Map<
+    string,
+    Map<string, ReturnType<typeof buildResourceColumns>[number]>
+  >();
   days.forEach((day) => {
     const columns = buildResourceColumns({
       temporal: context.temporal,
@@ -683,6 +734,10 @@ function ResourceTimelinePeriod({
       visibleResourceIds: context.options.visibleResourceIds,
       defaultCapacity: context.options.defaultResourceCapacity,
     });
+    columnsByDate.set(
+      day.toString(),
+      new Map(columns.map((column) => [column.resource.id, column])),
+    );
     columns.forEach((column) => {
       const blocks = layoutDay({
         items: column.day.timed,
@@ -706,12 +761,84 @@ function ResourceTimelinePeriod({
       );
     });
   });
+  const rows: (
+    | { kind: 'group'; key: string; name: string; count: number; height: number }
+    | {
+        kind: 'resource';
+        key: string;
+        resource: CalendarResource;
+        depth: number;
+        hasChildren: boolean;
+        height: number;
+      }
+  )[] = [];
+  for (const [name, members] of groups) {
+    if (config.groupBy)
+      rows.push({ kind: 'group', key: `group:${name}`, name, count: members.length, height: 44 });
+    if (!collapsed.has(name))
+      for (const item of resourceTreeRows({
+        resources: members,
+        collapsed: collapsedResources,
+        hierarchy: config.hierarchy ?? false,
+      }))
+        rows.push({
+          kind: 'resource',
+          key: `resource:${item.resource.id}`,
+          ...item,
+          height: rowHeights.get(item.resource.id) ?? TIMELINE_ROW_HEIGHT_PX,
+        });
+  }
+  const virtualWindow = useVirtualResourceRows({
+    scrollRef,
+    heights: rows.map((row) => row.height),
+    height: config.virtualization?.height,
+    overscan: config.virtualization?.overscan,
+  });
+  const mounted = new Set(
+    Array.from(
+      { length: virtualWindow.end - virtualWindow.start },
+      (_, index) => virtualWindow.start + index,
+    ),
+  );
+  rows.forEach((row, index) => {
+    if (
+      row.key === virtualWindow.focusedRow ||
+      (row.kind === 'resource' && row.resource.id === context.draft?.resourceId)
+    )
+      mounted.add(index);
+  });
+  const visibleRows = [...mounted].sort((first, second) => first - second);
+  const contentWidth = RESOURCE_LABEL_WIDTH_PX + days.length * dayWidth;
+  const moveResourceFocus = ({ index, direction }: { index: number; direction: number }) => {
+    let destination = index + direction;
+    while (destination >= 0 && destination < rows.length && rows[destination]?.kind !== 'resource')
+      destination += direction;
+    const row = rows[destination];
+    if (!row || row.kind !== 'resource') return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    scroller.scrollTop = virtualWindow.offsets[destination]!;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        scroller
+          .querySelector<HTMLElement>(
+            `[data-mc-resource-key="${CSS.escape(row.key)}"] [data-mc-resource-title]`,
+          )
+          ?.focus();
+      }),
+    );
+  };
   return (
     <div
       className="mc-resource-timeline-period"
       data-mc-view={context.viewName ?? 'resource-timeline'}
     >
-      <div ref={scrollRef} className="mc-hscroll" data-mc-hscroll>
+      <div
+        ref={scrollRef}
+        className="mc-hscroll"
+        data-mc-hscroll
+        style={config.virtualization ? { maxHeight: config.virtualization.height } : undefined}
+      >
         <div
           className="mc-timeline-header mc-period-date-header"
           style={{ display: 'flex', width: RESOURCE_LABEL_WIDTH_PX + days.length * dayWidth }}
@@ -757,63 +884,118 @@ function ResourceTimelinePeriod({
             </div>
           ))}
         </div>
-        {[...groups].map(([name, members]) => (
-          <section
-            key={name}
-            data-mc-resource-group={name}
-            style={{ width: RESOURCE_LABEL_WIDTH_PX + days.length * dayWidth }}
-          >
-            {config.groupBy && (
-              <button
-                type="button"
-                className="mc-resource-group-toggle"
-                aria-expanded={!collapsed.has(name)}
-                onClick={() =>
-                  setCollapsed((previous) => {
-                    const next = new Set(previous);
-                    if (next.has(name)) next.delete(name);
-                    else next.add(name);
-                    return next;
-                  })
-                }
-              >
-                {name} · {members.length}
-              </button>
-            )}
-            {!collapsed.has(name) && (
-              <div style={{ display: 'flex' }}>
+        <div
+          data-mc-resource-rows
+          data-mc-resource-count={rows.filter((row) => row.kind === 'resource').length}
+          style={{ width: contentWidth }}
+        >
+          {visibleRows.map((index, position) => {
+            const row = rows[index]!;
+            const previousEnd =
+              position === 0 ? 0 : virtualWindow.offsets[visibleRows[position - 1]! + 1]!;
+            return (
+              <div key={row.key} data-mc-resource-key={row.key}>
                 <div
-                  className="mc-period-resource-labels"
-                  style={{ width: RESOURCE_LABEL_WIDTH_PX, flexShrink: 0 }}
-                >
-                  {members.map((resource) => (
-                    <div
-                      key={resource.id}
-                      data-mc-period-resource={resource.id}
-                      style={{ height: rowHeights.get(resource.id) }}
+                  aria-hidden="true"
+                  style={{ height: virtualWindow.offsets[index]! - previousEnd }}
+                />
+                {row.kind === 'group' ? (
+                  <div data-mc-resource-group={row.name} style={{ height: row.height }}>
+                    <button
+                      type="button"
+                      className="mc-resource-group-toggle"
+                      aria-expanded={!collapsed.has(row.name)}
+                      disabled={Boolean(context.draft)}
+                      onClick={() =>
+                        setCollapsed((previous) => {
+                          const next = new Set(previous);
+                          if (next.has(row.name)) next.delete(row.name);
+                          else next.add(row.name);
+                          return next;
+                        })
+                      }
                     >
-                      {resource.title}
-                    </div>
-                  ))}
-                </div>
-                {days.map((day) => (
-                  <div key={day.toString()} style={{ width: dayWidth, flexShrink: 0 }}>
-                    <Timeline
-                      resources={members}
-                      embedded
-                      rowHeights={rowHeights}
-                      context={{
-                        ...context,
-                        options: dayOptions,
-                        range: { days: [day], startDate: day, endDate: day },
-                      }}
-                    />
+                      {row.name} · {row.count}
+                    </button>
                   </div>
-                ))}
+                ) : (
+                  <div style={{ display: 'flex', height: row.height }}>
+                    <div
+                      className="mc-period-resource-labels"
+                      style={{ width: RESOURCE_LABEL_WIDTH_PX, flexShrink: 0 }}
+                    >
+                      <div
+                        data-mc-period-resource={row.resource.id}
+                        style={{ height: row.height, paddingInlineStart: 8 + row.depth * 12 }}
+                      >
+                        <button
+                          type="button"
+                          data-mc-resource-title
+                          aria-label={row.resource.title}
+                          aria-expanded={
+                            row.hasChildren ? !collapsedResources.has(row.resource.id) : undefined
+                          }
+                          disabled={Boolean(context.draft)}
+                          className="mc-resource-title-button"
+                          onClick={() => {
+                            if (row.hasChildren)
+                              setCollapsedResources((previous) => {
+                                const next = new Set(previous);
+                                if (next.has(row.resource.id)) next.delete(row.resource.id);
+                                else next.add(row.resource.id);
+                                return next;
+                              });
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                              event.preventDefault();
+                              moveResourceFocus({
+                                index,
+                                direction: event.key === 'ArrowDown' ? 1 : -1,
+                              });
+                            }
+                          }}
+                        >
+                          {row.hasChildren
+                            ? collapsedResources.has(row.resource.id)
+                              ? '▸ '
+                              : '▾ '
+                            : ''}
+                          {row.resource.title}
+                        </button>
+                      </div>
+                    </div>
+                    {days.map((day) => (
+                      <div key={day.toString()} style={{ width: dayWidth, flexShrink: 0 }}>
+                        <Timeline
+                          resources={[row.resource]}
+                          columns={[columnsByDate.get(day.toString())!.get(row.resource.id)!]}
+                          embedded
+                          rowHeights={rowHeights}
+                          context={{
+                            ...context,
+                            options: dayOptions,
+                            range: { days: [day], startDate: day, endDate: day },
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </section>
-        ))}
+            );
+          })}
+          <div
+            aria-hidden="true"
+            style={{
+              height:
+                virtualWindow.offsets[rows.length]! -
+                (visibleRows.length
+                  ? virtualWindow.offsets[visibleRows[visibleRows.length - 1]! + 1]!
+                  : 0),
+            }}
+          />
+        </div>
       </div>
     </div>
   );

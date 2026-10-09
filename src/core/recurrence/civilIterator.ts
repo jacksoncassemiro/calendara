@@ -47,6 +47,34 @@ function civilDateFields(day: number) {
       civilDayNumber({ year, month: 1, day: 1 }),
   };
 }
+function weekYearStart(year: number, weekStart: number): number {
+  const januaryFourth = civilDayNumber({ year, month: 1, day: 4 });
+  const weekday = new Date(januaryFourth * MILLISECONDS_PER_DAY).getUTCDay();
+  return januaryFourth - ((weekday - weekStart + 7) % 7);
+}
+function matchesWeekNumber({
+  day,
+  year,
+  weekStart,
+  numbers,
+}: {
+  day: number;
+  year: number;
+  weekStart: number;
+  numbers: number[];
+}): boolean {
+  let first = weekYearStart(year, weekStart);
+  let next = weekYearStart(year + 1, weekStart);
+  if (day < first) {
+    next = first;
+    first = weekYearStart(year - 1, weekStart);
+  } else if (day >= next) {
+    first = next;
+    next = weekYearStart(year + 2, weekStart);
+  }
+  const number = Math.floor((day - first) / 7) + 1;
+  return numbers.includes(number) || numbers.includes(number - (next - first) / 7 - 1);
+}
 /** Inclusive ISO date window and recurrence expansion budgets.
  * @remarks Português: Janela inclusiva de datas ISO e limites de trabalho da expansão recorrente.
  */
@@ -88,6 +116,10 @@ export interface IterateCivilDatesInput {
    * @remarks Português: Rejeita datas locais inválidas antes de BYSETPOS e COUNT; ausente aceita todas.
    */
   acceptDate?: (dateISO: string) => boolean;
+  /** Include initial-period dates before DTSTART for time-level positional selection.
+   * @remarks Português: Inclui datas anteriores ao início no primeiro período para seleção por horário.
+   */
+  includeBeforeStart?: boolean;
 }
 
 /** Iterate Gregorian RRULE dates; timezone and occurrence exceptions are applied separately.
@@ -99,8 +131,16 @@ export function* iterateCivilDates({
   startDateISO,
   window = {},
   acceptDate,
+  includeBeforeStart = false,
 }: IterateCivilDatesInput): Generator<string> {
   validateRRuleModel(model);
+  if (
+    ['SECONDLY', 'MINUTELY', 'HOURLY'].includes(model.freq) ||
+    model.byHour?.length ||
+    model.byMinute?.length ||
+    model.bySecond?.length
+  )
+    throw new RangeError('[calendara] regras com horário exigem expansão de evento com horário');
   const start = parseCivilDayNumber(startDateISO),
     seriesStartFields = civilDateFields(start),
     interval = model.interval ?? 1;
@@ -122,7 +162,13 @@ export function* iterateCivilDates({
   let months = model.byMonth ?? [],
     monthDays = model.byMonthDay ?? [];
   const byDay = model.byDay ?? [];
-  if (model.freq === 'YEARLY' && !byDay.length && !monthDays.length && !model.byYearDay?.length) {
+  if (
+    model.freq === 'YEARLY' &&
+    !byDay.length &&
+    !monthDays.length &&
+    !model.byYearDay?.length &&
+    !model.byWeekNo?.length
+  ) {
     if (!months.length) months = [seriesStartFields.month];
     monthDays = [seriesStartFields.date];
   } else if (model.freq === 'MONTHLY' && !byDay.length && !monthDays.length)
@@ -219,6 +265,16 @@ export function* iterateCivilDates({
     for (const day of new Set(days)) {
       const candidateFields = civilDateFields(day);
       if (
+        model.byWeekNo?.length &&
+        !matchesWeekNumber({
+          day: day,
+          year: candidateFields.year,
+          weekStart: weekStart,
+          numbers: model.byWeekNo,
+        })
+      )
+        continue;
+      if (
         model.byYearDay?.length &&
         !model.byYearDay.includes(candidateFields.yearDay) &&
         !model.byYearDay.includes(candidateFields.yearDay - candidateFields.yearDays - 1)
@@ -271,7 +327,7 @@ export function* iterateCivilDates({
         ),
       ].sort((firstDay, secondDay) => firstDay - secondDay);
     for (const day of candidates) {
-      if (day < start) continue;
+      if (day < start && !includeBeforeStart) continue;
       if (day > windowEndDay) return;
       occurrenceCount++;
       if (day >= windowStartDay)

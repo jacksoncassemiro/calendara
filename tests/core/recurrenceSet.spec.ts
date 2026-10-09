@@ -70,7 +70,7 @@ describe('expandEvent — evento simples', () => {
   it('rejects unsupported and malformed external rules before producing a different series', () => {
     for (const rule of [
       'FREQ=HOURLY;COUNT=2',
-      'FREQ=DAILY;BYHOUR=9',
+      'FREQ=DAILY;BYEASTER=9',
       'FREQ=WEEKLY;BYDAY=oops',
       'FREQ=DAILY;COUNT=0',
       'FREQ=DAILY;COUNT=2junk',
