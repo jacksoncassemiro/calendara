@@ -1213,33 +1213,6 @@
   text-align: start;
 }
 
-.mc-year-planner-more {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: 0.75rem;
-}
-
-.mc-year-planner-more {
-  position: relative;
-}
-.mc-year-planner-overflow {
-  position: absolute;
-  z-index: 5;
-  min-width: 180px;
-  padding: 0.5rem;
-  border: 1px solid var(--mc-color-border);
-  background: var(--mc-color-bg);
-}
-.mc-year-planner-overflow button {
-  display: block;
-  width: 100%;
-  text-align: start;
-  margin-block: 0.25rem;
-  padding: 0.375rem;
-}
-
 [data-mc-root] .mc-period-resource-labels,
 [data-mc-root] .mc-period-group-label {
   position: sticky;

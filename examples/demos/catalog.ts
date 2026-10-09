@@ -238,13 +238,15 @@ const tree = createResourceTimelineView({ name: 'timeline-tree', duration: 'week
     id: 'day-style',
     title: ['Fundo do dia sem bloqueio', 'Day background without blocking'],
     description: [
-      'Aplique estados visuais por data sem alterar as restrições.',
-      'Apply visual date states without changing restrictions.',
+      'Aplique estados visuais por data na semana, timeline, mês, trimestre, ano e planejamento anual sem alterar as restrições.',
+      'Apply visual date states in week, timeline, month, quarter, year and year planner without changing restrictions.',
     ],
     view: 'week',
     code: `const [dateStatuses, setDateStatuses] = useState({ "2026-10-08": "near" });
 // Apply API data with setDateStatuses. PT: Aplica dados da API com setDateStatuses.
-<Calendar views={[weekView]}
+<Calendar views={[weekView, monthView,
+  createResourceTimelineView({ duration: "week", name: "timeline-week" }),
+  yearView, quarterView, yearPlannerView]}
   getDayStyle={({ dateISO }) => {
     const status = dateStatuses[dateISO];
     return status ? {
@@ -256,7 +258,8 @@ const tree = createResourceTimelineView({ name: 'timeline-tree', duration: 'week
   }}
   renderDayHeader={({ dateISO, defaultContent }) => <>
     {defaultContent}
-    {dateStatuses[dateISO] && <small className="focused-day-status">
+    {dateStatuses[dateISO] && <small className="focused-day-status"
+      title={dateStatusLabels[dateStatuses[dateISO]]}>
       {dateStatuses[dateISO] === "unavailable" && <span aria-hidden="true">⊘ </span>}
       {dateStatusLabels[dateStatuses[dateISO]]}
     </small>}

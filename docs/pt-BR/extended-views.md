@@ -4,6 +4,8 @@
 
 Registre cada view explicitamente. As views adicionais não alteram `BUILTIN_VIEWS`, que continua como atalho de semana/dia/mês/lista.
 
+O planejamento anual usa o mesmo botão e popover de excedentes dos painéis mensais, incluindo `onMonthMoreClick`, `renderMonthMore` e `monthMoreView`. Ele antecipa dois títulos de eventos por data. `getDayStyle` e `renderDayHeader` também se aplicam às datas de mês, trimestre, ano e planejamento anual; o exemplo de fundo do dia permite alternar essas views usando as mesmas situações recebidas da API.
+
 Os cartões se ajustam à largura medida de cada painel mensal, inclusive calendários lado a lado. `monthMaxEvents` é um limite superior (padrão 3); células estreitas reduzem os cartões gradualmente até manter apenas a data e a contagem de +mais. `monthMaxEvents: false` preserva cartões ilimitados. Eventos ocultos mantêm o comportamento de `onMonthMoreClick`, `renderMonthMore` e `monthMoreView`; isso não ativa o modo compacto opcional de seletor de datas.
 
 Os painéis de mês, ano e trimestre exibem seis semanas por padrão. Use `options={{ monthFixedWeeks: false }}` para quatro a seis semanas conforme o mês. Carregue todo o intervalo visível informado, incluindo datas de meses adjacentes. As linhas do planejamento anual mantêm altura uniforme e um scrollbar superior sincronizado; sua largura de dia pode ser estilizada por `--mc-year-day-width` (padrão 120px).

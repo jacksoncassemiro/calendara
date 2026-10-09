@@ -1,10 +1,18 @@
-import { createElement } from 'react';
+import { createElement, lazy, Suspense, useEffect, useId, useState } from 'react';
+import { occurrenceKey } from '../../core/render/derive.js';
 import type { EventOccurrence } from '../../core/index.js';
-import type { CalendarView, ViewRenderContext } from '../viewTypes.js';
+import type { CalendarView, MonthMoreInfo, ViewRenderContext } from '../viewTypes.js';
 import { DayHeaderContent } from './components/DayHeaderContent.js';
 import { occurrenceDays } from './layout/occurrenceDays.js';
 import { formatDate } from './formatting/timeLabels.js';
 import { usePageStickyHeaders } from './hooks/usePageStickyHeaders.js';
+import { getViewLabels } from './formatting/viewLabels.js';
+
+const MonthMorePopover = lazy(() =>
+  import('./components/MonthMorePopover.js').then((module) => ({
+    default: module.MonthMorePopover,
+  })),
+);
 
 /** Year planner configuration.
  * @remarks Português: Configuração do planejamento anual
@@ -60,7 +68,15 @@ function YearPlanner({
   context: ViewRenderContext;
 }) {
   const english = context.options.locale.startsWith('en');
+  const labels = getViewLabels(context.options.locale);
   const scrollRef = usePageStickyHeaders(context.options.locale, context.options.direction);
+  const detailId = useId();
+  const [moreInfo, setMoreInfo] = useState<MonthMoreInfo>();
+  const closeDetail = () => {
+    setMoreInfo(undefined);
+    moreInfo?.anchor.focus({ preventScroll: true });
+  };
+  useEffect(() => setMoreInfo(undefined), [context.referenceDateISO]);
   const itemsByDate = new Map<string, EventOccurrence[]>();
   for (const occurrence of context.occurrences)
     for (const dateISO of occurrenceDays({ occurrence, context })) {
@@ -195,24 +211,43 @@ function YearPlanner({
                           </button>
                         ))}
                         {items.length > 2 && (
-                          <details className="mc-year-planner-more">
-                            <summary
-                              aria-label={`${items.length - 2} ${english ? 'more events' : 'eventos adicionais'}`}
-                            >
-                              +{items.length - 2}
-                            </summary>
-                            <div className="mc-year-planner-overflow">
-                              {items.slice(2).map((occurrence) => (
-                                <button
-                                  type="button"
-                                  key={`${occurrence.masterId}:${occurrence.originalStart}`}
-                                  onClick={() => context.onEventClick?.(occurrence)}
-                                >
-                                  {occurrence.event.title}
-                                </button>
-                              ))}
-                            </div>
-                          </details>
+                          <button
+                            type="button"
+                            className="mc-month-more"
+                            aria-expanded={moreInfo?.dateISO === dateISO}
+                            aria-controls={detailId}
+                            aria-label={`${labels.moreEvents} ${items.length - 2} ${labels.events} ${labels.onDate} ${dateLabel}`}
+                            onClick={(click) => {
+                              if (moreInfo?.dateISO === dateISO) {
+                                closeDetail();
+                                return;
+                              }
+                              const anchor = click.currentTarget;
+                              const info: MonthMoreInfo = {
+                                dateISO,
+                                occurrences: items,
+                                hiddenOccurrences: items.slice(2),
+                                anchor,
+                                close: () => {
+                                  setMoreInfo(undefined);
+                                  anchor.focus({ preventScroll: true });
+                                },
+                                openView: (viewName) => {
+                                  setMoreInfo(undefined);
+                                  context.openDateView?.(dateISO, viewName);
+                                },
+                              };
+                              if (context.onMonthMoreClick?.(info) === false) return;
+                              if (context.options.monthMoreView) {
+                                info.openView(context.options.monthMoreView);
+                                return;
+                              }
+                              setMoreInfo(info);
+                            }}
+                          >
+                            +{items.length - 2}
+                            <span className="mc-month-more-label"> {labels.more}</span>
+                          </button>
                         )}
                       </div>
                     )}
@@ -223,6 +258,49 @@ function YearPlanner({
           ))}
         </tbody>
       </table>
+      {moreInfo && scrollRef.current && (
+        <Suspense fallback={null}>
+          <MonthMorePopover
+            id={detailId}
+            anchor={moreInfo.anchor}
+            container={
+              scrollRef.current.closest<HTMLElement>('[data-mc-root]') ?? scrollRef.current
+            }
+            label={formatDate({
+              date: context.temporal.PlainDate.from(moreInfo.dateISO),
+              locale: context.options.locale,
+              options: { dateStyle: 'full' },
+            })}
+            locale={context.options.locale}
+            onClose={closeDetail}
+          >
+            {context.renderMonthMore ? (
+              context.renderMonthMore({
+                ...moreInfo,
+                occurrences: itemsByDate.get(moreInfo.dateISO) ?? [],
+                hiddenOccurrences: (itemsByDate.get(moreInfo.dateISO) ?? []).slice(2),
+              })
+            ) : (
+              <div className="mc-month-detail">
+                {(itemsByDate.get(moreInfo.dateISO) ?? []).map((occurrence) => (
+                  <button
+                    type="button"
+                    className="mc-month-popover-event"
+                    key={occurrenceKey(occurrence)}
+                    data-mc-month-detail-event={occurrenceKey(occurrence)}
+                    onClick={() => {
+                      closeDetail();
+                      context.onEventClick?.(occurrence);
+                    }}
+                  >
+                    {occurrence.event.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </MonthMorePopover>
+        </Suspense>
+      )}
     </div>
   );
 }
