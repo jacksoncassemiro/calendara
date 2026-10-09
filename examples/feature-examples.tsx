@@ -702,7 +702,19 @@ function Demo({ id, language }: { id: string; language: SiteLanguage }) {
             occurrence={editing}
             resources={rooms}
             timeZone={timeZone}
-            locale={language}
+            locale={id === 'editor-language' ? 'es-ES' : language}
+            messages={
+              id === 'editor-language'
+                ? {
+                    title: 'Título de la cita',
+                    start: 'Inicio',
+                    end: 'Fin',
+                    saveEvent: 'Guardar',
+                    cancel: 'Cancelar',
+                    saveFailed: 'No se pudo guardar',
+                  }
+                : undefined
+            }
             onCancel={() => setEditing(undefined)}
             validate={(candidate) => {
               const result = api.evaluateEvent(candidate, editing);

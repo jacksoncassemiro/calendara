@@ -21,6 +21,7 @@ const contracts = [
   ['YearPlannerViewOptions', 'src/react/views/YearPlannerView.tsx'],
   ['CalendarPrintOptions', 'src/react/printing.ts'],
   ['CalendarPrintInput', 'src/react/printing.ts'],
+  ['CalendarEditorMessages', 'src/react/editorMessages.ts'],
   ['CalendarEventEditorProps', 'src/react/CalendarEventEditor.tsx'],
   ['CalendarEditorContext', 'src/react/CalendarEventEditor.tsx'],
   ['ReactViewConfig', 'src/react/createReactView.tsx'],

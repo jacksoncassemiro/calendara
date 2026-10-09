@@ -105,7 +105,7 @@ const constraints: ConstraintSet = {
 
 `Calendar` não monta nem abre `CalendarEventEditor`. Abra modal/drawer/rota própria por `onEventClick`, `onDateSelect` ou pelo aplicativo. Valide com `api.evaluateEvent(draft, originalOccurrence?)`; na edição, passe a ocorrência original para excluir sua reserva. A avaliação cobre intervalo/recursos do candidato, não todas as repetições futuras, e lança erro antes do motor ficar pronto. Persista, atualize estado e feche o formulário.
 
-O editor opcional aceita `event`, `occurrence`, `resources`, `timeZone`, `locale`, `validate`, `onSave`, `onDelete` e `onCancel`. Use `key={occurrenceKey(occurrence)}` ao trocar de ocorrência editada. Os callbacks definem persistência e escopo recorrente. Defina `locale="en-US"` ou `locale="pt-BR"` no editor padrão; o padrão é português. Formulários próprios controlam suas traduções.
+O editor opcional aceita `event`, `occurrence`, `resources`, `timeZone`, `locale`, `messages`, `validate`, `onSave`, `onDelete` e `onCancel`. Use `key={occurrenceKey(occurrence)}` ao trocar de ocorrência editada. Os callbacks definem persistência e escopo recorrente. Defina `locale="en-US"` ou `locale="pt-BR"` no editor padrão; o padrão é português. Use messages para traduções próprias ou um formulário do consumidor.
 
 `renderEvent={info => <MeuEvento {...info} />}` troca o conteúdo mantendo geometria. Hooks ficam dentro de `MeuEvento`, nunca diretamente no callback. `customToolbar` substitui a navegação. `renderMonthMore`/`renderEventMore` personalizam ver mais; callbacks de clique correspondentes podem retornar `false` e abrir componente próprio. `monthMoreView`/`eventMoreView` direcionam para outra view registrada.
 
@@ -215,3 +215,25 @@ Use a forma com entradas nomeadas nessas operações; as sobrecargas posicionais
 ## Recursos e limites
 
 React/React DOM 18 e 19 são peers; testes atuais de runtime usam React 19, com verificação de tipos React 18. SSR emite o container inicial. [Views ampliadas](extended-views.md) oferece hierarquia de recursos, virtualização vertical da timeline e impressão pelo navegador. [ICS](ics.md) oferece importação/exportação de subconjunto estrito, [histórico](history.md) oferece desfazer/refazer do consumidor e [direção](rtl.md) documenta layout e interação RTL. [Recorrência](recurrence.md) suporta as sete frequências com limites explícitos de trabalho/semântica; agendamento iCalendar completo, virtualização horizontal e PDF binário ficam fora do contrato. Hooks de editor/slots adicionais nas specs continuam como propostas. Browser automatizado usa Edge; validação física mobile/Safari e leitor de tela permanece pendente. Veja releases/specs para evidências da versão.
+
+## Traduções próprias do editor
+
+O editor aceita `messages?: Partial<CalendarEditorMessages>` para textos próprios. Chaves omitidas usam inglês quando `locale` começa com en e português nos demais (padrão pt-BR). Valores undefined também usam fallback. `locale` formata meses/dias via Intl; campos de data nativos seguem o navegador. Títulos de recursos, erros do Temporal e erros de validação/persistência do consumidor não são traduzidos automaticamente. Props podem mudar sem remontar; remonte apenas ao trocar o evento editado.
+
+```tsx
+<CalendarEventEditor
+  event={draft}
+  locale="es-ES"
+  messages={{
+    title: 'Título de la cita',
+    saveEvent: 'Guardar',
+    positiveIntegerError: '{field} debe ser un entero positivo.',
+  }}
+  onSave={saveEvent}
+  onCancel={closeEditor}
+/>
+```
+
+O exemplo é um dicionário parcial, não uma tradução completa para espanhol. Preencha todas as chaves do contrato gerado CalendarEditorMessages para um formulário inteiramente traduzido. O editor expõe as sete frequências com horário; dia inteiro exige frequência diária ou maior, sem filtros de horário.
+
+Ao selecionar recorrência por segundo/minuto/hora, um fim ilimitado passa à quantidade atual de ocorrências (padrão 10). Você pode escolher outra quantidade/data ou voltar explicitamente ao fim ilimitado; mantenha as janelas carregadas dentro dos limites de expansão.

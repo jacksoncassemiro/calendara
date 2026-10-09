@@ -62,7 +62,7 @@ A documentação começa com o primeiro calendário e separa guias de integraç�
 
 | Área                 | Limite concreto                                                                                      | Mitigação / contrato                                                                                |
 | -------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Editor padrão        | Textos em EN/PT; `locale` não aceita traduções próprias.                                             | Use formulário próprio pelos callbacks e `evaluateEvent`; [API](api.md).                            |
+| Editor padrão        | Padrão EN/PT; outros idiomas por `messages` e Intl `locale`.                                         | Use formulário próprio pelos callbacks e `evaluateEvent`; [API](api.md).                            |
 | Recorrência          | Até 50.000 períodos e 100.000 candidatos por período; erro ao exceder.                               | Reduza a janela/filtros; [combinações e limites](recurrence.md).                                    |
 | ICS                  | Entrada até 5 MiB de unidades UTF-16; sem VTIMEZONE, alarmes, convites ou CalDAV.                    | Adaptador externo para esses formatos; revise diagnósticos; [campos suportados/rejeitados](ics.md). |
 | Virtualização        | Apenas linhas da timeline de recursos; sem janela horizontal ou cache de projeções.                  | Ative `virtualization`, restrinja período/recursos carregados; [configuração](extended-views.md).   |

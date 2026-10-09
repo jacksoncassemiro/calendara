@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- Add partial editor dictionaries with EN/PT fallback, Intl date labels and seven timed recurrence frequencies; prevent intraday all-day rules.
+
 - Refreshed documentation/playground brand colors with theme-aware contrast; bilingual READMEs reuse the site logo and separate language selection from navigation.
 
 - Add nested resource rows and bounded vertical timeline virtualization, preserving offscreen capacity, focused/active rows and print data.
@@ -88,3 +90,4 @@ Initial experimental release under the MIT license.
 - React 19/Edge is the tested runtime; physical Safari/mobile and screen-reader validation remains open.
 - No automatic persistence, full RFC 5545 coverage, ICS export, resource virtualization or multi-day resource timeline.
 - Versioned package assets are immutable; documentation/playground updates can be deployed separately.
+

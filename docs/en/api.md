@@ -105,7 +105,7 @@ Assign `event.resourceIds` to reserve rooms/equipment/professionals together. Mi
 
 `Calendar` does not mount or open `CalendarEventEditor`. Open your own modal/drawer/route through `onEventClick`, `onDateSelect`, or your application. Validate with `api.evaluateEvent(draft, originalOccurrence?)`; pass the original occurrence on edits to exclude its reservation. Validation checks the candidate's whole interval/resources, not all future repetitions, and throws before the engine is ready. Persist, update state, then close your form.
 
-The optional editor accepts `event`, `occurrence`, `resources`, `timeZone`, `locale`, `validate`, `onSave`, `onDelete` and `onCancel`. Set `key={occurrenceKey(occurrence)}` when switching edited occurrences. Callbacks choose persistence and recurrence scope. Set `locale="en-US"` or `locale="pt-BR"` for the built-in editor; its default is Portuguese. Custom forms own their translations.
+The optional editor accepts `event`, `occurrence`, `resources`, `timeZone`, `locale`, `messages`, `validate`, `onSave`, `onDelete` and `onCancel`. Set `key={occurrenceKey(occurrence)}` when switching edited occurrences. Callbacks choose persistence and recurrence scope. Set `locale="en-US"` or `locale="pt-BR"` for the built-in editor; its default is Portuguese. Use messages for custom editor translations or a consumer-owned form.
 
 `renderEvent={info => <YourEvent {...info} />}` replaces card content while preserving its geometry. Hooks belong inside `YourEvent`, not directly in the render callback. `customToolbar` replaces navigation content. `renderMonthMore`/`renderEventMore` customize overflow; corresponding click callbacks can return `false` to open your own component. `monthMoreView`/`eventMoreView` can target another registered view.
 
@@ -215,3 +215,25 @@ Use the named-input form for these operations; positional overloads are removed.
 ## Features and limits
 
 React/React DOM 18 and 19 are declared peers; current runtime tests use React 19, with React 18 type checks. SSR emits the initial container. [Extended views](extended-views.md) provides resource hierarchy, vertical timeline virtualization and browser printing. [ICS](ics.md) provides strict subset import/export, [history](history.md) provides consumer undo/redo and [direction](rtl.md) documents RTL layout and interaction. [Recurrence](recurrence.md) supports all seven frequencies with explicit work/semantic limits; complete iCalendar scheduling, horizontal virtualization and binary PDF export are outside the contract. Additional editor hooks/slots in specifications remain proposals. Automated browser checks use Edge; physical mobile/Safari and screen-reader validation remain pending. Consult release notes and implementation specs for version-specific evidence.
+
+## Custom editor translations
+
+The optional editor accepts `messages?: Partial<CalendarEditorMessages>` for custom text. Omitted keys use English when `locale` starts with en, Portuguese otherwise (default pt-BR). Undefined values also fall back. `locale` formats month/weekday names through Intl; native date controls follow the browser. Resource titles, Temporal errors and consumer validation/persistence errors are not translated automatically. Props can change without remounting; remount only when changing the edited event.
+
+```tsx
+<CalendarEventEditor
+  event={draft}
+  locale="es-ES"
+  messages={{
+    title: 'Título de la cita',
+    saveEvent: 'Guardar',
+    positiveIntegerError: '{field} debe ser un entero positivo.',
+  }}
+  onSave={saveEvent}
+  onCancel={closeEditor}
+/>
+```
+
+This example is a partial dictionary, not a complete Spanish translation. Complete all keys using the generated CalendarEditorMessages contract for a fully translated form. The editor exposes all seven timed recurrence frequencies; all-day recurrence requires daily or longer frequencies without time filters.
+
+Selecting secondly/minutely/hourly recurrence changes an unbounded end to the current occurrence count (default 10). You can explicitly choose another count/date or an unbounded end; keep loaded ranges within expansion limits.

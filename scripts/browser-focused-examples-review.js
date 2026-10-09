@@ -6,6 +6,7 @@ async (page) => {
     : pathname.slice(0, pathname.lastIndexOf('/'));
   const url = (id) => `${origin}${siteBase}/examples/features.html?demo=${id}&lang=en&theme=dark`;
   const views = {
+    'editor-language': 'day',
     history: 'day',
     ics: 'week',
     'timeline-tree': 'timeline-tree',
@@ -42,6 +43,12 @@ async (page) => {
     await page.locator(`[data-mc-root][data-mc-view="${view}"]`).waitFor();
     if ((await page.locator('.focused-catalog a').count()) !== Object.keys(views).length)
       throw new Error('Incomplete focused catalog');
+    if (demo === 'editor-language') {
+      await page.locator('[data-mc-event]').first().click();
+      await page.getByLabel('Título de la cita', { exact: true }).fill('Cita traducida');
+      await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+      await page.locator('[data-mc-event]').filter({ hasText: 'Cita traducida' }).waitFor();
+    }
     if (!(await page.locator('.example-code code').first().textContent()).includes('Calendar'))
       throw new Error('Missing integration code: ' + demo);
     if (!(await page.locator('.example-code .token').count()))

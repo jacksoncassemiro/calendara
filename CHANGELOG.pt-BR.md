@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- Adicionados dicionários parciais do editor com fallback EN/PT, rótulos por Intl e sete frequências com horário; bloqueadas regras intradiárias em dia inteiro.
+
 - Renovada a paleta da documentação/playground com contraste por tema; READMEs bilíngues usam a logo do site e separam a escolha de idioma da navegação.
 
 - Adiciona recursos hierárquicos e virtualização vertical da timeline, preservando capacidade fora da tela, foco/gesto ativos e dados de impressão.
@@ -88,3 +90,4 @@ Primeira release experimental sob licença MIT.
 - Runtime validado: React 19/Edge. Safari/mobile físico e leitores de tela ainda precisam de validação.
 - Sem persistência automática, RFC 5545 completo, exportação ICS, virtualização ou timeline de recursos de vários dias.
 - Pacotes publicados são imutáveis; documentação/playground podem receber deploys separados.
+

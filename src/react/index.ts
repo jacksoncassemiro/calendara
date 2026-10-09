@@ -38,3 +38,5 @@ export {
   type EventSourceContext,
   type RangeChange,
 } from './app/calendarApp.js';
+
+export type { CalendarEditorMessages } from './editorMessages.js';

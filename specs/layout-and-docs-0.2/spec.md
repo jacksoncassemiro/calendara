@@ -35,3 +35,6 @@ Horizontal virtualization, projection caching, complete iCalendar/invitation sem
 
 Brand review: documentation and playground share petrol/mint brand tokens with neutral surfaces. EN/PT READMEs reuse exported site logos and separate language navigation. Browser checks verify sampled brand/body/primary-button contrast >= 4.5:1 in both themes, plus bounded 320/375 px layouts; this is not full WCAG certification. Public features guides now list concrete limits and mitigations.
 
+
+Editor follow-up: partial CalendarEditorMessages overrides, EN/PT fallback, Intl month/weekday labels and intraday options are validated by 13 editor integration cases. Complete verification passed 573 tests in 44 suites with 42 generated contracts; the full browser suite passed in 115.89 s, including the 28th focused translation example. A finite-count default mitigates accidental unbounded intraday expansion. Transparent 3x site-logo exports replace opaque README captures.
+

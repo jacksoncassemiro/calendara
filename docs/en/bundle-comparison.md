@@ -10,13 +10,13 @@ Node 24.18.1 / Windows, Vite 8.3.3, ES2022, production minification and tree sha
 | ------------------------------------------------------- | -------------: | ---------: |
 | Calendara Day                                           |        220,072 |     69,869 |
 | Calendara Month + Day                                   |        232,597 |     72,856 |
-| Calendara built-in views + resources + editor           |        267,432 |     81,104 |
+| Calendara built-in views + resources + editor           |        270,568 |     81,995 |
 | FullCalendar Month + Day, React 7.1.1                   |        256,315 |     70,580 |
 | Schedule-X Month + Day, calendar 4.9.1 / React 4.1.0    |        235,920 |     68,704 |
 | Mantine Month + Day, 9.7.1                              |        276,794 |     85,076 |
 | React Big Calendar Month + Day, 1.20.0 / Day.js 1.11.23 |        184,318 |     54,871 |
 
-Before the recurrence change, Calendara Month + Day was **146,041 gzip bytes**. The current **72,856 bytes** retain a reduction of **73,185 bytes (50.1%)** after the added features. The entry falls from 83,195 to **36,447 gzip bytes**. The total includes the lazy Temporal fallback (19,022 bytes), popover (16,763 bytes) and shared labels (624 bytes). Day's entry is 33,465 gzip bytes with a 16,758-byte popover; the built-in views/resources/editor entry is 44,689 bytes, with a 16,769-byte popover plus the same fallback and labels. Native Temporal avoids the fallback download; opening overflow loads the popover when needed. Day excludes MonthView, ListView and the editor. Unimported ICS/history APIs do not contribute to these scenarios.
+Before the recurrence change, Calendara Month + Day was **146,041 gzip bytes**. The current **72,856 bytes** retain a reduction of **73,185 bytes (50.1%)** after the added features. The entry falls from 83,195 to **36,447 gzip bytes**. The total includes the lazy Temporal fallback (19,022 bytes), popover (16,763 bytes) and shared labels (624 bytes). Day's entry is 33,465 gzip bytes with a 16,758-byte popover; the built-in views/resources/editor entry is 45,580 bytes, with a 16,769-byte popover plus the same fallback and labels. Native Temporal avoids the fallback download; opening overflow loads the popover when needed. Day excludes MonthView, ListView and the editor. Unimported ICS/history APIs do not contribute to these scenarios.
 
 The earlier recurrence provider embedded a second Temporal implementation. It is now a development-only differential oracle; production uses the civil iterator and one injected/native/fallback namespace. Rules, DST gaps, COUNT, UNTIL, exceptions, overrides and original occurrence identity are covered by integration tests. This change improves transfer size, not a promise of faster expansion in every workload.
 

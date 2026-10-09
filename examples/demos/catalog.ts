@@ -13,6 +13,22 @@ export type DemoDefinition = {
 
 export const demos: DemoDefinition[] = [
   {
+    id: 'editor-language',
+    title: ['Traduções próprias do editor', 'Custom editor translations'],
+    description: [
+      'Dicionário parcial em espanhol com fallback EN/PT e datas pelo locale.',
+      'Partial Spanish dictionary with EN/PT fallback and locale-formatted dates.',
+    ],
+    view: 'day',
+    code: `<CalendarEventEditor event={editing.event} locale="es-ES"
+  messages={{ title: 'Título de la cita', start: 'Inicio', end: 'Fin', saveEvent: 'Guardar', cancel: 'Cancelar', saveFailed: 'No se pudo guardar' }}
+  onCancel={() => setEditing(undefined)}
+  onSave={candidate => {
+    setEvents(current => current.map(item => item.id === editing.masterId ? candidate : item));
+    setEditing(undefined);
+  }} />`,
+  },
+  {
     id: 'history',
     title: ['Desfazer e refazer alterações', 'Undo and redo changes'],
     description: [
@@ -146,7 +162,7 @@ const tree = createResourceTimelineView({ name: 'timeline-tree', duration: 'week
       'Drag or resize and compare accepted persistence with rollback.',
     ],
     view: 'day',
-    code: 'async function commit(change) {\n  if (reject) return false;\n  setEvents(current => applyEventTimeChange(current, change));\n}\n<Calendar views={[dayView]} events={events} onEventDrop={commit} onEventResize={commit} />',
+    code: 'async function commit(change) {\n  if (reject) return false;\n  setEvents(current => applyEventTimeChange({ events: current, change }));\n}\n<Calendar views={[dayView]} events={events} onEventDrop={commit} onEventResize={commit} />',
   },
   {
     id: 'recurrence',

@@ -83,7 +83,7 @@ const content = {
     limitsList: [
       'Recorrência de segundos até anos, com filtros e exceções; há limites explícitos de expansão.',
       'Recursos, editor, impressão, histórico local e intercâmbio ICS são MIT. A virtualização cobre linhas da timeline. A direção RTL é configurável; componentes próprios devem respeitá-la.',
-      'Editor padrão em português e inglês; formulários próprios podem usar outros idiomas.',
+      'O editor oferece EN/PT e aceita messages para traduções próprias; locale formata meses e dias.',
       'Testes automatizados usam Edge/Chrome. Safari, toque físico e leitores de tela precisam de validação específica.',
       'Validação cliente não substitui autorização nem reserva transacional no servidor.',
     ],
@@ -100,7 +100,7 @@ const content = {
         id: 'persistence',
         title: 'Salvar movimentos e edições',
         text: 'Escolha events em estado React ou eventSource como fonte de verdade. O gesto é otimista: retornar false ou rejeitar a Promise reverte. A biblioteca não grava no servidor.',
-        code: `async function commit(change: EventChange) {\n  await persistChange(change);\n  setEvents(current => applyEventTimeChange(current, change));\n}\n\n<Calendar views={views} events={events}\n  onEventDrop={commit} onEventResize={commit} />;`,
+        code: `async function commit(change: EventChange) {\n  await persistChange(change);\n  setEvents(current => applyEventTimeChange({ events: current, change }));\n}\n\n<Calendar views={views} events={events}\n  onEventDrop={commit} onEventResize={commit} />;`,
         note: 'Importe EventChange e applyEventTimeChange do pacote. persistChange e setEvents pertencem ao aplicativo.',
       },
       {
@@ -192,7 +192,7 @@ const content = {
     limitsList: [
       'Secondly through yearly recurrence, with filters and exceptions; expansion has explicit limits.',
       'Resource views, editor, printing, local history and ICS interchange are MIT. Virtualization covers timeline rows. RTL direction is configurable; custom components must respect it.',
-      'The built-in editor supports Portuguese and English; custom forms can use other languages.',
+      'The editor includes EN/PT and accepts messages for custom translations; locale formats months and weekdays.',
       'Automated tests use Edge/Chrome. Safari, physical touch and screen readers require separate validation.',
       'Client validation does not replace server authorization or transactional reservations.',
     ],
@@ -209,7 +209,7 @@ const content = {
         id: 'persistence',
         title: 'Save moves and edits',
         text: 'Choose React events state or eventSource as the authority. Gestures are optimistic: false or a rejected promise reverts. The library does not persist on a server.',
-        code: `async function commit(change: EventChange) {\n  await persistChange(change);\n  setEvents(current => applyEventTimeChange(current, change));\n}\n\n<Calendar views={views} events={events}\n  onEventDrop={commit} onEventResize={commit} />;`,
+        code: `async function commit(change: EventChange) {\n  await persistChange(change);\n  setEvents(current => applyEventTimeChange({ events: current, change }));\n}\n\n<Calendar views={views} events={events}\n  onEventDrop={commit} onEventResize={commit} />;`,
         note: 'Import EventChange and applyEventTimeChange from the package. persistChange and setEvents belong to your application.',
       },
       {

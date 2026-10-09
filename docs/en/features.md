@@ -62,7 +62,7 @@ Documentation starts with the first calendar, then separates integration guides,
 
 | Area                  | Concrete limit                                                                                            | Mitigation / contract                                                                           |
 | --------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Default editor        | EN/PT text; `locale` does not accept custom translations.                                                 | Use a custom form through callbacks and `evaluateEvent`; [API](api.md).                         |
+| Default editor        | EN/PT defaults; other languages through `messages` and Intl `locale`.                                     | Use a custom form through callbacks and `evaluateEvent`; [API](api.md).                         |
 | Recurrence            | Up to 50,000 periods and 100,000 candidates per period; exceeding limits throws.                          | Reduce the range/filters; [combinations and limits](recurrence.md).                             |
 | ICS                   | Input up to 5 MiB of UTF-16 code units; no VTIMEZONE, alarms, invitations or CalDAV.                      | Use another adapter for those formats; review diagnostics; [supported/rejected fields](ics.md). |
 | Virtualization        | Resource timeline rows only; no horizontal window or projection cache.                                    | Enable `virtualization`, limit loaded periods/resources; [configuration](extended-views.md).    |

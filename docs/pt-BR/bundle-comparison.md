@@ -10,13 +10,13 @@ Node 24.18.1 / Windows, Vite 8.3.3, ES2022, minificação de produção e tree s
 | ----------------------------------------------------- | ----------------: | ---------: |
 | Calendara Dia                                         |           220.072 |     69.869 |
 | Calendara Mês + Dia                                   |           232.597 |     72.856 |
-| Calendara views embutidas + recursos + editor         |           267.432 |     81.104 |
+| Calendara views embutidas + recursos + editor         |           270.568 |     81.995 |
 | FullCalendar Mês + Dia, React 7.1.1                   |           256.315 |     70.580 |
 | Schedule-X Mês + Dia, calendar 4.9.1 / React 4.1.0    |           235.920 |     68.704 |
 | Mantine Mês + Dia, 9.7.1                              |           276.794 |     85.076 |
 | React Big Calendar Mês + Dia, 1.20.0 / Day.js 1.11.23 |           184.318 |     54.871 |
 
-Antes da mudança de recorrência, Calendara Mês + Dia ocupava **146.041 bytes gzip**. Os **72.856 bytes** atuais mantêm redução de **73.185 bytes (50,1%)** após os novos recursos. A entrada cai de 83.195 para **36.447 bytes gzip**. O total inclui o fallback Temporal lazy (19.022 bytes), popover (16.763 bytes) e rótulos compartilhados (624 bytes). A entrada de Dia ocupa 33.465 bytes gzip com popover de 16.758 bytes; a de views embutidas/recursos/editor ocupa 44.689 bytes, com popover de 16.769 bytes mais o mesmo fallback e rótulos. Temporal nativo evita baixar o fallback; abrir eventos excedentes carrega o popover quando necessário. Dia exclui MonthView, ListView e o editor. APIs ICS/histórico não importadas não contribuem nesses cenários.
+Antes da mudança de recorrência, Calendara Mês + Dia ocupava **146.041 bytes gzip**. Os **72.856 bytes** atuais mantêm redução de **73.185 bytes (50,1%)** após os novos recursos. A entrada cai de 83.195 para **36.447 bytes gzip**. O total inclui o fallback Temporal lazy (19.022 bytes), popover (16.763 bytes) e rótulos compartilhados (624 bytes). A entrada de Dia ocupa 33.465 bytes gzip com popover de 16.758 bytes; a de views embutidas/recursos/editor ocupa 45.580 bytes, com popover de 16.769 bytes mais o mesmo fallback e rótulos. Temporal nativo evita baixar o fallback; abrir eventos excedentes carrega o popover quando necessário. Dia exclui MonthView, ListView e o editor. APIs ICS/histórico não importadas não contribuem nesses cenários.
 
 O motor anterior embutia uma segunda implementação de Temporal. Agora permanece apenas como referência diferencial de desenvolvimento; produção usa o iterador civil e um namespace injetado/nativo/fallback. Testes de integração cobrem regras, horários inexistentes no DST, COUNT, UNTIL, exceções, overrides e identidade original. A mudança reduz transferência, sem prometer expansão mais rápida em toda carga.
 

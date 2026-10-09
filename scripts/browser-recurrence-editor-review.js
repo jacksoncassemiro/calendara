@@ -12,8 +12,8 @@ async (page) => {
   await editor.getByLabel('Título', { exact: true }).fill('Auditoria recorrência semanal');
   await editor.getByLabel('Repetir', { exact: true }).selectOption('WEEKLY');
   await editor.getByLabel('Intervalo da repetição', { exact: true }).fill('1');
-  await editor.getByRole('checkbox', { name: 'Segunda-feira', exact: true }).check();
-  await editor.getByRole('checkbox', { name: 'Quarta-feira', exact: true }).check();
+  await editor.getByRole('checkbox', { name: /segunda-feira/i, exact: true }).check();
+  await editor.getByRole('checkbox', { name: /quarta-feira/i, exact: true }).check();
   await editor.getByLabel('Fim da repetição', { exact: true }).selectOption('count');
   await editor.getByLabel('Quantidade de ocorrências', { exact: true }).fill('4');
   await page.screenshot({
