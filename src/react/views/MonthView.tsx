@@ -9,6 +9,7 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useLayoutEffect,
   useId,
   useRef,
   useState,
@@ -164,7 +165,7 @@ function MonthGrid(props: {
   const moreAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [moreInfo, setMoreInfo] = useState<MonthMoreInfo>();
   const detailId = useId();
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = rootRef.current;
     if (!element) return;
     const updateWidth = (width: number) => {
