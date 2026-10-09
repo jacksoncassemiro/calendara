@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-10-09
+
 - Mede a largura dos painéis mensais antes da pintura para evitar layouts de ano/trimestre temporariamente esticados na troca de views.
 
 ## [0.4.3] - 2026-10-09
