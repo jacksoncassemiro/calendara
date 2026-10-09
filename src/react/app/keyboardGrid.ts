@@ -44,7 +44,7 @@ export function keyboardGrid({ event, root, activate }: KeyboardGridInput): void
   let next: HTMLElement | undefined;
   const index = peers.indexOf(target);
   const horizontal = column?.dataset.mcSlot === 'x';
-  const direction = getComputedStyle(root).direction === 'rtl' ? -1 : 1;
+  const direction = (root.dir || getComputedStyle(root).direction) === 'rtl' ? -1 : 1;
   const previous = horizontal ? (direction === 1 ? 'ArrowLeft' : 'ArrowRight') : 'ArrowUp';
   const following = horizontal ? (direction === 1 ? 'ArrowRight' : 'ArrowLeft') : 'ArrowDown';
   if (event.key === previous) next = peers[Math.max(0, index - 1)];

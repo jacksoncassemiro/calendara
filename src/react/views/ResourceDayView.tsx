@@ -149,7 +149,10 @@ function ResourceGrid(props: {
    */
   groupBy: 'date' | 'resource';
 }): JSX.Element {
-  const scrollRef = usePageStickyHeaders(props.context.options.locale);
+  const scrollRef = usePageStickyHeaders(
+    props.context.options.locale,
+    props.context.options.direction,
+  );
   const { context, resources, groupBy } = props;
   const { options, range } = context;
   const startHour = resolveHour(options.startHour);
@@ -340,7 +343,7 @@ function ResourceGrid(props: {
                 style={{
                   position: 'absolute',
                   top: toPx(minuteToY(hourLabel.minute)),
-                  right: '4px',
+                  insetInlineEnd: '4px',
                 }}
               >
                 {hourLabel.label}
@@ -540,7 +543,7 @@ function ResourceColumn(props: {
               position: 'absolute',
               top: toPx(block.top),
               height: toPx(block.height),
-              left: `${block.left * 100}%`,
+              insetInlineStart: `${block.left * 100}%`,
               width: timedEventWidth({ block, overlap: context.options.slotEventOverlap }),
               zIndex: block.column + 1,
               touchAction: 'auto',

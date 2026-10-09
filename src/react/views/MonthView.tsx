@@ -357,7 +357,10 @@ function MonthGrid(props: {
                             ];
                             const index = buttons.indexOf(event.currentTarget);
                             const direction =
-                              getComputedStyle(event.currentTarget).direction === 'rtl' ? -1 : 1;
+                              (options.direction ??
+                                getComputedStyle(event.currentTarget).direction) === 'rtl'
+                                ? -1
+                                : 1;
                             let next = index;
                             if (event.key === 'ArrowLeft') next -= direction;
                             else if (event.key === 'ArrowRight') next += direction;

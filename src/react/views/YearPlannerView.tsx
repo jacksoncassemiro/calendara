@@ -139,11 +139,12 @@ function YearPlanner({
                           aria-label={dateLabel}
                           onClick={() => context.onDateClick?.(dateISO)}
                           onKeyDown={(event) => {
+                            const direction = context.options.direction === 'rtl' ? -1 : 1;
                             const destinationDate =
                               event.key === 'ArrowRight'
-                                ? date.add({ days: 1 })
+                                ? date.add({ days: direction })
                                 : event.key === 'ArrowLeft'
-                                  ? date.subtract({ days: 1 })
+                                  ? date.add({ days: -direction })
                                   : event.key === 'ArrowDown'
                                     ? date.add({ months: 1 })
                                     : event.key === 'ArrowUp'
@@ -186,7 +187,7 @@ function YearPlanner({
                             }
                             onClick={() => context.onEventClick?.(occurrence)}
                           >
-                            <span className="mc-sr-only">{occurrence.event.title}</span>
+                            {occurrence.event.title}
                           </button>
                         ))}
                         {items.length > 2 && (

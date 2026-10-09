@@ -1,5 +1,5 @@
 /** @jsxImportSource react */
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   ensureTemporal,
   parseRRule,
@@ -13,29 +13,14 @@ import {
   type WeekdayCode,
 } from '../core/index.js';
 
-const WEEKDAYS: readonly [WeekdayCode, string][] = [
-  ['MO', 'Segunda-feira'],
-  ['TU', 'Terça-feira'],
-  ['WE', 'Quarta-feira'],
-  ['TH', 'Quinta-feira'],
-  ['FR', 'Sexta-feira'],
-  ['SA', 'Sábado'],
-  ['SU', 'Domingo'],
-];
-const MONTHS = [
-  'Janeiro',
-  'Fevereiro',
-  'Março',
-  'Abril',
-  'Maio',
-  'Junho',
-  'Julho',
-  'Agosto',
-  'Setembro',
-  'Outubro',
-  'Novembro',
-  'Dezembro',
-];
+import {
+  resolveEditorMessages,
+  type CalendarEditorMessageOverrides,
+  type CalendarEditorValidationMessages,
+} from './editorMessages.js';
+
+const WEEKDAYS: readonly WeekdayCode[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+const MONTH_NUMBERS = Array.from({ length: 12 }, (_, index) => index + 1);
 
 type RecurrenceEnd = 'never' | 'count' | 'until';
 type RecurrenceField = 'frequency' | 'interval' | 'end' | 'weekdays' | 'monthDay' | 'month';
@@ -44,20 +29,18 @@ type RecurrenceField = 'frequency' | 'interval' | 'end' | 'weekdays' | 'monthDay
 function parsePositiveInteger({
   value,
   label,
-  english,
+  formatError,
 }: {
   /** Raw form value. @remarks Português: Valor bruto do formulário. */
   value: string;
   /** Localized field name. @remarks Português: Nome traduzido do campo. */
   label: string;
-  /** Use English error text. @remarks Português: Usa mensagem de erro em inglês. */
-  english: boolean;
+  /** Localized validation formatter. @remarks Português: Formatador traduzido de validação. */
+  formatError: CalendarEditorValidationMessages['positiveInteger'];
 }): number {
   const parsedInteger = Number(value);
   if (!value.trim() || !Number.isSafeInteger(parsedInteger) || parsedInteger <= 0) {
-    throw new Error(
-      `${label}${english ? ' must be a positive integer.' : ' precisa ser um inteiro positivo.'}`,
-    );
+    throw new Error(formatError({ field: label }));
   }
   return parsedInteger;
 }
@@ -81,10 +64,12 @@ export interface CalendarEventEditorProps {
   resources?: readonly CalendarResource[];
   /** Display time zone; defaults to the event zone, then UTC. @remarks Português: Fuso de exibição; padrão é o do evento, depois UTC. */
   timeZone?: string;
-  /** Editor language: English for en locales, Portuguese otherwise; default pt-BR.
-   * @remarks Português: Idioma do editor: inglês em locales en; português nos demais. Padrão pt-BR.
+  /** Date locale and EN/PT text fallback; default pt-BR. Override text with messages.
+   * @remarks Português: Locale de datas e fallback EN/PT; padrão pt-BR. Substitua textos com messages.
    */
   locale?: string;
+  /** Override editor text; missing keys use the EN/PT locale fallback. @remarks Português: Substitui textos; chaves ausentes usam fallback EN/PT do locale. */
+  messages?: CalendarEditorMessageOverrides;
   /** Inject Temporal; otherwise resolved automatically. @remarks Português: Injeta Temporal; ausente resolve automaticamente. */
   temporal?: TemporalLike;
   /** Return an error before saving. @remarks Português: Retorna mensagem de erro antes de salvar. */
@@ -115,8 +100,22 @@ function previousDate(iso: string): string {
 /** Optional event form; remount with the occurrence key when switching events. @remarks Português: Formulário opcional; remonte usando a chave da ocorrência ao trocar de evento. */
 export function CalendarEventEditor(props: CalendarEventEditorProps) {
   const { event } = props;
-  const english = props.locale?.startsWith('en') ?? false;
-  const t = (portuguese: string, englishText: string) => (english ? englishText : portuguese);
+  const messages = useMemo(
+    () => resolveEditorMessages({ locale: props.locale, overrides: props.messages }),
+    [props.locale, props.messages],
+  );
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const dateFormatters = useMemo(
+    () => ({
+      weekday: new Intl.DateTimeFormat(props.locale ?? 'pt-BR', {
+        weekday: 'long',
+        timeZone: 'UTC',
+      }),
+      month: new Intl.DateTimeFormat(props.locale ?? 'pt-BR', { month: 'long', timeZone: 'UTC' }),
+    }),
+    [props.locale],
+  );
   const id = useId();
   const titleRef = useRef<HTMLInputElement>(null);
   const busyRef = useRef(false);
@@ -141,7 +140,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
   };
   const initialDate = (event.time.start.date ?? event.time.start.dateTime ?? '').slice(0, 10);
   const initialWeekday =
-    WEEKDAYS[(new Date(`${initialDate}T00:00:00Z`).getUTCDay() + 6) % 7]?.[0] ?? 'MO';
+    WEEKDAYS[(new Date(`${initialDate}T00:00:00Z`).getUTCDay() + 6) % 7] ?? 'MO';
   const [repeatInterval, setRepeatInterval] = useState(String(parsedRule?.interval ?? 1));
   const [repeatEnd, setRepeatEnd] = useState<RecurrenceEnd>(
     parsedRule?.count ? 'count' : parsedRule?.until ? 'until' : 'never',
@@ -196,13 +195,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
         );
       })
       .catch(() => {
-        if (active)
-          setError(
-            t(
-              'Não foi possível carregar o fuso horário do evento.',
-              'Could not load the event time zone.',
-            ),
-          );
+        if (active) setError(messagesRef.current.feedback.timeZoneLoadFailed);
       });
     return () => {
       active = false;
@@ -221,11 +214,10 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
     try {
       if (deleteRequested) {
         if ((await props.onDelete?.(event, context)) === false)
-          throw new Error(t('Não foi possível excluir o evento.', 'Could not delete the event.'));
+          throw new Error(messages.feedback.deleteFailed);
         return;
       }
-      if (!title.trim())
-        throw new Error(t('Informe o título do evento.', 'Enter the event title.'));
+      if (!title.trim()) throw new Error(messages.validation.titleRequired);
       const temporal = props.temporal ?? (await ensureTemporal());
       const calendarTimeZone = props.timeZone ?? event.time.start.timeZone ?? 'UTC';
       let time: CalendarEvent['time'];
@@ -233,12 +225,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
         const startDate = temporal.PlainDate.from(start);
         const endDate = temporal.PlainDate.from(end);
         if (temporal.PlainDate.compare(endDate, startDate) < 0)
-          throw new Error(
-            t(
-              'O último dia precisa ser igual ou posterior ao início.',
-              'The last day must be on or after the start.',
-            ),
-          );
+          throw new Error(messages.validation.lastDayInvalid);
         time = {
           allDay: true,
           start: { date: startDate.toString() },
@@ -254,9 +241,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
           disambiguation: 'reject',
         });
         if (zonedEnd.epochMilliseconds <= zonedStart.epochMilliseconds)
-          throw new Error(
-            t('O término precisa ser posterior ao início.', 'The end must be after the start.'),
-          );
+          throw new Error(messages.validation.endInvalid);
         time = {
           allDay: false,
           start: { dateTime: startDate.toString(), timeZone: calendarTimeZone },
@@ -278,8 +263,8 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
           if (shouldUpdateRuleField('interval'))
             rule.interval = parsePositiveInteger({
               value: repeatInterval,
-              label: t('O intervalo', 'Interval'),
-              english,
+              label: messages.recurrence.interval,
+              formatError: messages.validation.positiveInteger,
             });
           if (shouldUpdateRuleField('end')) {
             delete rule.count;
@@ -287,28 +272,20 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
             if (repeatEnd === 'count')
               rule.count = parsePositiveInteger({
                 value: repeatCount,
-                label: t('A quantidade de ocorrências', 'Occurrence count'),
-                english,
+                label: messages.recurrence.count,
+                formatError: messages.validation.positiveInteger,
               });
             if (repeatEnd === 'until') {
               const endDate = temporal.PlainDate.from(repeatUntil);
               if (
                 temporal.PlainDate.compare(endDate, temporal.PlainDate.from(start.slice(0, 10))) < 0
               )
-                throw new Error(
-                  t(
-                    'O fim da repetição precisa ser igual ou posterior ao início.',
-                    'Recurrence must end on or after the start.',
-                  ),
-                );
+                throw new Error(messages.validation.recurrenceEndInvalid);
               rule.until = endDate.toString();
             }
           }
           if (frequency === 'WEEKLY' && shouldUpdateRuleField('weekdays')) {
-            if (!repeatWeekdays.length)
-              throw new Error(
-                t('Selecione pelo menos um dia da semana.', 'Select at least one weekday.'),
-              );
+            if (!repeatWeekdays.length) throw new Error(messages.validation.weekdaysRequired);
             rule.byDay = repeatWeekdays.map((weekday) => ({ weekday }));
           }
           if (usesMonthDay && shouldUpdateRuleField('monthDay')) {
@@ -319,20 +296,15 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
               day === 0 ||
               Math.abs(day) > 31
             )
-              throw new Error(
-                t(
-                  'O dia do mês precisa estar entre 1 e 31, ou entre -31 e -1.',
-                  'Day of month must be between 1 and 31, or between -31 and -1.',
-                ),
-              );
+              throw new Error(messages.validation.monthDayInvalid);
             rule.byMonthDay = [day];
           }
           if (frequency === 'YEARLY' && shouldUpdateRuleField('month'))
             rule.byMonth = [
               parsePositiveInteger({
                 value: repeatMonth,
-                label: t('O mês', 'Month'),
-                english,
+                label: messages.recurrence.month,
+                formatError: messages.validation.positiveInteger,
               }),
             ];
           // Retain untouched advanced recurrence clauses. PT: Preserva cláusulas avançadas de recorrência não editadas.
@@ -340,19 +312,24 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
           updated.recurrence = { ...event.recurrence, rule };
         } else delete updated.recurrence;
       }
+      const updatedRule = updated.recurrence?.rule;
+      const recurrenceModel =
+        typeof updatedRule === 'string' ? parseRRule(updatedRule) : updatedRule;
+      if (
+        allDay &&
+        recurrenceModel &&
+        (['SECONDLY', 'MINUTELY', 'HOURLY'].includes(recurrenceModel.freq) ||
+          recurrenceModel.byHour?.length ||
+          recurrenceModel.byMinute?.length ||
+          recurrenceModel.bySecond?.length)
+      )
+        throw new Error(messages.validation.allDayRecurrenceInvalid);
       const validationError = await props.validate?.(updated, context);
       if (validationError) throw new Error(validationError);
       if ((await props.onSave(updated, context)) === false)
-        throw new Error(t('Não foi possível salvar o evento.', 'Could not save the event.'));
+        throw new Error(messages.feedback.saveFailed);
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : t(
-              'Não foi possível concluir. Tente novamente.',
-              'Could not complete the action. Try again.',
-            ),
-      );
+      setError(cause instanceof Error ? cause.message : messages.feedback.actionFailed);
     } finally {
       busyRef.current = false;
       setPending(false);
@@ -362,7 +339,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
   return (
     <form
       className="mc-event-editor"
-      aria-label={t('Editar evento', 'Edit event')}
+      aria-label={messages.fields.formTitle}
       aria-busy={pending}
       onSubmit={(submitEvent) => {
         submitEvent.preventDefault();
@@ -370,9 +347,9 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
       }}
     >
       <fieldset disabled={pending || readOnly}>
-        <legend>{t('Editar e reagendar evento', 'Edit and reschedule event')}</legend>
-        {readOnly && <p>{t('Este evento permite apenas consulta.', 'This event is read-only.')}</p>}
-        <label htmlFor={`${id}-title`}>{t('Título', 'Title')}</label>
+        <legend>{messages.fields.heading}</legend>
+        {readOnly && <p>{messages.feedback.readOnly}</p>}
+        <label htmlFor={`${id}-title`}>{messages.fields.title}</label>
         <input
           ref={titleRef}
           id={`${id}-title`}
@@ -382,21 +359,17 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
         />
         {recurring && (
           <>
-            <label htmlFor={`${id}-scope`}>{t('Aplicar alterações', 'Apply changes')}</label>
+            <label htmlFor={`${id}-scope`}>{messages.scope.label}</label>
             <select
               id={`${id}-scope`}
               value={scope}
               onChange={(changeEvent) => setScope(changeEvent.target.value as CalendarEditScope)}
             >
-              {props.occurrence && (
-                <option value="occurrence">{t('Somente este evento', 'Only this event')}</option>
-              )}
+              {props.occurrence && <option value="occurrence">{messages.scope.occurrence}</option>}
               {props.occurrence && parsedRule && (
-                <option value="following">
-                  {t('Este e os seguintes', 'This and following events')}
-                </option>
+                <option value="following">{messages.scope.following}</option>
               )}
-              <option value="series">{t('Toda a série', 'Entire series')}</option>
+              <option value="series">{messages.scope.series}</option>
             </select>
           </>
         )}
@@ -411,15 +384,15 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
               setEnd(isAllDayChecked ? end.slice(0, 10) : `${end.slice(0, 10)}T10:00`);
             }}
           />
-          {t('Dia inteiro', 'All day')}
+          {messages.fields.allDay}
         </label>
         {!allDay && (
           <p>
-            {t('Fuso horário:', 'Time zone:')}
+            {messages.fields.timeZone}
             {props.timeZone ?? event.time.start.timeZone ?? 'UTC'}
           </p>
         )}
-        <label htmlFor={`${id}-start`}>{t('Início', 'Start')}</label>
+        <label htmlFor={`${id}-start`}>{messages.fields.start}</label>
         <input
           id={`${id}-start`}
           type={allDay ? 'date' : 'datetime-local'}
@@ -429,7 +402,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
           onChange={(changeEvent) => setStart(changeEvent.target.value)}
         />
         <label htmlFor={`${id}-end`}>
-          {allDay ? t('Último dia', 'Last day') : t('Término', 'End')}
+          {allDay ? messages.fields.lastDay : messages.fields.end}
         </label>
         <input
           id={`${id}-end`}
@@ -441,27 +414,42 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
         />
         {scope === 'series' && (
           <>
-            <label htmlFor={`${id}-repeat`}>{t('Repetir', 'Repeat')}</label>
+            <label htmlFor={`${id}-repeat`}>{messages.recurrence.label}</label>
             <select
               id={`${id}-repeat`}
               value={frequency}
               onChange={(changeEvent) => {
-                setFrequency(changeEvent.target.value as Frequency | '');
+                const selectedFrequency = changeEvent.target.value as Frequency | '';
+                setFrequency(selectedFrequency);
                 markRuleField('frequency');
+                if (
+                  ['SECONDLY', 'MINUTELY', 'HOURLY'].includes(selectedFrequency) &&
+                  repeatEnd === 'never'
+                ) {
+                  setRepeatEnd('count');
+                  markRuleField('end');
+                }
               }}
             >
-              <option value="">{t('Não repetir', 'Does not repeat')}</option>
-              <option value="DAILY">{t('Diariamente', 'Daily')}</option>
-              <option value="WEEKLY">{t('Semanalmente', 'Weekly')}</option>
-              <option value="MONTHLY">{t('Mensalmente', 'Monthly')}</option>
-              <option value="YEARLY">{t('Anualmente', 'Yearly')}</option>
+              <option value="">{messages.recurrence.none}</option>
+              <option value="SECONDLY" disabled={allDay}>
+                {messages.recurrence.secondly}
+              </option>
+              <option value="MINUTELY" disabled={allDay}>
+                {messages.recurrence.minutely}
+              </option>
+              <option value="HOURLY" disabled={allDay}>
+                {messages.recurrence.hourly}
+              </option>
+              <option value="DAILY">{messages.recurrence.daily}</option>
+              <option value="WEEKLY">{messages.recurrence.weekly}</option>
+              <option value="MONTHLY">{messages.recurrence.monthly}</option>
+              <option value="YEARLY">{messages.recurrence.yearly}</option>
             </select>
             {frequency && (
               <fieldset>
-                <legend>{t('Configuração da repetição', 'Recurrence settings')}</legend>
-                <label htmlFor={`${id}-repeat-interval`}>
-                  {t('Intervalo da repetição', 'Recurrence interval')}
-                </label>
+                <legend>{messages.recurrence.settings}</legend>
+                <label htmlFor={`${id}-repeat-interval`}>{messages.recurrence.interval}</label>
                 <input
                   id={`${id}-repeat-interval`}
                   type="number"
@@ -475,18 +463,24 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                   }}
                 />
                 <p>
-                  {frequency === 'DAILY'
-                    ? t('Em dias', 'In days')
-                    : frequency === 'WEEKLY'
-                      ? t('Em semanas', 'In weeks')
-                      : frequency === 'MONTHLY'
-                        ? t('Em meses', 'In months')
-                        : t('Em anos', 'In years')}
+                  {frequency === 'SECONDLY'
+                    ? messages.recurrence.inSeconds
+                    : frequency === 'MINUTELY'
+                      ? messages.recurrence.inMinutes
+                      : frequency === 'HOURLY'
+                        ? messages.recurrence.inHours
+                        : frequency === 'DAILY'
+                          ? messages.recurrence.inDays
+                          : frequency === 'WEEKLY'
+                            ? messages.recurrence.inWeeks
+                            : frequency === 'MONTHLY'
+                              ? messages.recurrence.inMonths
+                              : messages.recurrence.inYears}
                 </p>
                 {frequency === 'WEEKLY' && (
                   <fieldset className="mc-recurrence-weekdays">
-                    <legend>{t('Dias da semana', 'Weekdays')}</legend>
-                    {WEEKDAYS.map(([weekday, label], index) => (
+                    <legend>{messages.recurrence.weekdays}</legend>
+                    {WEEKDAYS.map((weekday, index) => (
                       <label className="mc-editor-check" key={weekday}>
                         <input
                           type="checkbox"
@@ -500,21 +494,14 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                             markRuleField('weekdays');
                           }}
                         />
-                        {english
-                          ? new Intl.DateTimeFormat('en-US', {
-                              weekday: 'long',
-                              timeZone: 'UTC',
-                            }).format(new Date(Date.UTC(2026, 0, 5 + index)))
-                          : label}
+                        {dateFormatters.weekday.format(new Date(Date.UTC(2026, 0, 5 + index)))}
                       </label>
                     ))}
                   </fieldset>
                 )}
                 {usesMonthDay && (
                   <>
-                    <label htmlFor={`${id}-repeat-day`}>
-                      {t('Dia do mês da repetição', 'Recurring day of month')}
-                    </label>
+                    <label htmlFor={`${id}-repeat-day`}>{messages.recurrence.monthDay}</label>
                     <input
                       id={`${id}-repeat-day`}
                       type="number"
@@ -528,19 +515,12 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                         markRuleField('monthDay');
                       }}
                     />
-                    <p>
-                      {t(
-                        'Valores negativos contam a partir do fim do mês: -1 é o último dia.',
-                        'Negative values count from the end of the month: -1 is the last day.',
-                      )}
-                    </p>
+                    <p>{messages.recurrence.monthDayHint}</p>
                   </>
                 )}
                 {frequency === 'YEARLY' && (
                   <>
-                    <label htmlFor={`${id}-repeat-month`}>
-                      {t('Mês da repetição', 'Recurring month')}
-                    </label>
+                    <label htmlFor={`${id}-repeat-month`}>{messages.recurrence.month}</label>
                     <select
                       id={`${id}-repeat-month`}
                       value={repeatMonth}
@@ -549,22 +529,17 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                         markRuleField('month');
                       }}
                     >
-                      {MONTHS.map((month, index) => (
-                        <option key={month} value={index + 1}>
-                          {english
-                            ? new Intl.DateTimeFormat('en-US', {
-                                month: 'long',
-                                timeZone: 'UTC',
-                              }).format(new Date(Date.UTC(2026, index, 1)))
-                            : month}
+                      {MONTH_NUMBERS.map((monthNumber) => (
+                        <option key={monthNumber} value={monthNumber}>
+                          {dateFormatters.month.format(
+                            new Date(Date.UTC(2026, monthNumber - 1, 1)),
+                          )}
                         </option>
                       ))}
                     </select>
                   </>
                 )}
-                <label htmlFor={`${id}-repeat-end`}>
-                  {t('Fim da repetição', 'Recurrence end')}
-                </label>
+                <label htmlFor={`${id}-repeat-end`}>{messages.recurrence.end}</label>
                 <select
                   id={`${id}-repeat-end`}
                   value={repeatEnd}
@@ -573,17 +548,13 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                     markRuleField('end');
                   }}
                 >
-                  <option value="never">{t('Nunca', 'Never')}</option>
-                  <option value="count">
-                    {t('Após uma quantidade', 'After a number of occurrences')}
-                  </option>
-                  <option value="until">{t('Até uma data', 'Until a date')}</option>
+                  <option value="never">{messages.recurrence.never}</option>
+                  <option value="count">{messages.recurrence.afterCount}</option>
+                  <option value="until">{messages.recurrence.untilDate}</option>
                 </select>
                 {repeatEnd === 'count' && (
                   <>
-                    <label htmlFor={`${id}-repeat-count`}>
-                      {t('Quantidade de ocorrências', 'Number of occurrences')}
-                    </label>
+                    <label htmlFor={`${id}-repeat-count`}>{messages.recurrence.count}</label>
                     <input
                       id={`${id}-repeat-count`}
                       type="number"
@@ -600,9 +571,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                 )}
                 {repeatEnd === 'until' && (
                   <>
-                    <label htmlFor={`${id}-repeat-until`}>
-                      {t('Data final da repetição', 'Last recurrence date')}
-                    </label>
+                    <label htmlFor={`${id}-repeat-until`}>{messages.recurrence.until}</label>
                     <input
                       id={`${id}-repeat-until`}
                       type="date"
@@ -615,21 +584,14 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
                     />
                   </>
                 )}
-                {parsedRule && (
-                  <p>
-                    {t(
-                      'As cláusulas avançadas da regra existente são preservadas até que o campo correspondente seja alterado.',
-                      'Advanced clauses in the existing rule are preserved until their corresponding field changes.',
-                    )}
-                  </p>
-                )}
+                {parsedRule && <p>{messages.recurrence.advancedHint}</p>}
               </fieldset>
             )}
           </>
         )}
         {!!props.resources?.length && (
           <fieldset>
-            <legend>{t('Recursos', 'Resources')}</legend>
+            <legend>{messages.fields.resources}</legend>
             {props.resources.map((resource) => (
               <label className="mc-editor-check" key={resource.id}>
                 <input
@@ -656,10 +618,10 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
       )}
       <div className="mc-editor-actions">
         <button type="submit" disabled={pending || readOnly}>
-          {pending ? t('Salvando…', 'Saving…') : t('Salvar evento', 'Save event')}
+          {pending ? messages.actions.saving : messages.actions.save}
         </button>
         <button type="button" disabled={pending} onClick={props.onCancel}>
-          {t('Cancelar', 'Cancel')}
+          {messages.actions.cancel}
         </button>
         {props.onDelete && (
           <button
@@ -667,7 +629,7 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
             disabled={pending || readOnly}
             onClick={() => void persistEditorChanges(true)}
           >
-            {t('Excluir evento', 'Delete event')}
+            {messages.actions.delete}
           </button>
         )}
       </div>

@@ -1,0 +1,368 @@
+{
+  "date": "2026-10-09",
+  "node": "v24.18.1",
+  "platform": "win32",
+  "vite": "8.3.3",
+  "target": "es2022",
+  "excluded": [
+    "react",
+    "react-dom",
+    "CSS"
+  ],
+  "versions": {
+    "@fullcalendar/react": "7.1.1",
+    "@mantine/core": "9.7.1",
+    "@mantine/dates": "9.7.1",
+    "@mantine/hooks": "9.7.1",
+    "@mantine/schedule": "9.7.1",
+    "@preact/signals": "2.11.3",
+    "@schedule-x/calendar": "4.9.1",
+    "@schedule-x/react": "4.1.0",
+    "dayjs": "1.11.23",
+    "preact": "10.29.3",
+    "react": "19.2.0",
+    "react-big-calendar": "1.20.0",
+    "react-dom": "19.2.0",
+    "temporal-polyfill": "1.0.5",
+    "temporal-polyfill-sx": "npm:temporal-polyfill@0.3.2"
+  },
+  "measurements": [
+    {
+      "name": "calendara-day",
+      "jsBytes": 220072,
+      "gzipBytes": 69869,
+      "chunks": [
+        {
+          "file": "calendara-day.js",
+          "entry": true,
+          "bytes": 115526,
+          "gzipBytes": 33465,
+          "modules": 45,
+          "localModules": [
+            "src/core/types/recurrence.ts",
+            "src/core/date/dateUtils.ts",
+            "src/core/recurrence/parser.ts",
+            "src/core/date/temporal.ts",
+            "src/core/recurrence/monthDayFilters.ts",
+            "src/core/recurrence/civilIterator.ts",
+            "src/core/recurrence/dateTimeIterator.ts",
+            "src/core/recurrence/ruleStarts.ts",
+            "src/core/recurrence/recurrenceSet.ts",
+            "src/core/date/time.ts",
+            "src/core/constraint/constraintEngine.ts",
+            "src/core/store/store.ts",
+            "src/core/geometry/geometry.ts",
+            "src/core/interaction/model.ts",
+            "src/core/interaction/gestureGeometry.ts",
+            "src/core/interaction/occupancy.ts",
+            "src/core/interaction/interactiveTarget.ts",
+            "src/core/interaction/gestureAutoScroll.ts",
+            "src/core/interaction/interactionEngine.ts",
+            "src/core/render/state.ts",
+            "src/core/render/derive.ts",
+            "src/core/render/resourceConstraints.ts",
+            "src/core/render/resourceDerive.ts",
+            "src/react/app/keyboardGrid.ts",
+            "src/react/printing.ts",
+            "src/react/views/registry/createViewRegistry.ts",
+            "src/react/components/CalendarShell.tsx",
+            "src/react/externalDrag.ts",
+            "src/react/app/calendarApp.ts",
+            "src/react/handle.ts",
+            "src/react/Calendar.tsx",
+            "src/react/views/formatting/timeLabels.ts",
+            "src/react/views/layout/geometryStyles.ts",
+            "src/react/views/hooks/usePageStickyHeaders.ts",
+            "src/react/views/components/DayHeaderContent.tsx",
+            "src/react/views/components/EventOverflow.tsx",
+            "src/react/views/components/SlotCells.tsx",
+            "src/react/views/layout/spanLayout.ts",
+            "src/react/views/components/TimeGrid.tsx",
+            "src/react/views/layout/denseLayout.ts",
+            "src/react/views/layout/occurrenceDays.ts",
+            "src/react/views/models/timeGridModel.ts",
+            "src/react/views/timeGridViews.ts"
+          ]
+        },
+        {
+          "file": "calendara-day-MonthMorePopover-kSyUAUrc.js",
+          "entry": false,
+          "bytes": 46562,
+          "gzipBytes": 16758,
+          "modules": 9,
+          "localModules": [
+            "src/react/views/components/MonthMorePopover.tsx"
+          ]
+        },
+        {
+          "file": "calendara-day-temporal-polyfill-CHRnYSxM.js",
+          "entry": false,
+          "bytes": 56598,
+          "gzipBytes": 19022,
+          "modules": 8,
+          "localModules": []
+        },
+        {
+          "file": "calendara-day-viewLabels-yj1WdcHT.js",
+          "entry": false,
+          "bytes": 1386,
+          "gzipBytes": 624,
+          "modules": 1,
+          "localModules": [
+            "src/react/views/formatting/viewLabels.ts"
+          ]
+        }
+      ],
+      "cssBytes": 0
+    },
+    {
+      "name": "calendara-month-day",
+      "jsBytes": 232597,
+      "gzipBytes": 72856,
+      "chunks": [
+        {
+          "file": "calendara-month-day.js",
+          "entry": true,
+          "bytes": 128045,
+          "gzipBytes": 36447,
+          "modules": 46,
+          "localModules": [
+            "src/core/types/recurrence.ts",
+            "src/core/date/dateUtils.ts",
+            "src/core/recurrence/parser.ts",
+            "src/core/date/temporal.ts",
+            "src/core/recurrence/monthDayFilters.ts",
+            "src/core/recurrence/civilIterator.ts",
+            "src/core/recurrence/dateTimeIterator.ts",
+            "src/core/recurrence/ruleStarts.ts",
+            "src/core/recurrence/recurrenceSet.ts",
+            "src/core/date/time.ts",
+            "src/core/constraint/constraintEngine.ts",
+            "src/core/store/store.ts",
+            "src/core/geometry/geometry.ts",
+            "src/core/interaction/model.ts",
+            "src/core/interaction/gestureGeometry.ts",
+            "src/core/interaction/occupancy.ts",
+            "src/core/interaction/interactiveTarget.ts",
+            "src/core/interaction/gestureAutoScroll.ts",
+            "src/core/interaction/interactionEngine.ts",
+            "src/core/render/state.ts",
+            "src/core/render/derive.ts",
+            "src/core/render/resourceConstraints.ts",
+            "src/core/render/resourceDerive.ts",
+            "src/react/app/keyboardGrid.ts",
+            "src/react/printing.ts",
+            "src/react/views/registry/createViewRegistry.ts",
+            "src/react/components/CalendarShell.tsx",
+            "src/react/externalDrag.ts",
+            "src/react/app/calendarApp.ts",
+            "src/react/handle.ts",
+            "src/react/Calendar.tsx",
+            "src/react/views/formatting/timeLabels.ts",
+            "src/react/views/layout/geometryStyles.ts",
+            "src/react/views/hooks/usePageStickyHeaders.ts",
+            "src/react/views/components/DayHeaderContent.tsx",
+            "src/react/views/components/EventOverflow.tsx",
+            "src/react/views/components/SlotCells.tsx",
+            "src/react/views/layout/spanLayout.ts",
+            "src/react/views/components/TimeGrid.tsx",
+            "src/react/views/layout/denseLayout.ts",
+            "src/react/views/layout/occurrenceDays.ts",
+            "src/react/views/models/timeGridModel.ts",
+            "src/react/views/timeGridViews.ts",
+            "src/react/views/MonthView.tsx"
+          ]
+        },
+        {
+          "file": "calendara-month-day-MonthMorePopover-Dlm1Bq55.js",
+          "entry": false,
+          "bytes": 46568,
+          "gzipBytes": 16763,
+          "modules": 9,
+          "localModules": [
+            "src/react/views/components/MonthMorePopover.tsx"
+          ]
+        },
+        {
+          "file": "calendara-month-day-temporal-polyfill-CHRnYSxM.js",
+          "entry": false,
+          "bytes": 56598,
+          "gzipBytes": 19022,
+          "modules": 8,
+          "localModules": []
+        },
+        {
+          "file": "calendara-month-day-viewLabels-yj1WdcHT.js",
+          "entry": false,
+          "bytes": 1386,
+          "gzipBytes": 624,
+          "modules": 1,
+          "localModules": [
+            "src/react/views/formatting/viewLabels.ts"
+          ]
+        }
+      ],
+      "cssBytes": 0
+    },
+    {
+      "name": "calendara-all-resources-editor",
+      "jsBytes": 271158,
+      "gzipBytes": 82073,
+      "chunks": [
+        {
+          "file": "calendara-all-resources-editor.js",
+          "entry": true,
+          "bytes": 166595,
+          "gzipBytes": 45658,
+          "modules": 53,
+          "localModules": [
+            "src/core/types/recurrence.ts",
+            "src/core/date/dateUtils.ts",
+            "src/core/recurrence/parser.ts",
+            "src/core/date/temporal.ts",
+            "src/core/recurrence/monthDayFilters.ts",
+            "src/core/recurrence/civilIterator.ts",
+            "src/core/recurrence/dateTimeIterator.ts",
+            "src/core/recurrence/ruleStarts.ts",
+            "src/core/recurrence/recurrenceSet.ts",
+            "src/core/date/time.ts",
+            "src/core/constraint/constraintEngine.ts",
+            "src/core/store/store.ts",
+            "src/core/geometry/geometry.ts",
+            "src/core/interaction/model.ts",
+            "src/core/interaction/gestureGeometry.ts",
+            "src/core/interaction/occupancy.ts",
+            "src/core/interaction/interactiveTarget.ts",
+            "src/core/interaction/gestureAutoScroll.ts",
+            "src/core/interaction/interactionEngine.ts",
+            "src/core/render/state.ts",
+            "src/core/render/derive.ts",
+            "src/core/render/resourceConstraints.ts",
+            "src/core/render/resourceDerive.ts",
+            "src/react/app/keyboardGrid.ts",
+            "src/react/printing.ts",
+            "src/react/views/registry/createViewRegistry.ts",
+            "src/react/components/CalendarShell.tsx",
+            "src/react/externalDrag.ts",
+            "src/react/app/calendarApp.ts",
+            "src/react/handle.ts",
+            "src/react/Calendar.tsx",
+            "src/react/editorMessages.ts",
+            "src/react/CalendarEventEditor.tsx",
+            "src/react/views/formatting/timeLabels.ts",
+            "src/react/views/layout/geometryStyles.ts",
+            "src/react/views/hooks/usePageStickyHeaders.ts",
+            "src/react/views/components/DayHeaderContent.tsx",
+            "src/react/views/components/EventOverflow.tsx",
+            "src/react/views/components/SlotCells.tsx",
+            "src/react/views/layout/spanLayout.ts",
+            "src/react/views/components/TimeGrid.tsx",
+            "src/react/views/layout/denseLayout.ts",
+            "src/react/views/layout/occurrenceDays.ts",
+            "src/react/views/models/timeGridModel.ts",
+            "src/react/views/timeGridViews.ts",
+            "src/react/views/MonthView.tsx",
+            "src/react/views/ListView.tsx",
+            "src/react/views/components/ResourcePresentation.tsx",
+            "src/react/views/ResourceDayView.tsx",
+            "src/react/views/TimelineView.tsx",
+            "src/react/views/registry/defaultViews.ts"
+          ]
+        },
+        {
+          "file": "calendara-all-resources-editor-MonthMorePopover-ObgXDZ_4.js",
+          "entry": false,
+          "bytes": 46579,
+          "gzipBytes": 16769,
+          "modules": 9,
+          "localModules": [
+            "src/react/views/components/MonthMorePopover.tsx"
+          ]
+        },
+        {
+          "file": "calendara-all-resources-editor-temporal-polyfill-CHRnYSxM.js",
+          "entry": false,
+          "bytes": 56598,
+          "gzipBytes": 19022,
+          "modules": 8,
+          "localModules": []
+        },
+        {
+          "file": "calendara-all-resources-editor-viewLabels-yj1WdcHT.js",
+          "entry": false,
+          "bytes": 1386,
+          "gzipBytes": 624,
+          "modules": 1,
+          "localModules": [
+            "src/react/views/formatting/viewLabels.ts"
+          ]
+        }
+      ],
+      "cssBytes": 0
+    },
+    {
+      "name": "fullcalendar-month-day",
+      "jsBytes": 256315,
+      "gzipBytes": 70580,
+      "chunks": [
+        {
+          "file": "fullcalendar-month-day.js",
+          "entry": true,
+          "bytes": 256315,
+          "gzipBytes": 70580,
+          "modules": 37,
+          "localModules": []
+        }
+      ],
+      "cssBytes": 0
+    },
+    {
+      "name": "schedule-x-month-day",
+      "jsBytes": 235920,
+      "gzipBytes": 68704,
+      "chunks": [
+        {
+          "file": "schedule-x-month-day.js",
+          "entry": true,
+          "bytes": 235920,
+          "gzipBytes": 68704,
+          "modules": 10,
+          "localModules": []
+        }
+      ],
+      "cssBytes": 0
+    },
+    {
+      "name": "mantine-month-day",
+      "jsBytes": 276794,
+      "gzipBytes": 85076,
+      "chunks": [
+        {
+          "file": "mantine-month-day.js",
+          "entry": true,
+          "bytes": 276794,
+          "gzipBytes": 85076,
+          "modules": 361,
+          "localModules": []
+        }
+      ],
+      "cssBytes": 0
+    },
+    {
+      "name": "react-big-calendar-month-day",
+      "jsBytes": 184318,
+      "gzipBytes": 54871,
+      "chunks": [
+        {
+          "file": "react-big-calendar-month-day.js",
+          "entry": true,
+          "bytes": 184318,
+          "gzipBytes": 54871,
+          "modules": 343,
+          "localModules": []
+        }
+      ],
+      "cssBytes": 0
+    }
+  ]
+}

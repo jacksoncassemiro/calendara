@@ -6,6 +6,10 @@
 - [Cenários de recursos](features.md): fluxos demonstráveis e limites.
 - [Views adicionais e impressão](extended-views.md): períodos por recurso, planejamento anual e PDF pelo navegador.
 - [Guia da API](api.md): views, persistência, formulários, recursos, recorrência e estilo.
+- [Recorrência](recurrence.md): combinações, fusos e limites de trabalho.
+- [ICS](ics.md): importação/exportação e limites de interoperabilidade.
+- [Histórico](history.md): desfazer/refazer do consumidor e persistência assíncrona.
+- [RTL](rtl.md): direção, gestos e cobertura.
 - [Comparação](comparison.md): integração, vantagens e licenças.
 - [Medição de bundles](bundle-comparison.md): tamanhos reproduzíveis e organização do pacote.
 - [Fallback Temporal](temporal-comparison.md): recursos, tamanho e desempenho medidos.

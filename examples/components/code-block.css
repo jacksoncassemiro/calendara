@@ -1,0 +1,67 @@
+.example-code {
+  margin-block: 1rem;
+  border: 1px solid var(--mc-color-border, #648ba9);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--mc-color-bg, #f3f7fa);
+  color: var(--mc-color-fg, #18354d);
+}
+.example-code-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--mc-color-border, #648ba9);
+  font-size: 0.8rem;
+}
+.example-code-toolbar button {
+  margin-left: auto;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+}
+.example-code pre {
+  margin: 0;
+  padding: 1rem;
+  overflow: auto;
+  line-height: 1.65;
+  font-size: 0.825rem;
+  tab-size: 2;
+}
+.example-code .token.comment {
+  color: #536c7d;
+}
+.example-code .token.keyword,
+.example-code .token.tag {
+  color: #7043a2;
+}
+.example-code .token.string,
+.example-code .token.attr-value {
+  color: #226344;
+}
+.example-code .token.number,
+.example-code .token.boolean {
+  color: #96501b;
+}
+:root[data-theme='dark'] .example-code {
+  background: #162534;
+  color: #d8e5f0;
+}
+:root[data-theme='dark'] .example-code .token.comment {
+  color: #a2b8c9;
+}
+:root[data-theme='dark'] .example-code .token.keyword,
+:root[data-theme='dark'] .example-code .token.tag {
+  color: #d3b4ff;
+}
+:root[data-theme='dark'] .example-code .token.string,
+:root[data-theme='dark'] .example-code .token.attr-value {
+  color: #9ae4b4;
+}
+:root[data-theme='dark'] .example-code .token.number,
+:root[data-theme='dark'] .example-code .token.boolean {
+  color: #ffc38b;
+}

@@ -9,7 +9,8 @@ async (page) => {
   try {
     await mobile.goto(new URL('/examples/react.html', page.url()).href);
     await mobile.evaluate(async () => {
-      const { CalendarApp, BUILTIN_VIEWS, ensureTemporal } = await import('/src/index.ts');
+      const { CalendarApp, BUILTIN_VIEWS, createResourceView, createTimelineView, ensureTemporal } =
+        await import('/src/index.ts');
       const host = document.createElement('div');
       document.body.replaceChildren(host);
       window.touchCommits = 0;
@@ -26,15 +27,24 @@ async (page) => {
         );
       const app = new CalendarApp({
         temporal: await ensureTemporal(),
-        views: BUILTIN_VIEWS,
+        views: [
+          ...BUILTIN_VIEWS,
+          createResourceView({
+            name: 'touch-resources',
+            resources: [{ id: 'room', title: 'Room' }],
+          }),
+          createTimelineView([{ id: 'room', title: 'Room' }], 'touch-timeline'),
+        ],
         view: 'day',
         date: '2026-10-07',
         options: { timeZone: 'UTC', startHour: 0, endHour: 24, pxPerMinute: 2 },
+        resources: [{ id: 'room', title: 'Room' }],
         events: [
           {
             id: 'touch-event',
             calendarId: 'c',
             title: 'Touch appointment',
+            resourceIds: ['room'],
             time: {
               allDay: false,
               start: { dateTime: '2026-10-07T09:00:00', timeZone: 'UTC' },
@@ -55,6 +65,7 @@ async (page) => {
         },
       });
       app.mount(host);
+      window.touchApp = app;
       await app.ready();
       new MutationObserver((records) => {
         for (const record of records)
@@ -111,8 +122,42 @@ async (page) => {
     }));
     if (held.commits !== 1 || held.drafts < 1)
       throw new Error('Intentional held touch drag failed: ' + JSON.stringify(held));
+    const scrollViews = [];
+    for (const view of ['week', 'touch-resources', 'touch-timeline']) {
+      await mobile.evaluate((name) => {
+        window.touchApp.changeView(name);
+        window.touchCommits = 0;
+        window.touchDrafts = 0;
+      }, view);
+      await mobile.waitForTimeout(100);
+      const target = mobile.locator('[data-mc-event^="touch-event@"]').first();
+      await target.scrollIntoViewIfNeeded();
+      const bounds = await target.boundingBox();
+      const point = {
+        x: bounds.x + Math.min(bounds.width / 2, 40),
+        y: Math.min(650, bounds.y + Math.min(50, bounds.height / 2)),
+      };
+      await touch({ type: 'touchStart', ...point });
+      for (let step = 1; step <= 6; step++) {
+        await touch({
+          type: 'touchMove',
+          x: view === 'touch-timeline' ? point.x - step * 22 : point.x,
+          y: view === 'touch-timeline' ? point.y : point.y - step * 22,
+        });
+        await mobile.waitForTimeout(30);
+      }
+      await touch({ type: 'touchEnd' });
+      await mobile.waitForTimeout(200);
+      const result = await mobile.evaluate(() => ({
+        commits: window.touchCommits,
+        drafts: window.touchDrafts,
+      }));
+      if (result.commits || result.drafts)
+        throw new Error(`Native ${view} swipe created a draft: ${JSON.stringify(result)}`);
+      scrollViews.push(view);
+    }
     await mobile.screenshot({ path: 'output/layout-review/touch-scroll.png', fullPage: false });
-    return { swipe, held, input: 'Chromium CDP touch; not a physical phone' };
+    return { swipe, held, scrollViews, input: 'Chromium CDP touch; not a physical phone' };
   } finally {
     await context.close();
   }

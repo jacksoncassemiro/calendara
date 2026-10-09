@@ -1,6 +1,6 @@
 # Bundle audit
 
-Production JavaScript contribution, measured on 2026-10-08. This is an engineering experiment, not a rendering benchmark or a feature-parity ranking.
+Production JavaScript contribution. The [0.3.0 measurement](release-0.3-results.json) was recorded on 2026-10-09 after the feature additions; `current-results.json` preserves the earlier pre-feature baseline, and the original `results.json` remains historical. This is an engineering experiment, not a rendering benchmark or a feature-parity ranking.
 
 From the repository root, after `yarn install --frozen-lockfile`:
 

@@ -208,11 +208,16 @@ async (page) => {
         positions,
         position: getComputedStyle(scrollbar).position,
         top: scrollbar.getBoundingClientRect().top,
+        nativeScrollbar: getComputedStyle(scroll).scrollbarWidth,
+        axisAboveNow:
+          Number(getComputedStyle(scroll.querySelector('.mc-time-axis')).zIndex) > 10001,
       };
     });
   if (
     horizontalControls.position !== 'fixed' ||
     horizontalControls.top < 0 ||
+    horizontalControls.nativeScrollbar !== 'none' ||
+    !horizontalControls.axisAboveNow ||
     horizontalControls.positions.some((position) => Math.abs(position.labelDelta) > 1) ||
     horizontalControls.positions.at(-1).scrollLeft < 400
   )

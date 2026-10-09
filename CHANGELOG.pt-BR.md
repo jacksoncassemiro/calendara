@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-09
+
+- Adicionados dicionários parciais agrupados do editor com fallback EN/PT, formatadores de mensagens com parâmetros nomeados, rótulos por Intl e sete frequências com horário; bloqueadas regras intradiárias em dia inteiro.
+
+- Renovada a paleta da documentação/playground com contraste por tema; READMEs bilíngues usam a logo do site e separam a escolha de idioma da navegação.
+
+- Adiciona recursos hierárquicos e virtualização vertical da timeline, preservando capacidade fora da tela, foco/gesto ativos e dados de impressão.
+- Adiciona desfazer/refazer do consumidor com persistência assíncrona e importação/exportação ICS estrita com diagnósticos.
+- Suporta sete frequências de recorrência e filtros BYWEEKNO/de horário; rejeita combinações inválidas, incluindo COUNT com UNTIL (mudança de validação incompatível).
+- Adiciona direção explícita, coordenadas espelhadas e scroll fixo; amplia regressões de touch simulado.
+- Organiza 28 exemplos focados em um catálogo pesquisável, com demonstrações de histórico, ICS, tradução do editor e timeline hierárquica/RTL.
+- Contém títulos no planejamento anual, esclarece preparo versus bloqueio fixo, separa labels de recursos fixos e mantém o indicador de horário abaixo do eixo.
+- Oculta scrollbar horizontal duplicado quando o controle superior sincronizado está ativo.
+- Compartilha exemplos com destaque e cópia de código e amplia a comparação de integração EN/PT.
+
 ## [0.2.0] - 2026-10-09
 
 ### Adicionado
@@ -77,3 +92,4 @@ Primeira release experimental sob licença MIT.
 - Runtime validado: React 19/Edge. Safari/mobile físico e leitores de tela ainda precisam de validação.
 - Sem persistência automática, RFC 5545 completo, exportação ICS, virtualização ou timeline de recursos de vários dias.
 - Pacotes publicados são imutáveis; documentação/playground podem receber deploys separados.
+

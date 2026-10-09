@@ -12,6 +12,11 @@ export { createReactView, type ReactViewConfig } from './createReactView.js';
 export type { CalendarProps, CalendarHandle } from './types.js';
 export { useCompactCalendar } from './useCompactCalendar.js';
 export {
+  useCalendarHistory,
+  type CalendarHistoryOptions,
+  type CalendarHistory,
+} from './hooks/useCalendarHistory.js';
+export {
   useCalendarDraggable,
   beginExternalEventDrag,
   type ExternalEventDropHandler,
@@ -33,3 +38,15 @@ export {
   type EventSourceContext,
   type RangeChange,
 } from './app/calendarApp.js';
+
+export type {
+  CalendarEditorMessages,
+  CalendarEditorMessageOverrides,
+  CalendarEditorValidationContext,
+  CalendarEditorFieldMessages,
+  CalendarEditorActionMessages,
+  CalendarEditorScopeMessages,
+  CalendarEditorRecurrenceMessages,
+  CalendarEditorValidationMessages,
+  CalendarEditorFeedbackMessages,
+} from './editorMessages.js';

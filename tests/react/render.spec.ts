@@ -90,7 +90,9 @@ describe('CalendarApp — render Week/Day (jsdom)', () => {
     expect(e1).toBeTruthy();
     expect(e1.style.top).toBe('180px');
     expect(e1.style.height).toBe('60px');
-    expect(new Set([...evs].map((node) => (node as HTMLElement).style.left)).size).toBe(2);
+    expect(new Set([...evs].map((node) => (node as HTMLElement).style.insetInlineStart)).size).toBe(
+      2,
+    );
     app.destroy();
   });
 

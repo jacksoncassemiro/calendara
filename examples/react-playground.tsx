@@ -397,10 +397,19 @@ function App() {
   );
   const [room1Capacity, setRoom1Capacity] = useState('inherit');
   const [room2Capacity, setRoom2Capacity] = useState('inherit');
+  const [preparationEnabled, setPreparationEnabled] = useState(true);
+  const [preparationBefore, setPreparationBefore] = useState(0);
+  const [preparationAfter, setPreparationAfter] = useState(15);
   const activeResources = resources.map((resource) => {
     const own = resource.id === 'sala-1' ? room1Capacity : room2Capacity;
     return {
       ...resource,
+      ...(resource.id === 'sala-1'
+        ? {
+            bufferBefore: preparationEnabled ? preparationBefore : 0,
+            bufferAfter: preparationEnabled ? preparationAfter : 0,
+          }
+        : {}),
       title: language === 'en' ? resource.title.replace('Sala', 'Room') : resource.title,
       ...(own === 'inherit'
         ? {}
@@ -648,6 +657,42 @@ function App() {
               ))}
             </select>
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={preparationEnabled}
+              onChange={(event) => setPreparationEnabled(event.target.checked)}
+            />{' '}
+            {t('Preparo da Sala 1', 'Room 1 preparation')}
+          </label>
+          <label>
+            {t('Preparo antes (minutos)', 'Preparation before (minutes)')}
+            <input
+              type="number"
+              min="0"
+              step="1"
+              disabled={!preparationEnabled}
+              value={preparationBefore}
+              onChange={(event) => {
+                const minutes = Number(event.target.value);
+                if (Number.isFinite(minutes) && minutes >= 0) setPreparationBefore(minutes);
+              }}
+            />
+          </label>
+          <label>
+            {t('Preparo depois (minutos)', 'Preparation after (minutes)')}
+            <input
+              type="number"
+              min="0"
+              step="1"
+              disabled={!preparationEnabled}
+              value={preparationAfter}
+              onChange={(event) => {
+                const minutes = Number(event.target.value);
+                if (Number.isFinite(minutes) && minutes >= 0) setPreparationAfter(minutes);
+              }}
+            />
+          </label>
           <button type="button" onClick={() => setMounted((value) => !value)}>
             {mounted
               ? t('Desmontar calendário', 'Unmount calendar')
@@ -724,13 +769,13 @@ function App() {
         <p className="demo-availability-legend">
           <span className="demo-buffer-key" aria-hidden="true" />
           {t(
-            'Preparo: 15 minutos após eventos da Sala 1; acompanha o evento.',
-            'Preparation: 15 minutes after Room 1 events; moves with the event.',
+            `Faixa marrom: preparo da Sala 1, ${preparationEnabled ? preparationBefore : 0} minutos antes e ${preparationEnabled ? preparationAfter : 0} depois; acompanha o evento.`,
+            `Brown band: Room 1 preparation, ${preparationEnabled ? preparationBefore : 0} minutes before and ${preparationEnabled ? preparationAfter : 0} after; moves with the event.`,
           )}
           <span className="demo-blocked-key" aria-hidden="true" />
           {t(
-            'Bloqueios fixos permanecem no horário definido.',
-            'Fixed blocks stay at their configured time.',
+            'Faixa cinza: bloqueio fixo de 7 de outubro, das 12h às 13h, visível ao aplicar restrições; não acompanha eventos.',
+            'Gray band: fixed block on October 7, 12:00–13:00, visible with availability restrictions enabled; does not move with events.',
           )}
         </p>
         <p className="demo-feedback" role="status">
@@ -925,8 +970,8 @@ function App() {
                           )
                         : info.reason === 'buffer-conflict'
                           ? t(
-                              'Alteração recusada: conflito com os 15 minutos de preparação da Sala 1.',
-                              'Change rejected: conflict with Room 1’s 15-minute preparation buffer.',
+                              'Alteração recusada: conflito com a preparação configurada da Sala 1.',
+                              'Change rejected: conflict with Room 1’s configured preparation buffer.',
                             )
                           : `${t('Alteração recusada', 'Change rejected')}: ${info.reason}.`,
                 )
@@ -950,8 +995,8 @@ function App() {
                           )
                         : info.reason === 'buffer-conflict'
                           ? t(
-                              'Horário indisponível: conflito com a preparação de 15 minutos da Sala 1.',
-                              'Unavailable time: conflict with Room 1’s 15-minute preparation buffer.',
+                              'Horário indisponível: conflito com a preparação configurada da Sala 1.',
+                              'Unavailable time: conflict with Room 1’s configured preparation buffer.',
                             )
                           : `${t('Horário indisponível', 'Unavailable time')}: ${info.reason}.`,
                 )

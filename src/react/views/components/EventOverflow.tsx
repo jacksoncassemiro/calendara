@@ -55,14 +55,14 @@ export function EventOverflow({
             ? {
                 top: group.left * horizontalHeight,
                 height: `calc(${group.width * horizontalHeight}px - var(--mc-event-gap, 8px))`,
-                left: group.top,
+                insetInlineStart: group.top,
                 width: group.height,
                 zIndex: 1000,
               }
             : {
                 top: group.top,
                 height: Math.max(24, group.height),
-                left: `${group.left * 100}%`,
+                insetInlineStart: `${group.left * 100}%`,
                 width: `calc(${group.width * 100}% - min(var(--mc-event-gap, 8px), ${group.width * 25}%))`,
                 zIndex: 1000,
               }

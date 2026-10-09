@@ -76,8 +76,8 @@ export function* expandRule({
 }: ExpandRuleInput): Generator<PlainDate> {
   const dates = [dtstart, options.windowStart, options.windowEnd].filter(Boolean) as PlainDate[];
   if (dates.some((date) => !/^\d{4}-/.test(date.toString()) || date.calendarId !== 'iso8601')) {
-    if (model.byYearDay?.length)
-      throw new RangeError('BYYEARDAY requires four-digit ISO Gregorian dates');
+    if (model.byYearDay?.length || model.byWeekNo?.length)
+      throw new RangeError('BYYEARDAY/BYWEEKNO requires four-digit ISO Gregorian dates');
     yield* expandTemporalRule({
       temporal,
       model,
@@ -138,6 +138,15 @@ export function* expandTemporalRule({
   options = {},
 }: ExpandTemporalRuleInput): Generator<PlainDate> {
   validateRRuleModel(model);
+  if (
+    ['SECONDLY', 'MINUTELY', 'HOURLY'].includes(model.freq) ||
+    model.byHour?.length ||
+    model.byMinute?.length ||
+    model.bySecond?.length
+  )
+    throw new RangeError('[calendara] regras com horário exigem expansão de evento com horário');
+  if (model.byYearDay?.length || model.byWeekNo?.length)
+    throw new RangeError('BYYEARDAY/BYWEEKNO require the Gregorian civil iterator');
   const maxPeriods = options.maxPeriods ?? 50000;
   if (!Number.isSafeInteger(maxPeriods) || maxPeriods <= 0)
     throw new RangeError('[calendara] maxPeriods inválido');

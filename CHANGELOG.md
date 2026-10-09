@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-09
+
+- Add grouped partial editor dictionaries with EN/PT fallback, named message formatters, Intl date labels and seven timed recurrence frequencies; prevent intraday all-day rules.
+
+- Refreshed documentation/playground brand colors with theme-aware contrast; bilingual READMEs reuse the site logo and separate language selection from navigation.
+
+- Add nested resource rows and bounded vertical timeline virtualization, preserving offscreen capacity, focused/active rows and print data.
+- Add consumer undo/redo with asynchronous persistence and strict ICS import/export with diagnostics.
+- Support seven recurrence frequencies and BYWEEKNO/time filters; reject invalid rule combinations, including COUNT with UNTIL (breaking validation change).
+- Add explicit reading direction, mirrored slot coordinates and sticky scrolling; expand simulated touch regressions.
+- Organize 28 focused examples into a searchable feature directory; add history, ICS, editor translation and hierarchical timeline/RTL demonstrations.
+- Contain annual-planner event titles, clarify preparation versus fixed closures, separate sticky resource labels and keep the current-time indicator below the time axis.
+- Hide duplicate horizontal scrollbar when the synchronized top control is active.
+- Share highlighted, copyable documentation snippets and expand the EN/PT integration comparison.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added
@@ -77,3 +92,4 @@ Initial experimental release under the MIT license.
 - React 19/Edge is the tested runtime; physical Safari/mobile and screen-reader validation remains open.
 - No automatic persistence, full RFC 5545 coverage, ICS export, resource virtualization or multi-day resource timeline.
 - Versioned package assets are immutable; documentation/playground updates can be deployed separately.
+
