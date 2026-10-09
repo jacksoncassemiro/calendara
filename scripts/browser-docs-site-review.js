@@ -161,6 +161,44 @@ async (page) => {
     throw new Error('Feature category filtering failed');
   await page.locator('.site-feature-categories button').first().click();
 
+  for (const theme of ['light', 'dark']) {
+    await page.goto(`${origin}${siteBase}index.html?lang=en&theme=${theme}`);
+    const contrasts = await page.evaluate(() => {
+      const luminance = (color) => {
+        const channels = color
+          .match(/[\d.]+/g)
+          .slice(0, 3)
+          .map(Number)
+          .map((channel) => {
+            const normalized = channel / 255;
+            return normalized <= 0.04045
+              ? normalized / 12.92
+              : ((normalized + 0.055) / 1.055) ** 2.4;
+          });
+        return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+      };
+      const background = getComputedStyle(document.documentElement).backgroundColor;
+      return [
+        '.calendara-site-brand',
+        '.site-introduction h1',
+        '.site-introduction p',
+        '.site-introduction .site-primary',
+      ].map((selector) => {
+        const element = document.querySelector(selector);
+        const style = getComputedStyle(element);
+        const ownBackground = style.backgroundColor;
+        const values = [
+          luminance(style.color),
+          luminance(ownBackground === 'rgba(0, 0, 0, 0)' ? background : ownBackground),
+        ].sort((left, right) => right - left);
+        return { selector, ratio: (values[0] + 0.05) / (values[1] + 0.05) };
+      });
+    });
+    if (contrasts.some(({ ratio }) => ratio < 4.5))
+      throw new Error(`Brand contrast in ${theme}: ${JSON.stringify(contrasts)}`);
+    await page.screenshot({ path: `output/layout-review/brand-${theme}.png` });
+  }
+
   for (const width of [375, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(() => window.scrollTo(0, 0));

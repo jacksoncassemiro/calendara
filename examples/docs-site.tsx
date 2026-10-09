@@ -38,11 +38,11 @@ const content = {
     tryFeature: 'Abrir demonstração',
     bundle: 'Tamanho e organização do pacote',
     bundleNote:
-      'Mês + dia: 142,4 kB gzip no ensaio de produção, excluindo React e CSS e incluindo todos os chunks. FullCalendar: 70,6 kB; Schedule-X: 68,7 kB; Mantine: 85,1 kB; React Big Calendar: 54,9 kB. Os recursos e runtimes não são equivalentes. Mantemos um pacote: separar instalações não elimina o custo compartilhado de recorrência e datas.',
+      'Mês + dia: 72,9 kB gzip no ensaio de produção, excluindo React e CSS e incluindo todos os chunks. FullCalendar: 70,6 kB; Schedule-X: 68,7 kB; Mantine: 85,1 kB; React Big Calendar: 54,9 kB. Os recursos e runtimes não são equivalentes. Mantemos um pacote: separar instalações não elimina o custo compartilhado de recorrência e datas.',
     bundleLink: 'Metodologia, versões e resultados reproduzíveis',
     distribution: 'Distribuição no GitHub',
     distributionNote:
-      'A versão experimental 0.2.0 está publicada com .tgz e checksum. Instale pela URL fixa da release; o site e o pacote têm publicações separadas. GitHub Packages público é gratuito, mas o registro npm do GitHub exige autenticação até para instalar pacotes públicos. Escolhemos assets de GitHub Releases para evitar essa configuração no consumidor.',
+      'A versão experimental 0.2.0 está publicada com .tgz e checksum. Instale pela URL fixa da release; o site e o pacote têm publicações separadas. A instalação pelos assets públicos não exige autenticação no registro npm do GitHub.',
     distributionLink: 'Como preparar e instalar uma release',
     title: 'Uma agenda que se adapta ao seu trabalho.',
     introduction:
@@ -61,7 +61,7 @@ const content = {
     version: '0.2.0 · MIT',
     install: 'Instale uma versão publicada',
     installNote:
-      'Copie a URL do arquivo .tgz de uma GitHub Release publicada. O endereço abaixo mostra o formato previsto da primeira versão; confirme a disponibilidade antes de instalar.',
+      'Copie a URL do arquivo .tgz de uma GitHub Release publicada. Use a URL fixa da versão desejada, como no comando abaixo.',
     peer: 'React e React DOM 18 ou 19 são peers. Use versões compatíveis. Importar o CSS é necessário para o tema padrão; Tailwind não é exigido.',
     release: 'Ver releases',
     render: 'Escolha as views e renderize',
@@ -82,7 +82,7 @@ const content = {
       'Use a demonstração para conferir o comportamento e as notas da versão para decidir a adoção. Ainda não há paridade completa com todas as bibliotecas de agenda.',
     limitsList: [
       'Recorrência de segundos até anos, com filtros e exceções; há limites explícitos de expansão.',
-      'Recursos, editor, impressão, histórico local e intercâmbio ICS são MIT. A virtualização da timeline tem configuração própria; não há RTL completo.',
+      'Recursos, editor, impressão, histórico local e intercâmbio ICS são MIT. A virtualização cobre linhas da timeline. A direção RTL é configurável; componentes próprios devem respeitá-la.',
       'Editor padrão em português e inglês; formulários próprios podem usar outros idiomas.',
       'Testes automatizados usam Edge/Chrome. Safari, toque físico e leitores de tela precisam de validação específica.',
       'Validação cliente não substitui autorização nem reserva transacional no servidor.',
@@ -147,11 +147,11 @@ const content = {
     tryFeature: 'Open demonstration',
     bundle: 'Bundle size and package structure',
     bundleNote:
-      'Month + Day: 142.4 kB gzip in the production fixture, excluding React and CSS and including every chunk. FullCalendar: 70.6 kB; Schedule-X: 68.7 kB; Mantine: 85.1 kB; React Big Calendar: 54.9 kB. Features and runtimes differ. We retain one package: separate installations do not remove shared recurrence and date costs.',
+      'Month + Day: 72.9 kB gzip in the production fixture, excluding React and CSS and including every chunk. FullCalendar: 70.6 kB; Schedule-X: 68.7 kB; Mantine: 85.1 kB; React Big Calendar: 54.9 kB. Features and runtimes differ. We retain one package: separate installations do not remove shared recurrence and date costs.',
     bundleLink: 'Methodology, versions and reproducible results',
     distribution: 'GitHub distribution',
     distributionNote:
-      'Experimental version 0.2.0 is published with a .tgz and checksum. Install using the fixed release URL; the site and package are published separately. Public GitHub Packages are free, but its npm registry requires authentication even when installing public packages. We chose GitHub Release assets to avoid that consumer setup.',
+      'Experimental version 0.2.0 is published with a .tgz and checksum. Install using the fixed release URL; the site and package are published separately. Installing public release assets does not require GitHub npm registry authentication.',
     distributionLink: 'Preparing and installing a release',
     title: 'A schedule that fits the way you work.',
     introduction:
@@ -170,7 +170,7 @@ const content = {
     version: '0.2.0 · MIT',
     install: 'Install a published version',
     installNote:
-      'Copy the .tgz asset URL from a published GitHub Release. The address below shows the planned first-version format; verify availability before installing.',
+      'Copy the .tgz asset URL from a published GitHub Release. Use the fixed URL of the desired version, as in the command below.',
     peer: 'React and React DOM 18 or 19 are peers. Use matching versions. Import CSS for the default theme; Tailwind is not required.',
     release: 'Browse releases',
     render: 'Choose views and render',
@@ -191,7 +191,7 @@ const content = {
       'Use the demo to check behavior and the release notes to decide adoption. Complete parity with every scheduling library is not claimed.',
     limitsList: [
       'Secondly through yearly recurrence, with filters and exceptions; expansion has explicit limits.',
-      'Resource views, editor, printing, local history and ICS interchange are MIT. Timeline virtualization has its own configuration; full RTL is not available.',
+      'Resource views, editor, printing, local history and ICS interchange are MIT. Virtualization covers timeline rows. RTL direction is configurable; custom components must respect it.',
       'The built-in editor supports Portuguese and English; custom forms can use other languages.',
       'Automated tests use Edge/Chrome. Safari, physical touch and screen readers require separate validation.',
       'Client validation does not replace server authorization or transactional reservations.',

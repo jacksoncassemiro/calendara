@@ -5,18 +5,18 @@
   font-synthesis: none;
   line-height: 1.6;
   color-scheme: light;
-  --site-text: #25364a;
+  --site-text: #24373a;
   --site-surface: #fff;
-  --site-soft: #f4f8fb;
-  --site-active: #eaf2fa;
-  --site-grid: #e5ecf2;
+  --site-soft: #f4f7f6;
+  --site-active: #e2f1ed;
+  --site-grid: #e0e8e5;
   --site-event: #e3f0fb;
   --site-collection: #e8f3f0;
   --site-button-text: #fff;
-  --site-blue: #173f65;
-  --site-link: #1a5c91;
-  --site-line: #dce5ed;
-  --site-muted: #52677c;
+  --site-brand: #075b63;
+  --site-link: #09646c;
+  --site-line: #d7e2de;
+  --site-muted: #526867;
 }
 
 * {
@@ -41,7 +41,7 @@ a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 3px solid #1a69a4;
+  outline: 3px solid #087b82;
   outline-offset: 4px;
 }
 button {
@@ -91,7 +91,7 @@ button {
 }
 .site-sidebar a:hover {
   background: var(--site-soft);
-  color: var(--site-blue);
+  color: var(--site-brand);
 }
 .site-sidebar .site-nav-topic {
   padding-left: 1.5rem;
@@ -120,7 +120,7 @@ button {
   line-height: 1.12;
   letter-spacing: -0.05em;
   margin: 0 0 1.25rem;
-  color: var(--site-blue);
+  color: var(--site-brand);
   font-weight: 650;
 }
 .site-introduction p {
@@ -137,14 +137,14 @@ button {
 .site-experimental {
   margin: 0 0 2.5rem;
   padding: 0.9rem 1rem;
-  border-left: 3px solid #7597af;
+  border-left: 3px solid #648d86;
   background: var(--site-soft);
   color: var(--site-muted);
   font-size: 0.875rem;
 }
 .site-primary {
   color: var(--site-button-text);
-  background: var(--site-blue);
+  background: var(--site-brand);
   padding: 0.7rem 1rem;
   border-radius: 5px;
   font-weight: 600;
@@ -155,10 +155,10 @@ button {
 }
 .site-week-preview {
   min-width: 0;
-  border: 1px solid #b5cadb;
+  border: 1px solid #aac9c3;
   border-radius: 8px;
   overflow: hidden;
-  color: var(--site-blue);
+  color: var(--site-brand);
   background: var(--site-surface);
 }
 .site-preview-heading {
@@ -254,7 +254,7 @@ button {
 }
 .site-section h2 {
   margin: 0 0 1rem;
-  color: var(--site-blue);
+  color: var(--site-brand);
   font-size: 1.75rem;
   line-height: 1.2;
   letter-spacing: -0.03em;
@@ -305,7 +305,7 @@ code {
 .site-api-controls select {
   width: 100%;
   min-height: 44px;
-  border: 1px solid #92aabe;
+  border: 1px solid #aac9c3;
   background: var(--site-surface);
   border-radius: 5px;
   padding: 0.55rem 0.65rem;
@@ -430,18 +430,18 @@ code {
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --site-text: #dce8f2;
-  --site-surface: #152230;
-  --site-soft: #1d3042;
-  --site-active: #28415b;
-  --site-grid: #30475c;
+  --site-text: #e1ece8;
+  --site-surface: #172628;
+  --site-soft: #203336;
+  --site-active: #2b4846;
+  --site-grid: #36514f;
   --site-event: #294661;
   --site-collection: #214b45;
-  --site-button-text: #102335;
-  --site-blue: #c1dff7;
-  --site-link: #8fcaff;
-  --site-line: #3b5063;
-  --site-muted: #b0c1d0;
+  --site-button-text: #102b2b;
+  --site-brand: #8ce4cd;
+  --site-link: #8ce4cd;
+  --site-line: #405956;
+  --site-muted: #b4c9c3;
 }
 .site-feature-catalog {
   border-top: 1px solid var(--site-line);
@@ -512,7 +512,7 @@ code {
 .site-feature-description h4 {
   margin: 0;
   font-size: 1.05rem;
-  color: var(--site-blue);
+  color: var(--site-brand);
 }
 .site-feature-description p {
   margin: 0.5rem 0 0;

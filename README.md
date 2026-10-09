@@ -1,10 +1,19 @@
-# Calendara
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/calendara-dark.png">
+    <img src="assets/brand/calendara-light.png" alt="Calendara" width="160">
+  </picture>
+</p>
+
+<p align="center">
+  <strong>English</strong> · <a href="README.pt-BR.md">Português</a>
+</p>
 
 A native React calendar and scheduler with resources, recurring events, configurable views and a customizable theme. One TypeScript package. MIT licensed.
 
 A personal, experimental project developed with assistance from OpenAI Codex. APIs may change before 1.0; test the scenarios your application depends on.
 
-[Português](README.pt-BR.md) · [Getting started](docs/en/getting-started.md) · [API](docs/en/api.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+[Documentation](https://jacksoncassemiro.me/calendara/?lang=en) · [Playground](https://jacksoncassemiro.me/calendara/examples/react.html?lang=en) · [Examples](https://jacksoncassemiro.me/calendara/examples/features.html?lang=en) · [API](docs/en/api.md) · [Changelog](CHANGELOG.md)
 
 ## Install
 
@@ -24,18 +33,29 @@ import { Calendar, dayView, monthView, type CalendarEvent } from '@jacksoncassem
 import '@jacksoncassemiro/calendara/styles.css';
 
 const views = [dayView, monthView];
-const events: CalendarEvent[] = [{
-  id: 'appointment-1', calendarId: 'appointments', title: 'Initial appointment',
-  time: {
-    allDay: false,
-    start: { dateTime: '2026-10-09T09:00:00', timeZone: 'America/Sao_Paulo' },
-    end: { dateTime: '2026-10-09T10:00:00', timeZone: 'America/Sao_Paulo' },
+const events: CalendarEvent[] = [
+  {
+    id: 'appointment-1',
+    calendarId: 'appointments',
+    title: 'Initial appointment',
+    time: {
+      allDay: false,
+      start: { dateTime: '2026-10-09T09:00:00', timeZone: 'America/Sao_Paulo' },
+      end: { dateTime: '2026-10-09T10:00:00', timeZone: 'America/Sao_Paulo' },
+    },
   },
-}];
+];
 
 export function App() {
-  return <Calendar views={views} events={events} initialView="day"
-    initialDate="2026-10-09" options={{ timeZone: 'America/Sao_Paulo' }} />;
+  return (
+    <Calendar
+      views={views}
+      events={events}
+      initialView="day"
+      initialDate="2026-10-09"
+      options={{ timeZone: 'America/Sao_Paulo' }}
+    />
+  );
 }
 ```
 
@@ -43,7 +63,7 @@ export function App() {
 
 ## Included
 
-- Day, week, month, agenda, N-day, resource-day and resource-timeline views; custom React views.
+- Day, week, month, agenda, year, quarter and year planner; resource grids and timelines; custom React views.
 - Drag, resize, multi-day events, external drag callbacks and overlap/overflow display modes.
 - Capacity, buffers, business hours and blocked intervals, including per-resource rules.
 - Secondly through yearly recurrence, exceptions and overrides.
@@ -65,3 +85,7 @@ yarn test:browser
 Use Node 22.12+, 24 or 26+, according to `package.json`, and Yarn 1.22.22. Open the server URL; `examples/react.html` is not a standalone file. Browser review uses Microsoft Edge. [Contribution and release instructions](CONTRIBUTING.md) describe branches, checks and packaging.
 
 The [bilingual documentation](docs/en/README.md) is the current public guide. Root-level `docs/`, `specs/` and `experiments/` files preserve architecture decisions and audit history; they may describe previous states.
+
+## Community and license
+
+Read [how to contribute](CONTRIBUTING.md), [report an issue](https://github.com/jacksoncassemiro/calendara/issues) or consult the [security policy](SECURITY.md). Every included feature is distributed under the [MIT license](LICENSE).

@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- Refreshed documentation/playground brand colors with theme-aware contrast; bilingual READMEs reuse the site logo and separate language selection from navigation.
+
 - Add nested resource rows and bounded vertical timeline virtualization, preserving offscreen capacity, focused/active rows and print data.
 - Add consumer undo/redo with asynchronous persistence and strict ICS import/export with diagnostics.
 - Support seven recurrence frequencies and BYWEEKNO/time filters; reject invalid rule combinations, including COUNT with UNTIL (breaking validation change).

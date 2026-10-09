@@ -28,7 +28,10 @@
 - [x] Simulated Chromium touch: native swipes produce no draft/commit in day/week/resource columns and horizontal timeline; held drag produces a commit.
 - [x] Final local verification: 567 tests in 44 suites, 41 generated contracts, package consumption and complete browser suite (138.35 s). Additional horizontal timeline swipe passed.
 - [x] Inspect annual event containment, searchable feature directory and resource-window/RTL screenshots.
-- [ ] GitHub Linux/Chrome CI after bounding native number controls at 320 px.
+- [x] GitHub Linux/Chrome CI after bounding native number controls at 320 px: run 37959495682 passed (commit de92ff0).
 - [ ] Protected feature/release PRs, tagged archive/checksum, independent consumer installation and Pages deployment.
 
 Horizontal virtualization, projection caching, complete iCalendar/invitation semantics and physical-mobile/Safari/screen-reader certification remain explicit product limits. Storybook migration is outside this change. They must not be described as implemented by the vertical row window or simulated touch checks.
+
+Brand review: documentation and playground share petrol/mint brand tokens with neutral surfaces. EN/PT READMEs reuse exported site logos and separate language navigation. Browser checks verify sampled brand/body/primary-button contrast >= 4.5:1 in both themes, plus bounded 320/375 px layouts; this is not full WCAG certification. Public features guides now list concrete limits and mitigations.
+

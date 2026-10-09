@@ -9,30 +9,30 @@ body {
 }
 :root {
   color-scheme: light;
-  --demo-page: #f3f7fa;
+  --demo-page: #f4f7f6;
   --demo-surface: #ffffff;
-  --demo-text: #25364a;
-  --demo-heading: #173f65;
-  --demo-muted: #52677c;
-  --demo-border: #d5e0e9;
-  --demo-tint: #edf4fa;
+  --demo-text: #24373a;
+  --demo-heading: #075b63;
+  --demo-muted: #526867;
+  --demo-border: #d7e2de;
+  --demo-tint: #e2f1ed;
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --demo-page: #142030;
-  --demo-surface: #1c2b3d;
-  --demo-text: #dce7f2;
-  --demo-heading: #b9d8fa;
-  --demo-muted: #a9bdd2;
-  --demo-border: #3d5269;
+  --demo-page: #172628;
+  --demo-surface: #203336;
+  --demo-text: #e1ece8;
+  --demo-heading: #8ce4cd;
+  --demo-muted: #b4c9c3;
+  --demo-border: #405956;
   --demo-tint: #223b55;
 }
 :root[data-theme='dark'] [data-mc-root] {
-  --mc-color-bg: #1c2b3d;
-  --mc-color-fg: #dce7f2;
-  --mc-color-muted: #a9bdd2;
-  --mc-color-border: #3d5269;
-  --mc-color-business: #1c2b3d;
+  --mc-color-bg: #203336;
+  --mc-color-fg: #e1ece8;
+  --mc-color-muted: #b4c9c3;
+  --mc-color-border: #405956;
+  --mc-color-business: #203336;
   --mc-color-nonbusiness: #182536;
   --mc-color-blocked: repeating-linear-gradient(
     45deg,
@@ -425,7 +425,7 @@ a:focus-visible {
     max-height: 160px;
     gap: 8px;
     padding: 10px;
-    box-shadow: 0 -4px 18px #14203022;
+    box-shadow: 0 -4px 18px #17262822;
   }
   .demo-controls h2 {
     font-size: 0.8rem;

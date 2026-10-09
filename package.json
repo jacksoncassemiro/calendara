@@ -80,6 +80,7 @@
   },
   "files": [
     "LICENSE",
+    "assets/brand",
     "README.pt-BR.md",
     "dist/esm",
     "dist/cjs",

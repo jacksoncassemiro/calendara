@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- Renovada a paleta da documentação/playground com contraste por tema; READMEs bilíngues usam a logo do site e separam a escolha de idioma da navegação.
+
 - Adiciona recursos hierárquicos e virtualização vertical da timeline, preservando capacidade fora da tela, foco/gesto ativos e dados de impressão.
 - Adiciona desfazer/refazer do consumidor com persistência assíncrona e importação/exportação ICS estrita com diagnósticos.
 - Suporta sete frequências de recorrência e filtros BYWEEKNO/de horário; rejeita combinações inválidas, incluindo COUNT com UNTIL (mudança de validação incompatível).
