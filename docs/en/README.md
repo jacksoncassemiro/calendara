@@ -8,6 +8,7 @@
 - [API guide](api.md): views, persistence, forms, resources, recurrence and styling.
 - [Comparison](comparison.md): integration tradeoffs and licensing.
 - [Bundle measurements](bundle-comparison.md): reproducible sizes and packaging tradeoffs.
+- [Temporal fallback](temporal-comparison.md): measured capabilities, size and performance.
 - [Contributing](../../CONTRIBUTING.md): setup, branches, checks and release handoff.
 - [Security](../../SECURITY.md): reporting and consumer responsibilities.
 

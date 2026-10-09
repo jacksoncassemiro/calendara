@@ -6,7 +6,7 @@ import { SiteHeader, type SiteLanguage, type SiteTheme } from './components/Site
 
 const repository = 'https://github.com/jacksoncassemiro/calendara';
 const installCommand =
-  'yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.1.1/calendara-0.1.1.tgz';
+  'yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.2.0/calendara-0.2.0.tgz';
 const firstCalendar = `import { Calendar, dayView, monthView } from '@jacksoncassemiro/calendara';
 import '@jacksoncassemiro/calendara/styles.css';
 
@@ -33,7 +33,7 @@ const content = {
     bundleLink: 'Metodologia, versões e resultados reproduzíveis',
     distribution: 'Distribuição no GitHub',
     distributionNote:
-      'A versão experimental 0.1.1 está publicada com .tgz e checksum. Instale pela URL fixa da release; o site e o pacote têm publicações separadas. GitHub Packages público é gratuito, mas o registro npm do GitHub exige autenticação até para instalar pacotes públicos. Escolhemos assets de GitHub Releases para evitar essa configuração no consumidor.',
+      'A versão experimental 0.2.0 está publicada com .tgz e checksum. Instale pela URL fixa da release; o site e o pacote têm publicações separadas. GitHub Packages público é gratuito, mas o registro npm do GitHub exige autenticação até para instalar pacotes públicos. Escolhemos assets de GitHub Releases para evitar essa configuração no consumidor.',
     distributionLink: 'Como preparar e instalar uma release',
     title: 'Uma agenda que se adapta ao seu trabalho.',
     introduction:
@@ -49,7 +49,7 @@ const content = {
     subtitle: 'Documentação e demonstração',
     skip: 'Ir para o conteúdo',
     language: 'Idioma',
-    version: '0.1.1 · MIT',
+    version: '0.2.0 · MIT',
     install: 'Instale uma versão publicada',
     installNote:
       'Copie a URL do arquivo .tgz de uma GitHub Release publicada. O endereço abaixo mostra o formato previsto da primeira versão; confirme a disponibilidade antes de instalar.',
@@ -135,7 +135,7 @@ const content = {
     bundleLink: 'Methodology, versions and reproducible results',
     distribution: 'GitHub distribution',
     distributionNote:
-      'Experimental version 0.1.1 is published with a .tgz and checksum. Install using the fixed release URL; the site and package are published separately. Public GitHub Packages are free, but its npm registry requires authentication even when installing public packages. We chose GitHub Release assets to avoid that consumer setup.',
+      'Experimental version 0.2.0 is published with a .tgz and checksum. Install using the fixed release URL; the site and package are published separately. Public GitHub Packages are free, but its npm registry requires authentication even when installing public packages. We chose GitHub Release assets to avoid that consumer setup.',
     distributionLink: 'Preparing and installing a release',
     title: 'A schedule that fits the way you work.',
     introduction:
@@ -151,7 +151,7 @@ const content = {
     subtitle: 'Documentation and demo',
     skip: 'Skip to content',
     language: 'Language',
-    version: '0.1.1 · MIT',
+    version: '0.2.0 · MIT',
     install: 'Install a published version',
     installNote:
       'Copy the .tgz asset URL from a published GitHub Release. The address below shows the planned first-version format; verify availability before installing.',

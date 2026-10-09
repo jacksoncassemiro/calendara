@@ -8,10 +8,10 @@ A personal, experimental project developed with assistance from OpenAI Codex. AP
 
 ## Install
 
-Calendara is distributed as a `.tgz` asset attached to a GitHub Release. It is not published to npm. Version [0.1.1](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.1.1) is available. Install its fixed asset URL:
+Calendara is distributed as a `.tgz` asset attached to a GitHub Release. It is not published to npm. Version [0.2.0](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.2.0) is available. Install its fixed asset URL:
 
 ```sh
-yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.1.1/calendara-0.1.1.tgz
+yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.2.0/calendara-0.2.0.tgz
 yarn add react react-dom
 ```
 
@@ -28,14 +28,14 @@ const events: CalendarEvent[] = [{
   id: 'appointment-1', calendarId: 'appointments', title: 'Initial appointment',
   time: {
     allDay: false,
-    start: { dateTime: '2026-10-08T09:00:00', timeZone: 'America/Sao_Paulo' },
-    end: { dateTime: '2026-10-08T10:00:00', timeZone: 'America/Sao_Paulo' },
+    start: { dateTime: '2026-10-09T09:00:00', timeZone: 'America/Sao_Paulo' },
+    end: { dateTime: '2026-10-09T10:00:00', timeZone: 'America/Sao_Paulo' },
   },
 }];
 
 export function App() {
   return <Calendar views={views} events={events} initialView="day"
-    initialDate="2026-10-08" options={{ timeZone: 'America/Sao_Paulo' }} />;
+    initialDate="2026-10-09" options={{ timeZone: 'America/Sao_Paulo' }} />;
 }
 ```
 

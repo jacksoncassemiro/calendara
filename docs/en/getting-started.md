@@ -18,7 +18,7 @@ yarn install
 Open [Calendara Releases](https://github.com/jacksoncassemiro/calendara/releases). Select a published version and copy the `.tgz` asset URL. Do not use the automatically generated source ZIP/tar.gz: those archives are source checkouts, not the compiled package.
 
 ```sh
-yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.1.1/calendara-0.1.1.tgz
+yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.2.0/calendara-0.2.0.tgz
 ```
 
 Use a fixed published release URL. GitHub serves the package, while Yarn still resolves its runtime dependencies from the configured registry. This is not a fully offline installation.
@@ -36,13 +36,13 @@ Import `@jacksoncassemiro/calendara/styles.css` once, before application overrid
 Download the release `.tgz`, keep it in your project, and install its path:
 
 ```sh
-yarn add ./vendor/calendara-0.1.1.tgz
+yarn add ./vendor/calendara-0.2.0.tgz
 ```
 
 Check its SHA-256 against `SHA256SUMS` from the same release. On PowerShell:
 
 ```powershell
-Get-FileHash ./vendor/calendara-0.1.1.tgz -Algorithm SHA256
+Get-FileHash ./vendor/calendara-0.2.0.tgz -Algorithm SHA256
 ```
 
 Pin a specific release URL and commit `yarn.lock`; avoid a mutable `latest` URL. A matching checksum detects a changed download, but does not independently prove publisher identity.

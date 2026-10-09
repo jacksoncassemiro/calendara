@@ -8,6 +8,7 @@
 - [Guia da API](api.md): views, persistência, formulários, recursos, recorrência e estilo.
 - [Comparação](comparison.md): integração, vantagens e licenças.
 - [Medição de bundles](bundle-comparison.md): tamanhos reproduzíveis e organização do pacote.
+- [Fallback Temporal](temporal-comparison.md): recursos, tamanho e desempenho medidos.
 - [Contribuição](../../CONTRIBUTING.pt-BR.md): ambiente, branches, verificações e release.
 - [Segurança](../../SECURITY.pt-BR.md): relato de vulnerabilidades e responsabilidades do consumidor.
 
