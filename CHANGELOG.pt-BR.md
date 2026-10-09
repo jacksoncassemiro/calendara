@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-09
+
 ### Adicionado
 
 - Colunas de recursos em vários dias, timelines agrupadas por recurso em períodos diário/semanal/mensal, painéis de vários meses/ano/trimestre e planejamento anual; views registradas explicitamente.

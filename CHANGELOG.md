@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-09
+
 ### Added
 
 - Configurable resource columns across dates, grouped resource timelines for day/week/month periods, multi-month/year/quarter panels and an annual planner; views are registered explicitly.
