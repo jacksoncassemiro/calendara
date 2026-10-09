@@ -251,6 +251,18 @@ async (page) => {
     'Preparation can be disabled and configured',
   );
   await page.getByText(/Brown band: Room 1 preparation, 0 minutes before and 0 after/).waitFor();
+  check(
+    await page
+      .locator('.demo-tools input[type="number"]')
+      .evaluateAll((inputs) =>
+        inputs.every(
+          (input) =>
+            input.getBoundingClientRect().width <=
+            input.parentElement.getBoundingClientRect().width + 1,
+        ),
+      ),
+    'Number controls remain bounded by their container',
+  );
   if (runtimeErrors.length) throw new Error(runtimeErrors.join('\n'));
   return results;
 };

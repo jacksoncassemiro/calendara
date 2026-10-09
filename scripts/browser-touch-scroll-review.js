@@ -9,7 +9,7 @@ async (page) => {
   try {
     await mobile.goto(new URL('/examples/react.html', page.url()).href);
     await mobile.evaluate(async () => {
-      const { CalendarApp, BUILTIN_VIEWS, createResourceView, ensureTemporal } =
+      const { CalendarApp, BUILTIN_VIEWS, createResourceView, createTimelineView, ensureTemporal } =
         await import('/src/index.ts');
       const host = document.createElement('div');
       document.body.replaceChildren(host);
@@ -33,6 +33,7 @@ async (page) => {
             name: 'touch-resources',
             resources: [{ id: 'room', title: 'Room' }],
           }),
+          createTimelineView([{ id: 'room', title: 'Room' }], 'touch-timeline'),
         ],
         view: 'day',
         date: '2026-10-07',
@@ -122,7 +123,7 @@ async (page) => {
     if (held.commits !== 1 || held.drafts < 1)
       throw new Error('Intentional held touch drag failed: ' + JSON.stringify(held));
     const scrollViews = [];
-    for (const view of ['week', 'touch-resources']) {
+    for (const view of ['week', 'touch-resources', 'touch-timeline']) {
       await mobile.evaluate((name) => {
         window.touchApp.changeView(name);
         window.touchCommits = 0;
@@ -134,11 +135,15 @@ async (page) => {
       const bounds = await target.boundingBox();
       const point = {
         x: bounds.x + Math.min(bounds.width / 2, 40),
-        y: Math.min(650, bounds.y + 50),
+        y: Math.min(650, bounds.y + Math.min(50, bounds.height / 2)),
       };
       await touch({ type: 'touchStart', ...point });
       for (let step = 1; step <= 6; step++) {
-        await touch({ type: 'touchMove', x: point.x, y: point.y - step * 22 });
+        await touch({
+          type: 'touchMove',
+          x: view === 'touch-timeline' ? point.x - step * 22 : point.x,
+          y: view === 'touch-timeline' ? point.y : point.y - step * 22,
+        });
         await mobile.waitForTimeout(30);
       }
       await touch({ type: 'touchEnd' });

@@ -25,8 +25,10 @@
 - [x] Seven recurrence frequencies, time filters and BYWEEKNO; 117 targeted differential/integration cases before full validation.
 - [x] Explicit RTL option, logical geometry, mirrored keyboard navigation and signed sticky scroll; targeted integration and Chromium geometry checks.
 - [x] Shared highlighted/copyable source panel, 27 catalog-driven examples, feature search and category filtering, EN/PT contracts and guides.
-- [x] Simulated Chromium touch: native swipes produce no draft/commit in day/week/resource columns; held drag produces a commit.
-- [ ] Final full verification and browser suite after integration.
+- [x] Simulated Chromium touch: native swipes produce no draft/commit in day/week/resource columns and horizontal timeline; held drag produces a commit.
+- [x] Final local verification: 567 tests in 44 suites, 41 generated contracts, package consumption and complete browser suite (138.35 s). Additional horizontal timeline swipe passed.
+- [x] Inspect annual event containment, searchable feature directory and resource-window/RTL screenshots.
+- [ ] GitHub Linux/Chrome CI after bounding native number controls at 320 px.
 - [ ] Protected feature/release PRs, tagged archive/checksum, independent consumer installation and Pages deployment.
 
 Horizontal virtualization, projection caching, complete iCalendar/invitation semantics and physical-mobile/Safari/screen-reader certification remain explicit product limits. Storybook migration is outside this change. They must not be described as implemented by the vertical row window or simulated touch checks.
