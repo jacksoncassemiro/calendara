@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-09
+
 - Adicionados dicionários parciais agrupados do editor com fallback EN/PT, formatadores de mensagens com parâmetros nomeados, rótulos por Intl e sete frequências com horário; bloqueadas regras intradiárias em dia inteiro.
 
 - Renovada a paleta da documentação/playground com contraste por tema; READMEs bilíngues usam a logo do site e separam a escolha de idioma da navegação.

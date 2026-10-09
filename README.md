@@ -17,10 +17,10 @@ A personal, experimental project developed with assistance from OpenAI Codex. AP
 
 ## Install
 
-Calendara is distributed as a `.tgz` asset attached to a GitHub Release. It is not published to npm. Version [0.2.0](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.2.0) is available. Install its fixed asset URL:
+Calendara is distributed as a `.tgz` asset attached to a GitHub Release. It is not published to npm. Version [0.3.0](https://github.com/jacksoncassemiro/calendara/releases/tag/v0.3.0) is available. Install its fixed asset URL:
 
 ```sh
-yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.2.0/calendara-0.2.0.tgz
+yarn add https://github.com/jacksoncassemiro/calendara/releases/download/v0.3.0/calendara-0.3.0.tgz
 yarn add react react-dom
 ```
 

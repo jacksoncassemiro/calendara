@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-09
+
 - Add grouped partial editor dictionaries with EN/PT fallback, named message formatters, Intl date labels and seven timed recurrence frequencies; prevent intraday all-day rules.
 
 - Refreshed documentation/playground brand colors with theme-aware contrast; bilingual READMEs reuse the site logo and separate language selection from navigation.
