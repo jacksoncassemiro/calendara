@@ -32,7 +32,13 @@ async (page) => {
       temporal: await calendar.ensureTemporal(),
       date: '2026-10-07',
       view: 'month',
-      views: [calendar.monthView, calendar.dayView, calendar.quarterView, calendar.yearView],
+      views: [
+        calendar.monthView,
+        calendar.dayView,
+        calendar.quarterView,
+        calendar.yearView,
+        calendar.yearPlannerView,
+      ],
       events,
       options: { timeZone: 'UTC', locale: 'en-US', monthCompactBreakpoint: false },
       onMonthMoreClick: (info) => {
@@ -134,7 +140,25 @@ async (page) => {
     host.style.width = '1200px';
   });
   for (const view of ['quarter', 'year']) {
-    await page.evaluate((view) => window.adaptiveMonthApp.changeView(view), view);
+    const initialFrames = await page.evaluate(async (view) => {
+      window.adaptiveMonthApp.changeView('year-planner');
+      await new Promise(requestAnimationFrame);
+      window.adaptiveMonthApp.changeView(view);
+      const snapshot = () => ({
+        cards: document.querySelectorAll('#adaptive-month-fixture [data-mc-month-event]').length,
+        heights: [
+          ...document.querySelectorAll('#adaptive-month-fixture [data-mc-month-panel]'),
+        ].map((node) => node.getBoundingClientRect().height),
+      });
+      const frames = [snapshot()];
+      for (let frame = 0; frame < 3; frame++) {
+        await new Promise(requestAnimationFrame);
+        frames.push(snapshot());
+      }
+      return frames;
+    }, view);
+    if (initialFrames.some((frame) => frame.cards !== 0 || Math.max(...frame.heights) > 520))
+      throw new Error(`Unmeasured ${view} first frame: ${JSON.stringify(initialFrames)}`);
     await page.waitForFunction(
       () => document.querySelectorAll('#adaptive-month-fixture [data-mc-month-event]').length === 0,
     );
