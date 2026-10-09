@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { writeFileSync } from 'node:fs';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { RRuleTemporal } from 'rrule-temporal';
 import { expandEvent } from '../dist/esm/core/index.js';
 
@@ -102,7 +102,7 @@ for (const [name, start, rule, exDates, rDates] of cases) {
 const report = {
   checkedAt: new Date().toISOString(),
   node: process.version,
-  productionBackend: 'rrule-temporal 2.2.8 + calendar recurrence-set',
+  productionBackend: 'civil iterator + injected Temporal + calendar recurrence-set',
   cache: false,
   iterations: 25,
   scope:

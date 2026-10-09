@@ -16,6 +16,7 @@
 
 ### Corrigido
 
+- Recorrência usa o iterador civil existente com uma implementação Temporal injetada; o motor anterior permanece apenas como referência de desenvolvimento. O bundle de consumidor Mês + Dia diminui de 146.041 para 70.925 bytes gzip na comparação com versões fixadas.
 - Catálogos duplicados da API e ferramentas de migração pontual retirados; registros de engenharia preservam decisões e cenários neutros.
 - Deslizar por toque faz scroll sem exibir brevemente um gesto; segurar habilita movimentos intencionais.
 - Rótulos de dia inteiro permanecem alinhados ao eixo de horários durante scroll da página e horizontal.

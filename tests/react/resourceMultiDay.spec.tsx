@@ -2,7 +2,7 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, waitFor } from '@testing-library/react';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { Calendar } from '../../src/react/Calendar.js';
 import { createResourceView } from '../../src/react/views/ResourceDayView.js';
 import { createDateUtils, DEFAULT_OPTIONS, type CalendarEvent } from '../../src/core/index.js';
@@ -98,7 +98,11 @@ describe('resource columns across dates', () => {
           ? ['2026-10-07:room', '2026-10-07:person', '2026-10-08:room', '2026-10-08:person']
           : ['2026-10-07:room', '2026-10-08:room', '2026-10-07:person', '2026-10-08:person'],
       );
-      expect(container.querySelectorAll('[data-header-pair]')).toHaveLength(4);
+      expect(
+        container.querySelectorAll(
+          '[data-mc-hscroll] > .mc-resource-header-row [data-header-pair]',
+        ),
+      ).toHaveLength(4);
       expect(container.querySelectorAll('[data-mc-event="long@2026-10-07T17:00:00"]')).toHaveLength(
         2,
       );
@@ -107,7 +111,11 @@ describe('resource columns across dates', () => {
           '[data-mc-event="long@2026-10-07T17:00:00"][data-mc-editable="false"]',
         ),
       ).toHaveLength(2);
-      expect(container.querySelectorAll('[data-mc-event="all-day@2026-10-07"]')).toHaveLength(2);
+      expect(
+        container.querySelectorAll(
+          '[data-mc-hscroll] > .mc-resource-allday-row [data-mc-event="all-day@2026-10-07"]',
+        ),
+      ).toHaveLength(2);
       const blockedRoom = container.querySelector(
         '[data-mc-slot-date="2026-10-08"][data-mc-slot-resource="room"]',
       );

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { BUILTIN_VIEWS } from '../../src/react/views/registry/defaultViews.js';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { CalendarApp, type RangeChange } from '../../src/react/app/calendarApp.js';

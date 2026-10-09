@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { dayView } from '../../src/react/views/timeGridViews.js';
 import { describe, expect, it } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { expandRange, type CalendarEvent, type TemporalLike } from '../../src/core/index.js';
 import { CalendarApp, type CalendarConfig } from '../../src/react/app/calendarApp.js';
 import { createHandle } from '../../src/react/handle.js';

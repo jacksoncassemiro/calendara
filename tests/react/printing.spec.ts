@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { buildCalendarPrintDocument } from '../../src/react/printing.js';
 import type { CalendarEvent, TemporalLike } from '../../src/core/index.js';
 

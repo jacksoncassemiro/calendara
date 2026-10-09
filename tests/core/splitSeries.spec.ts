@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { expandEvent, splitEventSeries, type CalendarEvent } from '../../src/core/index.js';
 import { ALL } from './scenarios.js';
 

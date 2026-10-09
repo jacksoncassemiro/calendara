@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { CalendarEventEditor } from '../../src/react/CalendarEventEditor.js';
 import type { CalendarEvent } from '../../src/core/index.js';
 afterEach(cleanup);

@@ -144,7 +144,7 @@ recurrence: {
 }
 ```
 
-Supported public rule fields: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST and BYYEARDAY for YEARLY. `rDates` adds occurrences; `exDates` excludes them; overrides are keyed by `originalStart`. A date-only exclusion removes a day; a datetime exclusion targets its exact original start. The engine uses `rrule-temporal` 2.2.8 plus Temporal/fallback for event composition; there is no complete removal of Temporal dependencies.
+Supported public rule fields: DAILY/WEEKLY/MONTHLY/YEARLY, INTERVAL, COUNT, UNTIL, BYMONTH, BYMONTHDAY, BYDAY, BYSETPOS, WKST and BYYEARDAY for YEARLY. `rDates` adds occurrences; `exDates` excludes them; overrides are keyed by `originalStart`. A date-only exclusion removes a day; a datetime exclusion targets its exact original start. The civil iterator generates rule dates; injected Temporal handles zones and event composition. Native Temporal takes priority, with a lazy `temporal-polyfill` fallback. Nonexistent recurring local times do not consume COUNT.
 
 `splitEventSeries` supports this-and-following from an active RRULE occurrence. RDATE-only cuts, incompatible filters, timezone changes and all-day/timed conversions are rejected. Persist the two masters atomically and define a validation window for infinite series. Expanding an unbounded rule directly requires a finite window.
 

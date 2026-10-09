@@ -1,4 +1,4 @@
-import type { Temporal as TemporalNS } from '@js-temporal/polyfill';
+import type { Temporal as TemporalNS } from 'temporal-polyfill';
 
 /** Temporal namespace supplied natively or by the polyfill.
  * @remarks Português: Namespace Temporal nativo ou fornecido pelo polyfill.
@@ -21,9 +21,9 @@ export function ensureTemporal(): Promise<TemporalLike> {
     return Promise.resolve(cachedTemporal);
   }
 
-  loadingPromise = import('@js-temporal/polyfill')
+  loadingPromise = import('temporal-polyfill')
     .then((polyfillModule) => {
-      cachedTemporal = polyfillModule.Temporal as unknown as TemporalLike;
+      cachedTemporal = polyfillModule.Temporal;
       return cachedTemporal;
     })
     .catch((error: unknown) => {

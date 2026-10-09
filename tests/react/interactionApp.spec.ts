@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { BUILTIN_VIEWS } from '../../src/react/views/registry/defaultViews.js';
 import { describe, it, expect } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import { InteractionEngine, type InteractionDeps } from '../../src/core/index.js';
 import type {

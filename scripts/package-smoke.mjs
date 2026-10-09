@@ -47,9 +47,19 @@ writeFileSync(
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
-import { ensureTemporal } from '@jacksoncassemiro/calendara/core';
+import { ensureTemporal, expandEvent } from '@jacksoncassemiro/calendara/core';
 import { CalendarApp, Calendar, useCalendar, createReactView, weekView } from '@jacksoncassemiro/calendara';
 const require = createRequire(import.meta.url);
+const manifest = JSON.parse(readFileSync(new URL('./node_modules/@jacksoncassemiro/calendara/package.json', import.meta.url), 'utf8'));
+assert.equal(manifest.dependencies['rrule-temporal'], undefined);
+assert.equal(manifest.dependencies['@js-temporal/polyfill'], undefined);
+assert.equal(manifest.dependencies['temporal-polyfill'], '1.0.5');
+const temporal = await ensureTemporal();
+assert.deepEqual(expandEvent({ temporal, event: {
+  id: 'series', calendarId: 'calendar', title: 'Recurrence',
+  time: { allDay: false, start: { dateTime: '2024-03-09T02:30:00', timeZone: 'America/New_York' }, end: { dateTime: '2024-03-09T03:30:00', timeZone: 'America/New_York' } },
+  recurrence: { rule: 'FREQ=DAILY;COUNT=3' }
+} }).map(item => item.originalStart), ['2024-03-09T02:30:00', '2024-03-11T02:30:00', '2024-03-12T02:30:00']);
 assert.equal(typeof CalendarApp, 'function');
 assert.equal(typeof Calendar, 'function');
 assert.equal(typeof useCalendar, 'function');

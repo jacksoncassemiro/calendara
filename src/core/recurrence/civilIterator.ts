@@ -84,6 +84,10 @@ export interface IterateCivilDatesInput {
    * @remarks Português: Limites de expansão e iteração; ausente usa padrões.
    */
   window?: CivilWindow | undefined;
+  /** Reject invalid local dates before BYSETPOS and COUNT; omitted accepts every civil date.
+   * @remarks Português: Rejeita datas locais inválidas antes de BYSETPOS e COUNT; ausente aceita todas.
+   */
+  acceptDate?: (dateISO: string) => boolean;
 }
 
 /** Iterate Gregorian RRULE dates; timezone and occurrence exceptions are applied separately.
@@ -94,6 +98,7 @@ export function* iterateCivilDates({
   model,
   startDateISO,
   window = {},
+  acceptDate,
 }: IterateCivilDatesInput): Generator<string> {
   validateRRuleModel(model);
   const start = parseCivilDayNumber(startDateISO),
@@ -169,6 +174,7 @@ export function* iterateCivilDates({
   if (
     model.count !== undefined &&
     model.freq === 'DAILY' &&
+    !acceptDate &&
     windowStartDay > periodStartDay &&
     !byDay.length &&
     !months.length &&
@@ -247,6 +253,11 @@ export function* iterateCivilDates({
         !byDay.length &&
         model.freq === 'WEEKLY' &&
         candidateFields.weekday !== seriesStartFields.weekday
+      )
+        continue;
+      if (
+        acceptDate &&
+        !acceptDate(new Date(day * MILLISECONDS_PER_DAY).toISOString().slice(0, 10))
       )
         continue;
       candidates.push(day);

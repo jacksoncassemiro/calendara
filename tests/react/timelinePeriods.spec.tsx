@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { flushSync } from 'react-dom';
 import { CalendarApp } from '../../src/react/app/calendarApp.js';
 import {

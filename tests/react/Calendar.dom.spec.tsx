@@ -5,7 +5,7 @@ import { BUILTIN_VIEWS } from '../../src/react/views/registry/defaultViews.js';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, waitFor, act, cleanup } from '@testing-library/react';
 import { useRef, useEffect, useState, StrictMode, createContext, useContext } from 'react';
-import { Temporal } from '@js-temporal/polyfill';
+import { Temporal } from 'temporal-polyfill';
 import { Calendar } from '../../src/react/Calendar.js';
 import { useCalendar } from '../../src/react/useCalendar.js';
 import { createReactView } from '../../src/react/createReactView.js';
