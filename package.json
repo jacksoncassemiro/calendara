@@ -41,7 +41,7 @@
     "rrule-temporal": "2.2.8",
     "typescript": "5.5.4",
     "vite": "8.3.3",
-    "vitest": "5.0.3"
+    "vitest": "5.0.5"
   },
   "license": "MIT",
   "author": "Jackson Cassemiro",
